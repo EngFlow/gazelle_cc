@@ -5,8 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/EngFlow/gazelle_cpp/language/cpp/parser"
-
+	"github.com/EngFlow/gazelle_cpp/language/internal/cpp/parser"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
