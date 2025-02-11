@@ -1,9 +1,0 @@
-load("@gazelle//:def.bzl", "DEFAULT_LANGUAGES", "gazelle_binary")
-
-gazelle_binary(
-    name = "gazelle_cpp",
-    languages = [
-        "//language/cpp",  # External languages can be added here.
-    ],
-    visibility = ["//visibility:public"],
-)

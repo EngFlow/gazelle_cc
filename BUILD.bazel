@@ -1,4 +1,13 @@
-load("@gazelle//:def.bzl", "gazelle")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+
+gazelle_binary(
+    name = "gazelle_cpp",
+    languages = [
+        "//language/cpp",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 load("@io_bazel_rules_go//go:def.bzl", "go_path")
 
 gazelle(name = "gazelle")
