@@ -1,4 +1,4 @@
-package cpplang
+package cpp
 
 import (
 	"path"

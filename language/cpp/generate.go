@@ -1,6 +1,7 @@
-package cpplang
+package cpp
 
 import (
+	"log"
 	"path"
 	"path/filepath"
 	"strings"
@@ -12,15 +13,6 @@ import (
 
 func (c *cppLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	return c.genPackageByDirectory(args)
-}
-
-func containsString(elements []string, value string) bool {
-	for _, elem := range elements {
-		if value == elem {
-			return true
-		}
-	}
-	return false
 }
 
 func extractImports(args language.GenerateArgs, files []string, sourceInfos map[string]parser.SourceInfo) cppImports {
@@ -51,19 +43,21 @@ func (c *cppLanguage) genPackageByDirectory(args language.GenerateArgs) language
 			continue
 		}
 		filePath := filepath.Join(args.Dir, file)
-		if sourceInfo, err := parser.ParseSourceFile(filePath); err == nil {
-			sourceInfos[file] = sourceInfo
-			if hasMatchingExtension(file, headerExtensions) {
-				hdrs = append(hdrs, file)
-			} else {
-				if strings.Contains(file, "_test.") {
-					testSrcs = append(testSrcs, file)
-				} else if sourceInfo.HasMain {
-					mainSrcs = append(mainSrcs, file)
-				} else {
-					srcs = append(srcs, file)
-				}
-			}
+		sourceInfo, err := parser.ParseSourceFile(filePath)
+		if err != nil {
+			log.Printf("Failed to parse source %v, reason: %v", filePath, filePath)
+			continue
+		}
+		sourceInfos[file] = sourceInfo
+		switch {
+		case hasMatchingExtension(file, headerExtensions):
+			hdrs = append(hdrs, file)
+		case strings.Contains(file, "_test."):
+			testSrcs = append(testSrcs, file)
+		case sourceInfo.HasMain:
+			mainSrcs = append(mainSrcs, file)
+		default:
+			srcs = append(srcs, file)
 		}
 	}
 
@@ -74,7 +68,9 @@ func (c *cppLanguage) genPackageByDirectory(args language.GenerateArgs) language
 		if len(srcs) > 0 {
 			rule.SetAttr("srcs", srcs)
 		}
-		rule.SetAttr("hdrs", hdrs)
+		if len(hdrs) > 0 {
+			rule.SetAttr("hdrs", hdrs)
+		}
 		if args.File == nil || !args.File.HasDefaultVisibility() {
 			rule.SetAttr("visibility", []string{"//visibility:public"})
 		}

@@ -7,7 +7,7 @@ load("@bazel_skylib//lib:sets.bzl", "sets")
 # repository.
 # gazelle:exclude **
 
-# This test Gazelle binary only has the "test_filegroup" plugin installed.
+# This test Gazelle binary only has the "//language/cpp" plugin installed.
 gazelle_binary(
     name = "gazelle_cpp",
     languages = [

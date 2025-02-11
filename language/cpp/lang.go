@@ -1,4 +1,4 @@
-package cpplang
+package cpp
 
 import (
 	"path/filepath"
@@ -11,9 +11,7 @@ import (
 
 const languageName = "c++"
 
-type cppLanguage struct {
-	language.Language
-}
+type cppLanguage struct{}
 
 type cppInclude struct {
 	// Include path extracted from brackets or double quotes
