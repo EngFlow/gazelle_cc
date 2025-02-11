@@ -8,7 +8,7 @@ gazelle_binary(
     visibility = ["//visibility:public"],
 )
 
-load("@io_bazel_rules_go//go:def.bzl", "go_path")
+load("@rules_go//go:def.bzl", "go_path")
 
 gazelle(name = "gazelle")
 # gazelle:prefix github.com/EngFlow/gazelle_cpp
