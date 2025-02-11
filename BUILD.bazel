@@ -1,0 +1,13 @@
+load("@gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_path")
+
+gazelle(name = "gazelle")
+# gazelle:prefix github.com/EngFlow/gazelle_cpp
+
+go_path(
+    name = "gopath",
+    mode = "link",
+    deps = [
+        "//language/cpp",
+    ],
+)

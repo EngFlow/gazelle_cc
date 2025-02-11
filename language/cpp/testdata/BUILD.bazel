@@ -1,0 +1,36 @@
+load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("@bazel_skylib//lib:paths.bzl", "paths")
+load("@bazel_skylib//lib:sets.bzl", "sets")
+
+# Exclude this entire directly from having anything gnerated by Gazelle. That
+# way the test cases won't be fixed by `bazel run //:gazelle` when run in this
+# repository.
+# gazelle:exclude **
+
+# This test Gazelle binary only has the "test_filegroup" plugin installed.
+gazelle_binary(
+    name = "gazelle_cpp",
+    languages = [
+        "//language/cpp"
+    ],
+    visibility = ["//visibility:private"],
+)
+
+[gazelle_generation_test(
+    # Name the test the path to the directory containing the WORKSPACE file.
+    name = test_dir,
+    gazelle_binary = ":gazelle_cpp",
+    local = False,
+    test_data = glob(
+        include = [test_dir + "/**"],
+    ),
+) for test_dir in sets.to_list(sets.make([
+        paths.dirname(p)
+        # Note that glob matches "this package's directories and non-subpackage
+        # subdirectories," so any directory with a BUILD or BUILD.bazel file
+        # will not match, but those with BUILD.in and BUILD.out will.
+        for p in glob([
+            # "**/WORKSPACE",
+            "**/MODULE.bazel",
+        ])
+    ]))]

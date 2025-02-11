@@ -1,0 +1,28 @@
+cc_library(
+    name = "a",
+    srcs = [
+        "a.c",
+        "d.c",
+    ],
+    hdrs = [
+        "a.h",
+        "d.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//a/b",
+        "//a/c",
+    ],
+)
+
+cc_test(
+    name = "a_test",
+    srcs = ["a_test.c"],
+    deps = ["//a"],
+)
+
+cc_test(
+    name = "d_test",
+    srcs = ["d_test.c"],
+    deps = ["//a"],
+)

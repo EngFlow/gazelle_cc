@@ -1,0 +1,7 @@
+bazel-bin
+bazel-gazelle_cpp
+bazel-out
+bazel-testlogs
+**/*.bazel.lock
+.vscode
+sandbox/*

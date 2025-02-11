@@ -1,0 +1,12 @@
+cc_library(
+    name = "b",
+    srcs = ["lib.c"],
+    hdrs = ["lib.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "app",
+    srcs = ["app.cpp"],
+    deps = ["//a/b"],
+)

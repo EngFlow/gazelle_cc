@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "cpp",
+    srcs = [
+        "config.go",
+        "generate.go",
+        "lang.go",
+        "resolve.go",
+    ],
+    importpath = "github.com/EngFlow/gazelle_cpp/language/cpp",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//language/cpp/parser",
+        "@gazelle//config",
+        "@gazelle//label",
+        "@gazelle//language",
+        "@gazelle//repo",
+        "@gazelle//resolve",
+        "@gazelle//rule",
+    ],
+)
