@@ -2,8 +2,10 @@ package cpp
 
 import (
 	"log"
+	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cpp/language/internal/cpp/parser"
@@ -95,5 +97,50 @@ func (c *cppLanguage) genPackageByDirectory(args language.GenerateArgs) language
 		result.Imports = append(result.Imports, extractImports(args, testSrcs, sourceInfos))
 	}
 
+	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
+	// However we need to inspect for existing rules that are no longer matching any files
+	result.Empty = append(result.Empty, c.findEmptyRules(args.File, result.Gen)...)
+
 	return result
+}
+
+func (c *cppLanguage) findEmptyRules(file *rule.File, generatedRules []*rule.Rule) []*rule.Rule {
+	if file == nil {
+		return nil
+	}
+
+	emptyRules := []*rule.Rule{}
+	for _, r := range file.Rules {
+		// Nothing to check if rule with that name was just generated
+		if slices.ContainsFunc(generatedRules, func(elem *rule.Rule) bool {
+			return elem.Name() == r.Name()
+		}) {
+			continue
+		}
+
+		srcs := []string{}
+		switch r.Kind() {
+		case "cc_library":
+			srcs = r.AttrStrings("srcs")
+			srcs = append(srcs, r.AttrStrings("hdrs")...)
+		case "cc_binary", "cc_test":
+			srcs = r.AttrStrings("srcs")
+		default:
+			continue
+		}
+
+		srcsExist := slices.ContainsFunc(srcs, func(src string) bool {
+			path := filepath.Join(file.Path, src)
+			_, err := os.Stat(path)
+			return err == nil // file exists and can be accessed
+		})
+
+		if srcsExist {
+			continue
+		}
+		// Create a copy of the rule, using the original one might prevent it from deletion
+		emptyRules = append(emptyRules, rule.NewRule(r.Kind(), r.Name()))
+	}
+
+	return emptyRules
 }
