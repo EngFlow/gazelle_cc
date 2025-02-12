@@ -88,11 +88,11 @@ func (c *cppLanguage) genPackageByDirectory(args language.GenerateArgs) language
 		result.Imports = append(result.Imports, extractImports(args, []string{mainSrc}, sourceInfos))
 	}
 
-	for _, testSrc := range testSrcs {
-		// The rule is named the same as the test file
-		ruleName := strings.TrimSuffix(testSrc, filepath.Ext(testSrc))
+	if len(testSrcs) > 0 {
+		// TODO: group tests by framework (unlikely but possible)
+		ruleName := baseName + "_test"
 		rule := rule.NewRule("cc_test", ruleName)
-		rule.SetAttr("srcs", []string{testSrc})
+		rule.SetAttr("srcs", testSrcs)
 		result.Gen = append(result.Gen, rule)
 		result.Imports = append(result.Imports, extractImports(args, testSrcs, sourceInfos))
 	}

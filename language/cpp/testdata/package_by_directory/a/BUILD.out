@@ -17,12 +17,9 @@ cc_library(
 
 cc_test(
     name = "a_test",
-    srcs = ["a_test.c"],
-    deps = ["//a"],
-)
-
-cc_test(
-    name = "d_test",
-    srcs = ["d_test.c"],
+    srcs = [
+        "a_test.c",
+        "d_test.c",
+    ],
     deps = ["//a"],
 )

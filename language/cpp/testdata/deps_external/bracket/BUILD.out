@@ -1,0 +1,8 @@
+# Based on https://google.github.io/googletest/quickstart-bazel.html
+# gazelle:resolve c++ gtest/gtest.h @googletest//:gtest_main
+
+cc_test(
+    name = "bracket_test",
+    srcs = ["my_test.cc"],
+    deps = ["@googletest//:gtest_main"],
+)

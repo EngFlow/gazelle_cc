@@ -5,14 +5,14 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
-cc_test(
-    name = "a_test",
-    srcs = ["a_test.c"],
-    deps = ["//less_srcs"],
-)
-
 cc_binary(
     name = "a_main",
     srcs = ["a_main.cc"],
+    deps = ["//less_srcs"],
+)
+
+cc_test(
+    name = "less_srcs_test",
+    srcs = ["a_test.c"],
     deps = ["//less_srcs"],
 )
