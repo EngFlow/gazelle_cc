@@ -47,7 +47,7 @@ func (c *cppLanguage) genPackageByDirectory(args language.GenerateArgs) language
 		filePath := filepath.Join(args.Dir, file)
 		sourceInfo, err := parser.ParseSourceFile(filePath)
 		if err != nil {
-			log.Printf("Failed to parse source %v, reason: %v", filePath, filePath)
+			log.Printf("Failed to parse source %v, reason: %v", filePath, err)
 			continue
 		}
 		sourceInfos[file] = sourceInfo
