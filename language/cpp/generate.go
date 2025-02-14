@@ -13,7 +13,17 @@ import (
 )
 
 func (c *cppLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
-	return c.genPackageByDirectory(args)
+	srcInfo := collectSourceInfos(args)
+	var result = language.GenerateResult{}
+	c.generateLibraryRule(args, srcInfo, &result)
+	c.generateBinaryRules(args, srcInfo, &result)
+	c.generateTestRule(args, srcInfo, &result)
+
+	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
+	// However we need to inspect for existing rules that are no longer matching any files
+	result.Empty = c.findEmptyRules(args.File, srcInfo, result.Gen)
+
+	return result
 }
 
 func extractImports(args language.GenerateArgs, files []string, sourceInfos map[string]parser.SourceInfo) cppImports {
@@ -30,25 +40,27 @@ func extractImports(args language.GenerateArgs, files []string, sourceInfos map[
 	return cppImports{includes: includes}
 }
 
-func (c *cppLanguage) genPackageByDirectory(args language.GenerateArgs) language.GenerateResult {
-	srcInfo := collectSourceInfos(args)
-	var result = language.GenerateResult{}
-	baseName := filepath.Base(args.Dir)
-	if len(srcInfo.srcs) > 0 || len(srcInfo.hdrs) > 0 {
-		rule := rule.NewRule("cc_library", baseName)
-		if len(srcInfo.srcs) > 0 {
-			rule.SetAttr("srcs", srcInfo.srcs)
-		}
-		if len(srcInfo.hdrs) > 0 {
-			rule.SetAttr("hdrs", srcInfo.hdrs)
-		}
-		if args.File == nil || !args.File.HasDefaultVisibility() {
-			rule.SetAttr("visibility", []string{"//visibility:public"})
-		}
-		result.Gen = append(result.Gen, rule)
-		result.Imports = append(result.Imports, extractImports(args, slices.Concat(srcInfo.srcs, srcInfo.hdrs), srcInfo.sourceInfos))
+func (c *cppLanguage) generateLibraryRule(args language.GenerateArgs, srcInfo ccSourceInfoSet, result *language.GenerateResult) {
+	allSrcs := slices.Concat(srcInfo.srcs, srcInfo.hdrs)
+	if len(allSrcs) == 0 {
+		return
 	}
+	baseName := filepath.Base(args.Dir)
+	rule := rule.NewRule("cc_library", baseName)
+	if len(srcInfo.srcs) > 0 {
+		rule.SetAttr("srcs", srcInfo.srcs)
+	}
+	if len(srcInfo.hdrs) > 0 {
+		rule.SetAttr("hdrs", srcInfo.hdrs)
+	}
+	if args.File == nil || !args.File.HasDefaultVisibility() {
+		rule.SetAttr("visibility", []string{"//visibility:public"})
+	}
+	result.Gen = append(result.Gen, rule)
+	result.Imports = append(result.Imports, extractImports(args, allSrcs, srcInfo.sourceInfos))
+}
 
+func (c *cppLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, result *language.GenerateResult) {
 	for _, mainSrc := range srcInfo.mainSrcs {
 		ruleName := strings.TrimSuffix(mainSrc, filepath.Ext(mainSrc))
 		rule := rule.NewRule("cc_binary", ruleName)
@@ -56,21 +68,19 @@ func (c *cppLanguage) genPackageByDirectory(args language.GenerateArgs) language
 		result.Gen = append(result.Gen, rule)
 		result.Imports = append(result.Imports, extractImports(args, []string{mainSrc}, srcInfo.sourceInfos))
 	}
+}
 
-	if len(srcInfo.testSrcs) > 0 {
-		// TODO: group tests by framework (unlikely but possible)
-		ruleName := baseName + "_test"
-		rule := rule.NewRule("cc_test", ruleName)
-		rule.SetAttr("srcs", srcInfo.testSrcs)
-		result.Gen = append(result.Gen, rule)
-		result.Imports = append(result.Imports, extractImports(args, srcInfo.testSrcs, srcInfo.sourceInfos))
+func (c *cppLanguage) generateTestRule(args language.GenerateArgs, srcInfo ccSourceInfoSet, result *language.GenerateResult) {
+	if len(srcInfo.testSrcs) == 0 {
+		return
 	}
-
-	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
-	// However we need to inspect for existing rules that are no longer matching any files
-	result.Empty = append(result.Empty, c.findEmptyRules(args.File, srcInfo, result.Gen)...)
-
-	return result
+	// TODO: group tests by framework (unlikely but possible)
+	baseName := filepath.Base(args.Dir)
+	ruleName := baseName + "_test"
+	rule := rule.NewRule("cc_test", ruleName)
+	rule.SetAttr("srcs", srcInfo.testSrcs)
+	result.Gen = append(result.Gen, rule)
+	result.Imports = append(result.Imports, extractImports(args, srcInfo.testSrcs, srcInfo.sourceInfos))
 }
 
 type ccSourceInfoSet struct {
