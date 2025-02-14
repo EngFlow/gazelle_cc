@@ -2,7 +2,6 @@ package cpp
 
 import (
 	"log"
-	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -32,16 +31,82 @@ func extractImports(args language.GenerateArgs, files []string, sourceInfos map[
 }
 
 func (c *cppLanguage) genPackageByDirectory(args language.GenerateArgs) language.GenerateResult {
-	sourceInfos := map[string]parser.SourceInfo{}
-	hdrs := []string{}
-	srcs := []string{}
-	testSrcs := []string{}
-	mainSrcs := []string{}
-	unmatchedFiles := []string{}
+	srcInfo := collectSourceInfos(args)
+	var result = language.GenerateResult{}
+	baseName := filepath.Base(args.Dir)
+	if len(srcInfo.srcs) > 0 || len(srcInfo.hdrs) > 0 {
+		rule := rule.NewRule("cc_library", baseName)
+		if len(srcInfo.srcs) > 0 {
+			rule.SetAttr("srcs", srcInfo.srcs)
+		}
+		if len(srcInfo.hdrs) > 0 {
+			rule.SetAttr("hdrs", srcInfo.hdrs)
+		}
+		if args.File == nil || !args.File.HasDefaultVisibility() {
+			rule.SetAttr("visibility", []string{"//visibility:public"})
+		}
+		result.Gen = append(result.Gen, rule)
+		result.Imports = append(result.Imports, extractImports(args, slices.Concat(srcInfo.srcs, srcInfo.hdrs), srcInfo.sourceInfos))
+	}
+
+	for _, mainSrc := range srcInfo.mainSrcs {
+		ruleName := strings.TrimSuffix(mainSrc, filepath.Ext(mainSrc))
+		rule := rule.NewRule("cc_binary", ruleName)
+		rule.SetAttr("srcs", []string{mainSrc})
+		result.Gen = append(result.Gen, rule)
+		result.Imports = append(result.Imports, extractImports(args, []string{mainSrc}, srcInfo.sourceInfos))
+	}
+
+	if len(srcInfo.testSrcs) > 0 {
+		// TODO: group tests by framework (unlikely but possible)
+		ruleName := baseName + "_test"
+		rule := rule.NewRule("cc_test", ruleName)
+		rule.SetAttr("srcs", srcInfo.testSrcs)
+		result.Gen = append(result.Gen, rule)
+		result.Imports = append(result.Imports, extractImports(args, srcInfo.testSrcs, srcInfo.sourceInfos))
+	}
+
+	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
+	// However we need to inspect for existing rules that are no longer matching any files
+	result.Empty = append(result.Empty, c.findEmptyRules(args.File, srcInfo, result.Gen)...)
+
+	return result
+}
+
+type ccSourceInfoSet struct {
+	// Sources of regular (library) files
+	srcs []string
+	// Headers
+	hdrs []string
+	// Sources containing main methods
+	mainSrcs []string
+	// Sources containing tests or defined in tests context
+	testSrcs []string
+	// Files that are unrecognised as CC sources
+	unmatched []string
+	// Map contaning informations extracted from recognized CC source
+	sourceInfos map[string]parser.SourceInfo
+}
+
+func (s *ccSourceInfoSet) buildableSources() []string {
+	return slices.Concat(s.srcs, s.hdrs, s.mainSrcs, s.testSrcs)
+}
+func (s *ccSourceInfoSet) containsBuildableSource(src string) bool {
+	return slices.Contains(s.srcs, src) ||
+		slices.Contains(s.hdrs, src) ||
+		slices.Contains(s.mainSrcs, src) ||
+		slices.Contains(s.testSrcs, src)
+}
+
+// Collects and groups files that can be used to generate CC rules based on it's local context
+// Parses all matched CC source files to extract additional context
+func collectSourceInfos(args language.GenerateArgs) ccSourceInfoSet {
+	res := ccSourceInfoSet{}
+	res.sourceInfos = map[string]parser.SourceInfo{}
 
 	for _, file := range args.RegularFiles {
 		if !hasMatchingExtension(file, cExtensions) {
-			unmatchedFiles = append(unmatchedFiles, file)
+			res.unmatched = append(res.unmatched, file)
 			continue
 		}
 		filePath := filepath.Join(args.Dir, file)
@@ -50,61 +115,22 @@ func (c *cppLanguage) genPackageByDirectory(args language.GenerateArgs) language
 			log.Printf("Failed to parse source %v, reason: %v", filePath, err)
 			continue
 		}
-		sourceInfos[file] = sourceInfo
+		res.sourceInfos[file] = sourceInfo
 		switch {
 		case hasMatchingExtension(file, headerExtensions):
-			hdrs = append(hdrs, file)
+			res.hdrs = append(res.hdrs, file)
 		case strings.Contains(file, "_test."):
-			testSrcs = append(testSrcs, file)
+			res.testSrcs = append(res.testSrcs, file)
 		case sourceInfo.HasMain:
-			mainSrcs = append(mainSrcs, file)
+			res.mainSrcs = append(res.mainSrcs, file)
 		default:
-			srcs = append(srcs, file)
+			res.srcs = append(res.srcs, file)
 		}
 	}
-
-	var result = language.GenerateResult{}
-	baseName := filepath.Base(args.Dir)
-	if len(srcs) > 0 || len(hdrs) > 0 {
-		rule := rule.NewRule("cc_library", baseName)
-		if len(srcs) > 0 {
-			rule.SetAttr("srcs", srcs)
-		}
-		if len(hdrs) > 0 {
-			rule.SetAttr("hdrs", hdrs)
-		}
-		if args.File == nil || !args.File.HasDefaultVisibility() {
-			rule.SetAttr("visibility", []string{"//visibility:public"})
-		}
-		result.Gen = append(result.Gen, rule)
-		result.Imports = append(result.Imports, extractImports(args, append(srcs, hdrs...), sourceInfos))
-	}
-
-	for _, mainSrc := range mainSrcs {
-		ruleName := strings.TrimSuffix(mainSrc, filepath.Ext(mainSrc))
-		rule := rule.NewRule("cc_binary", ruleName)
-		rule.SetAttr("srcs", []string{mainSrc})
-		result.Gen = append(result.Gen, rule)
-		result.Imports = append(result.Imports, extractImports(args, []string{mainSrc}, sourceInfos))
-	}
-
-	if len(testSrcs) > 0 {
-		// TODO: group tests by framework (unlikely but possible)
-		ruleName := baseName + "_test"
-		rule := rule.NewRule("cc_test", ruleName)
-		rule.SetAttr("srcs", testSrcs)
-		result.Gen = append(result.Gen, rule)
-		result.Imports = append(result.Imports, extractImports(args, testSrcs, sourceInfos))
-	}
-
-	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
-	// However we need to inspect for existing rules that are no longer matching any files
-	result.Empty = append(result.Empty, c.findEmptyRules(args.File, result.Gen)...)
-
-	return result
+	return res
 }
 
-func (c *cppLanguage) findEmptyRules(file *rule.File, generatedRules []*rule.Rule) []*rule.Rule {
+func (c *cppLanguage) findEmptyRules(file *rule.File, srcInfo ccSourceInfoSet, generatedRules []*rule.Rule) []*rule.Rule {
 	if file == nil {
 		return nil
 	}
@@ -129,10 +155,9 @@ func (c *cppLanguage) findEmptyRules(file *rule.File, generatedRules []*rule.Rul
 			continue
 		}
 
+		// Check wheter at least 1 file mentioned in rule definition sources is buildable (exists)
 		srcsExist := slices.ContainsFunc(srcs, func(src string) bool {
-			path := filepath.Join(file.Path, src)
-			_, err := os.Stat(path)
-			return err == nil // file exists and can be accessed
+			return srcInfo.containsBuildableSource(src)
 		})
 
 		if srcsExist {
