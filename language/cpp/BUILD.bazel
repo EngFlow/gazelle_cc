@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "cpp",
@@ -7,6 +7,7 @@ go_library(
         "generate.go",
         "lang.go",
         "resolve.go",
+        "source_groups.go",
     ],
     importpath = "github.com/EngFlow/gazelle_cpp/language/cpp",
     visibility = ["//visibility:public"],
@@ -19,4 +20,12 @@ go_library(
         "@gazelle//resolve",
         "@gazelle//rule",
     ],
+)
+
+# gazelle:exclude testdata
+go_test(
+    name = "cpp_test",
+    srcs = ["source_groups_test.go"],
+    embed = [":cpp"],
+    deps = ["//language/internal/cpp/parser"],
 )

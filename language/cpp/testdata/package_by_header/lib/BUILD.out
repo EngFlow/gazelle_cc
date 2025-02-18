@@ -1,0 +1,29 @@
+# gazelle:cc_grouping_mode header
+
+cc_library(
+    name = "a",
+    hdrs = ["a.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "b",
+    srcs = ["b.c"],
+    hdrs = ["b.h"],
+    visibility = ["//visibility:public"],
+    deps = ["//lib:a"],
+)
+
+cc_library(
+    name = "c",
+    srcs = [
+        "c.cc",
+        "d.cc",
+        "e.cc",
+    ],
+    hdrs = [
+        "c.h",
+        "d.h",
+    ],
+    visibility = ["//visibility:public"],
+)

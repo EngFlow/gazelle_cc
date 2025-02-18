@@ -15,7 +15,7 @@ import (
 func (c *cppLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	srcInfo := collectSourceInfos(args)
 	var result = language.GenerateResult{}
-	c.generateLibraryRule(args, srcInfo, &result)
+	c.generateLibraryRules(args, srcInfo, &result)
 	c.generateBinaryRules(args, srcInfo, &result)
 	c.generateTestRule(args, srcInfo, &result)
 
@@ -40,24 +40,49 @@ func extractImports(args language.GenerateArgs, files []string, sourceInfos map[
 	return cppImports{includes: includes}
 }
 
-func (c *cppLanguage) generateLibraryRule(args language.GenerateArgs, srcInfo ccSourceInfoSet, result *language.GenerateResult) {
+func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, result *language.GenerateResult) {
 	allSrcs := slices.Concat(srcInfo.srcs, srcInfo.hdrs)
 	if len(allSrcs) == 0 {
 		return
 	}
-	baseName := filepath.Base(args.Dir)
-	rule := rule.NewRule("cc_library", baseName)
-	if len(srcInfo.srcs) > 0 {
-		rule.SetAttr("srcs", srcInfo.srcs)
+	var srcGroups sourceGroups
+	switch getCppConfig(args.Config).groupingMode {
+	case groupSourcesByDirectory:
+		// All sources grouped together
+		groupName := groupId(filepath.Base(args.Dir))
+		srcGroups = sourceGroups{groups: sourceGroupMap{
+			groupName: {
+				srcs: srcInfo.srcs,
+				hdrs: srcInfo.hdrs}},
+		}
+	case groupSourcesByHeader:
+		srcGroups = groupSourcesByHeaders(allSrcs, srcInfo.sourceInfos)
 	}
-	if len(srcInfo.hdrs) > 0 {
-		rule.SetAttr("hdrs", srcInfo.hdrs)
+
+	for _, groupId := range srcGroups.groupIds() {
+		group := srcGroups.groups[groupId]
+		rule := rule.NewRule("cc_library", string(groupId))
+		if len(group.srcs) > 0 {
+			rule.SetAttr("srcs", group.srcs)
+		}
+		if len(group.hdrs) > 0 {
+			rule.SetAttr("hdrs", group.hdrs)
+		}
+		if args.File == nil || !args.File.HasDefaultVisibility() {
+			rule.SetAttr("visibility", []string{"//visibility:public"})
+		}
+		imports := extractImports(
+			args,
+			slices.Concat(group.srcs, group.hdrs),
+			srcInfo.sourceInfos,
+		)
+		result.Gen = append(result.Gen, rule)
+		result.Imports = append(result.Imports, imports)
 	}
-	if args.File == nil || !args.File.HasDefaultVisibility() {
-		rule.SetAttr("visibility", []string{"//visibility:public"})
+
+	if (len(srcGroups.unassigned)) > 0 {
+		log.Printf("Unable to assign cc_library for %d sources in %v directory: %v.\n\tThese sources were not classified as applicable for cc_binary or cc_test rules.\n\tIt can occur when using cc_grouping_mode:%v if source file has either 0 or multiple unrelated direct header dependencies", len(srcGroups.unassigned), args.Dir, srcGroups.unassigned, groupSourcesByHeader)
 	}
-	result.Gen = append(result.Gen, rule)
-	result.Imports = append(result.Imports, extractImports(args, allSrcs, srcInfo.sourceInfos))
 }
 
 func (c *cppLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, result *language.GenerateResult) {
@@ -83,6 +108,7 @@ func (c *cppLanguage) generateTestRule(args language.GenerateArgs, srcInfo ccSou
 	result.Imports = append(result.Imports, extractImports(args, srcInfo.testSrcs, srcInfo.sourceInfos))
 }
 
+type sourceInfos map[sourceFile]parser.SourceInfo
 type ccSourceInfoSet struct {
 	// Sources of regular (library) files
 	srcs []string
@@ -92,10 +118,10 @@ type ccSourceInfoSet struct {
 	mainSrcs []string
 	// Sources containing tests or defined in tests context
 	testSrcs []string
-	// Files that are unrecognised as CC sources
+	// Files that are unrecognized as CC sources
 	unmatched []string
-	// Map contaning informations extracted from recognized CC source
-	sourceInfos map[string]parser.SourceInfo
+	// Map containing information extracted from recognized CC source
+	sourceInfos sourceInfos
 }
 
 func (s *ccSourceInfoSet) buildableSources() []string {
