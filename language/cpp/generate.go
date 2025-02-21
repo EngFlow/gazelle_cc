@@ -63,10 +63,10 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 		group := srcGroups.groups[groupId]
 		rule := rule.NewRule("cc_library", string(groupId))
 		if len(group.srcs) > 0 {
-			rule.SetAttr("srcs", group.srcs)
+			rule.SetAttr("srcs", sourceFilesToStrings(group.srcs))
 		}
 		if len(group.hdrs) > 0 {
-			rule.SetAttr("hdrs", group.hdrs)
+			rule.SetAttr("hdrs", sourceFilesToStrings(group.hdrs))
 		}
 		if args.File == nil || !args.File.HasDefaultVisibility() {
 			rule.SetAttr("visibility", []string{"//visibility:public"})
@@ -89,7 +89,7 @@ func (c *cppLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo cc
 	for _, mainSrc := range srcInfo.mainSrcs {
 		ruleName := mainSrc.baseName()
 		rule := rule.NewRule("cc_binary", ruleName)
-		rule.SetAttr("srcs", []sourceFile{mainSrc})
+		rule.SetAttr("srcs", []string{mainSrc.stringValue()})
 		result.Gen = append(result.Gen, rule)
 		result.Imports = append(result.Imports, extractImports(args, []sourceFile{mainSrc}, srcInfo.sourceInfos))
 	}
@@ -103,7 +103,7 @@ func (c *cppLanguage) generateTestRule(args language.GenerateArgs, srcInfo ccSou
 	baseName := filepath.Base(args.Dir)
 	ruleName := baseName + "_test"
 	rule := rule.NewRule("cc_test", ruleName)
-	rule.SetAttr("srcs", srcInfo.testSrcs)
+	rule.SetAttr("srcs", sourceFilesToStrings(srcInfo.testSrcs))
 	result.Gen = append(result.Gen, rule)
 	result.Imports = append(result.Imports, extractImports(args, srcInfo.testSrcs, srcInfo.sourceInfos))
 }
@@ -193,7 +193,7 @@ func (c *cppLanguage) findEmptyRules(file *rule.File, srcInfo ccSourceInfoSet, g
 			continue
 		}
 
-		// Check wheter at least 1 file mentioned in rule definition sources is buildable (exists)
+		// Check whether at least 1 file mentioned in rule definition sources is buildable (exists)
 		srcsExist := slices.ContainsFunc(srcs, func(src string) bool {
 			return srcInfo.containsBuildableSource(sourceFile(src))
 		})

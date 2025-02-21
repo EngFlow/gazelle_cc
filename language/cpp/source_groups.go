@@ -329,3 +329,15 @@ func (s *sourceFile) baseName() string {
 	name := string(*s)
 	return strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))
 }
+
+func (s *sourceFile) stringValue() string {
+	return string(*s)
+}
+
+func sourceFilesToStrings(files []sourceFile) []string {
+	strings := make([]string, len(files))
+	for idx, value := range files {
+		strings[idx] = value.stringValue()
+	}
+	return strings
+}
