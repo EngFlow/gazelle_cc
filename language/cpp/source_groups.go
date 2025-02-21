@@ -59,42 +59,45 @@ func (groups *sourceGroups) sort() {
 	}
 }
 
-type sourceDependencyGraph map[sourceFile][]sourceFile
+type sourceFileSet map[sourceFile]bool
+type sourceDependencyGraph map[sourceFile]sourceFileSet
 
 func buildDependencyGraph(hdrs []sourceFile, sourceInfos sourceInfos) sourceDependencyGraph {
 	graph := make(sourceDependencyGraph)
-
 	hdrForBaseName := make(map[string]string, len(hdrs))
+
+	// Initialize the nodes of a graph using hdrs
 	for _, hdr := range hdrs {
+		graph[hdr] = make(sourceFileSet)
+		// Register the base name of header to allow for quick .cc/.h file pairs lookup
 		baseName := strings.TrimSuffix(hdr, filepath.Ext(hdr))
 		hdrForBaseName[baseName] = hdr
 	}
+
+	// Create the edges of the graph based on includes of the file
 	for file, info := range sourceInfos {
 		// When tracking dependencies we use header files as nodes,
 		// but we also include direct dependencies of the corresponding file containing implementation.
 		// We need to track dependencies introduced by both of these, otherwise a cyclic dependency can be formed
-		var hdr string
+		var node string
 		if isHeader(file) {
-			hdr = file
+			node = file
 		} else {
 			baseName := strings.TrimSuffix(file, filepath.Ext(file))
-			correspondingHdr, ok := hdrForBaseName[baseName]
-			if !ok {
+			correspondingHdr, exists := hdrForBaseName[baseName]
+			if !exists {
 				continue
 			}
 			// Create a cyclic dependency between matching .cc <-> .h files to ensure they're always defined in the source group
-			hdr = correspondingHdr
-			graph[file] = []sourceFile{hdr}
-			graph[hdr] = append(graph[hdr], file)
+			node = correspondingHdr
+			graph[file] = sourceFileSet{node: true}
+			graph[node][file] = true
 		}
 
-		if _, exists := graph[hdr]; !exists {
-			graph[hdr] = nil
-		}
 		for _, include := range info.Includes.DoubleQuote {
 			// Exclude non local headers, these are handled independently as target dependency
-			if isHeader(include) && slices.Contains(hdrs, include) {
-				graph[hdr] = append(graph[hdr], include)
+			if _, exists := graph[include]; exists {
+				graph[node][include] = true
 			}
 		}
 	}
@@ -121,7 +124,7 @@ func (graph *sourceDependencyGraph) findStronglyConnectedComponents() []sourceFi
 		onStack[node] = true
 
 		nodes := *graph
-		for _, dep := range nodes[node] {
+		for dep, _ := range nodes[node] {
 			if _, exists := indices[dep]; !exists {
 				strongConnect(dep)
 				lowLink[node] = min(lowLink[node], lowLink[dep])
@@ -185,7 +188,7 @@ func (groups *sourceGroups) resolveGroupDependencies(graph sourceDependencyGraph
 		dependencies := make(map[groupId]bool)
 		// Find dependencies from headers
 		for _, hdr := range group.hdrs {
-			for _, dep := range graph[hdr] {
+			for dep := range graph[hdr] {
 				if depGroup, exists := headerToGroupId[dep]; exists && depGroup != id {
 					dependencies[depGroup] = true
 				}
