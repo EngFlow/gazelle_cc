@@ -71,15 +71,15 @@ func buildDependencyGraph(hdrs []sourceFile, sourceInfos sourceInfos) sourceDepe
 	}
 	for file, info := range sourceInfos {
 		// When tracking dependencies we use header files as nodes,
-		// but we include direct also direct dependencies of the corresponding file containing implementation.
+		// but we also include direct dependencies of the corresponding file containing implementation.
 		// We need to track dependencies introduced by both of these, otherwise a cyclic dependency can be formed
 		var hdr string
 		if isHeader(file) {
 			hdr = file
 		} else {
 			baseName := strings.TrimSuffix(file, filepath.Ext(file))
-			correspondingHdr, exits := hdrForBaseName[baseName]
-			if !exits {
+			correspondingHdr, ok := hdrForBaseName[baseName]
+			if !ok {
 				continue
 			}
 			// Create a cyclic dependency between matching .cc <-> .h files to ensure they're always defined in the source group
@@ -124,13 +124,9 @@ func (graph *sourceDependencyGraph) findStronglyConnectedComponents() []sourceFi
 		for _, dep := range nodes[node] {
 			if _, exists := indices[dep]; !exists {
 				strongConnect(dep)
-				if lowLink[dep] < lowLink[node] {
-					lowLink[node] = lowLink[dep]
-				}
+				lowLink[node] = min(lowLink[node], lowLink[dep])
 			} else if onStack[dep] {
-				if indices[dep] < lowLink[node] {
-					lowLink[node] = indices[dep]
-				}
+				lowLink[node] = min(lowLink[node], indices[dep])
 			}
 		}
 
@@ -215,7 +211,7 @@ func (groups *sourceGroups) assignSourcesToGroups(srcs []sourceFile, sourceInfos
 	for id, group := range groups.groups {
 		for _, file := range slices.Concat(group.srcs, group.hdrs) {
 			if previous, exists := sourceToGroupId[file]; exists {
-				log.Printf("Warning: Inconsistent source groups, file %v assigned to both groups %v and %v", file, previous, id)
+				log.Panicf("Inconsistent source groups, file %v assigned to both groups %v and %v", file, previous, id)
 			}
 			sourceToGroupId[file] = id
 		}
