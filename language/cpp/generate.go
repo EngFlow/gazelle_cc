@@ -81,7 +81,7 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 	}
 
 	if (len(srcGroups.unassigned)) > 0 {
-		log.Printf("Unable to assign cc_library for %d sources in %v directory: %v.\n\tThese sources were not classified as applicable for cc_binary or cc_test rules.\n\tIt can occur when using cc_grouping_mode:%v if source file has either 0 or multiple unrelated direct header dependencies", len(srcGroups.unassigned), args.Dir, srcGroups.unassigned, groupSourcesByHeader)
+		log.Printf("Unable to assign cc_library for %d sources in %v directory: %v.\n\tThese sources were not classified as applicable for cc_binary or cc_test rules.\n\tIt can occur when using %s:%v if source file has either 0 or multiple unrelated direct header dependencies", len(srcGroups.unassigned), args.Dir, srcGroups.unassigned, cc_group_directive, groupSourcesByHeader)
 	}
 }
 

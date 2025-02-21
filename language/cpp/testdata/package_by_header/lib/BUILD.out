@@ -1,4 +1,4 @@
-# gazelle:cc_grouping_mode header
+# gazelle:cc_group header
 
 cc_library(
     name = "a",

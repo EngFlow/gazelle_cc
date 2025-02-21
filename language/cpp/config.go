@@ -11,9 +11,14 @@ import (
 // config.Configurer methods
 func (*cppLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config) {}
 func (*cppLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error          { return nil }
+
+const (
+	cc_group_directive = "cc_group"
+)
+
 func (c *cppLanguage) KnownDirectives() []string {
 	return []string{
-		"cc_grouping_mode",
+		cc_group_directive,
 	}
 }
 
@@ -31,14 +36,12 @@ func (*cppLanguage) Configure(c *config.Config, rel string, f *rule.File) {
 	}
 	for _, d := range f.Directives {
 		switch d.Key {
-		case "cc_grouping_mode":
+		case cc_group_directive:
 			switch d.Value {
 			case string(groupSourcesByDirectory):
 				conf.groupingMode = groupSourcesByDirectory
 			case string(groupSourcesByHeader):
 				conf.groupingMode = groupSourcesByHeader
-			case "default":
-				conf.groupingMode = newCppConfig().groupingMode
 			default:
 				log.Printf("%v is invalid value for directive %v, expected one of %v, %v or default", d.Value, d.Key, groupSourcesByDirectory, groupSourcesByHeader)
 			}
