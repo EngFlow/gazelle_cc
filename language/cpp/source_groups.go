@@ -15,10 +15,8 @@ type sourceGroup struct {
 	hdrs      []sourceFile
 	dependsOn []groupId
 }
-
-type sourceGroupMap = map[groupId]*sourceGroup
 type sourceGroups struct {
-	groups     sourceGroupMap
+	groups     map[groupId]*sourceGroup
 	unassigned []sourceFile
 }
 
