@@ -10,7 +10,6 @@ import (
 )
 
 type groupId string
-type sourceFile = string
 type sourceGroup struct {
 	srcs      []sourceFile
 	hdrs      []sourceFile
@@ -64,13 +63,13 @@ type sourceDependencyGraph map[sourceFile]sourceFileSet
 
 func buildDependencyGraph(hdrs []sourceFile, sourceInfos sourceInfos) sourceDependencyGraph {
 	graph := make(sourceDependencyGraph)
-	hdrForBaseName := make(map[string]string, len(hdrs))
+	hdrForBaseName := make(map[string]sourceFile, len(hdrs))
 
 	// Initialize the nodes of a graph using hdrs
 	for _, hdr := range hdrs {
 		graph[hdr] = make(sourceFileSet)
 		// Register the base name of header to allow for quick .cc/.h file pairs lookup
-		baseName := strings.TrimSuffix(hdr, filepath.Ext(hdr))
+		baseName := hdr.baseName()
 		hdrForBaseName[baseName] = hdr
 	}
 
@@ -79,11 +78,11 @@ func buildDependencyGraph(hdrs []sourceFile, sourceInfos sourceInfos) sourceDepe
 		// When tracking dependencies we use header files as nodes,
 		// but we also include direct dependencies of the corresponding file containing implementation.
 		// We need to track dependencies introduced by both of these, otherwise a cyclic dependency can be formed
-		var node string
-		if isHeader(file) {
+		var node sourceFile
+		if file.isHeader() {
 			node = file
 		} else {
-			baseName := strings.TrimSuffix(file, filepath.Ext(file))
+			baseName := file.baseName()
 			correspondingHdr, exists := hdrForBaseName[baseName]
 			if !exists {
 				continue
@@ -95,9 +94,10 @@ func buildDependencyGraph(hdrs []sourceFile, sourceInfos sourceInfos) sourceDepe
 		}
 
 		for _, include := range info.Includes.DoubleQuote {
+			dep := sourceFile(include)
 			// Exclude non local headers, these are handled independently as target dependency
-			if _, exists := graph[include]; exists {
-				graph[node][include] = true
+			if _, exists := graph[dep]; exists {
+				graph[node][dep] = true
 			}
 		}
 	}
@@ -228,8 +228,9 @@ func (groups *sourceGroups) assignSourcesToGroups(srcs []sourceFile, sourceInfos
 
 		dependsOnGroup := map[groupId]bool{}
 		for _, include := range sourceInfos[src].Includes.DoubleQuote {
+			dep := sourceFile(include)
 			for id, group := range groups.groups {
-				if slices.Contains(group.hdrs, include) {
+				if slices.Contains(group.hdrs, dep) {
 					dependsOnGroup[id] = true
 				}
 			}
@@ -303,19 +304,16 @@ func selectGroupName(files []sourceFile, dependencyGraph sourceDependencyGraph) 
 		}
 	}
 
-	selected := append(mostDependantAlts, mostDependant)
-	for i, file := range selected {
-		baseName := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
-		selected[i] = strings.ToLower(baseName)
-	}
-	slices.Sort(selected)
-	return groupId(selected[0])
+	selectedFiles := append(mostDependantAlts, mostDependant)
+	slices.Sort(selectedFiles)
+	groupName := strings.ToLower(selectedFiles[0].baseName())
+	return groupId(groupName)
 }
 
 // Splits the source files into sources and headers
 func partitionCSources(files []sourceFile) (srcs []sourceFile, hdrs []sourceFile) {
 	for _, file := range files {
-		if isHeader(file) {
+		if file.isHeader() {
 			hdrs = append(hdrs, file)
 		} else {
 			srcs = append(srcs, file)
@@ -324,7 +322,12 @@ func partitionCSources(files []sourceFile) (srcs []sourceFile, hdrs []sourceFile
 	return srcs, hdrs
 }
 
-func isHeader(file sourceFile) bool {
-	ext := filepath.Ext(file)
+func (file *sourceFile) isHeader() bool {
+	ext := filepath.Ext(string(*file))
 	return slices.Contains(headerExtensions, ext)
+}
+
+func (s *sourceFile) baseName() string {
+	name := string(*s)
+	return strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))
 }
