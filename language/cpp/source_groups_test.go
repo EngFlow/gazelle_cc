@@ -2,6 +2,8 @@ package cpp
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/EngFlow/gazelle_cpp/language/internal/cpp/parser"
@@ -156,7 +158,10 @@ func TestSourceGroups(t *testing.T) {
 	}
 
 	for idx, tc := range testCases {
-		result := groupSourcesByHeaders(tc.input)
+		result := groupSourcesByHeaders(
+			slices.Collect(maps.Keys(tc.input)),
+			tc.input,
+		)
 
 		shouldFail := false
 		for groupId, expected := range tc.expected {

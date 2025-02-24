@@ -10,35 +10,26 @@ import (
 	"github.com/EngFlow/gazelle_cpp/language/internal/cpp/parser"
 )
 
+// groupId represents a unique identifier for a group of source files
 type groupId string
+
+// sourceGroup represents a collection of source files and their dependencies
 type sourceGroup struct {
 	sources   []sourceFile
-	dependsOn []groupId
+	dependsOn []groupId // Direct dependencies of this group
 }
+
+// sourceGroups is a mapping of groupIds to their corresponding sourceGroups
 type sourceGroups map[groupId]*sourceGroup
 
+// returns a sorted list of groupIds from the sourceGroups
 func (g *sourceGroups) groupIds() []groupId {
 	ids := slices.Collect(maps.Keys(*g))
 	slices.Sort(ids)
 	return ids
 }
 
-func groupSourcesByHeaders(sourceInfos map[sourceFile]parser.SourceInfo) sourceGroups {
-	graph := buildDependencyGraph(sourceInfos)
-	sccs := graph.findStronglyConnectedComponents()
-
-	groups := splitIntoSourceGroups(sccs, graph)
-	groups.resolveGroupDependencies(graph)
-
-	// Sort groups for deterministic output
-	groups.sort()
-
-	// Consistency check, panics if source defined in multiple groups
-	groups.sourceToGroupIds()
-
-	return groups
-}
-
+// sort ensures the sources and dependencies in each sourceGroup are sorted.
 func (groups *sourceGroups) sort() {
 	for _, group := range *groups {
 		slices.Sort(group.sources)
@@ -46,32 +37,53 @@ func (groups *sourceGroups) sort() {
 	}
 }
 
+// Groups source files based on headers and their dependencies
+// Splits input sources into non-recursive groups based on dependencies tracked using include directives.
+// The function panics if any of input sources is not defined sourceInfos map.
+// Header (.h) and it's corresponding implemention (.cc) are always grouped together.
+// Source files without corresponding headers are assigned to single-element groups and can never become dependency of any other group.
+// Each source file is guaranteed to be assigned to exactly 1 group.
+func groupSourcesByHeaders(sources []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) sourceGroups {
+	graph := buildDependencyGraph(sources, sourceInfos)
+	sccs := graph.findStronglyConnectedComponents()
+	groups := splitIntoSourceGroups(sccs, graph)
+	groups.resolveGroupDependencies(graph)
+	groups.sort()             // Ensure deterministic output
+	groups.sourceToGroupIds() // Consistency check
+
+	return groups
+}
+
 type sourceFileSet map[sourceFile]bool
+
+// represents a node in the dependency graph.
 type sourceGroupNode struct {
 	sources   sourceFileSet
-	adjacency sourceFileSet
+	adjacency sourceFileSet // Direct dependencies of this node
 }
+
+// sourceDependencyGraph represents a directed graph of source dependencies
 type sourceDependencyGraph map[groupId]sourceGroupNode
 
-func buildDependencyGraph(sourceInfos sourceInfos) sourceDependencyGraph {
+// Source file (.cc) and it's corresponsing header are always grouped together and become a node in a dependency graph.
+// Nodes of the graph are constructed base on sources having the same name (excluding extension suffix)
+// Edges of the dependency graph are constructed based on include directives to local headers defined in sources of the graph node
+func buildDependencyGraph(sourceFiles []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) sourceDependencyGraph {
 	graph := make(sourceDependencyGraph)
 
-	// Initialize the nodes of a graph using hdrs
-	for src := range sourceInfos {
+	// Initialize graph nodes
+	for _, src := range sourceFiles {
 		groupId := src.toGroupId()
 		graph[groupId] = sourceGroupNode{
 			sources:   make(sourceFileSet),
 			adjacency: make(sourceFileSet)}
 	}
 
-	// Create the edges of the graph based on includes of the file
-	for file, info := range sourceInfos {
-		// When tracking dependencies we use header files as nodes,
-		// but we also include direct dependencies of the corresponding file containing implementation.
-		// We need to track dependencies introduced by both of these, otherwise a cyclic dependency can be formed
+	// Create edges based on include dependencies
+	for _, file := range sourceFiles {
+		info := sourceInfos[file]
 		node := file.toGroupId()
 		graph[node].sources[file] = true
-
 		for _, include := range info.Includes.DoubleQuote {
 			dep := sourceFile(include)
 			// Exclude non local headers, these are handled independently as target dependency
@@ -83,7 +95,8 @@ func buildDependencyGraph(sourceInfos sourceInfos) sourceDependencyGraph {
 	return graph
 }
 
-// Split dependency graph groups using Tarjan’s algorithm to detect SCCs.
+// Split dependency graph groups using Tarjan’s algorithm to detect strongly connected components (SCCs).
+// Every component []groupId contains a list of groups that depend recursivelly on each other
 func (graph *sourceDependencyGraph) findStronglyConnectedComponents() [][]groupId {
 	index := 0
 	indices := make(map[groupId]int)
@@ -131,12 +144,13 @@ func (graph *sourceDependencyGraph) findStronglyConnectedComponents() [][]groupI
 			strongConnect(groupId)
 		}
 	}
-
 	return sccs
 }
 
+// Merges sources assigned to each componenet ([]groupId) into a sourceGrops
+// Panics if any groupId defined in fileGroups is not defined in graph
 func splitIntoSourceGroups(fileGroups [][]groupId, graph sourceDependencyGraph) sourceGroups {
-	groups := make(sourceGroups)
+	groups := make(sourceGroups, len(fileGroups))
 
 	for _, sourcesGroup := range fileGroups {
 		var groupSources []sourceFile
@@ -151,6 +165,7 @@ func splitIntoSourceGroups(fileGroups [][]groupId, graph sourceDependencyGraph) 
 	return groups
 }
 
+// Assigns to each source group a list of its direct dependencies (sourceGroup.dependsOn)
 func (groups *sourceGroups) resolveGroupDependencies(graph sourceDependencyGraph) {
 	headerToGroupId := make(map[sourceFile]groupId)
 	for id, group := range *groups {
@@ -177,7 +192,8 @@ func (groups *sourceGroups) resolveGroupDependencies(graph sourceDependencyGraph
 	}
 }
 
-// Generates a map of sourceFiles and their corresponsing groupId. Panics if source file is assigned to multiple groups
+// Generates a map of sourceFiles and their corresponsing groupId.
+// Panics if source file is assigned to multiple groups
 func (groups *sourceGroups) sourceToGroupIds() map[sourceFile]groupId {
 	sourceToGroupId := map[sourceFile]groupId{}
 	for id, group := range *groups {
@@ -191,7 +207,8 @@ func (groups *sourceGroups) sourceToGroupIds() map[sourceFile]groupId {
 	return sourceToGroupId
 }
 
-// selectGroupName picks a base header with the highest out-degree.
+// Selects a name for the group based on its lexographically first source file name, prefers headers over remaining kinds of files
+// The constructed id is lower-cased file name without the extension suffix
 func selectGroupName(files []sourceFile) groupId {
 	var selectedFile sourceFile
 	_, hdrs := partitionCSources(files)

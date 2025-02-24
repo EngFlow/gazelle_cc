@@ -52,7 +52,7 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 		groupName := groupId(filepath.Base(args.Dir))
 		srcGroups = sourceGroups{groupName: {sources: allSrcs}}
 	case groupSourcesByHeader:
-		srcGroups = groupSourcesByHeaders(srcInfo.sourceInfos)
+		srcGroups = groupSourcesByHeaders(allSrcs, srcInfo.sourceInfos)
 	}
 
 	for _, groupId := range srcGroups.groupIds() {
