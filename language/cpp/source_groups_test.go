@@ -33,9 +33,9 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"a": {hdrs: []sourceFile{"a.h"}},
-					"b": {hdrs: []sourceFile{"b.h"}, dependsOn: []groupId{"a"}},
-					"c": {hdrs: []sourceFile{"c.h"}, dependsOn: []groupId{"b"}},
+					"a": {sources: []sourceFile{"a.h"}},
+					"b": {sources: []sourceFile{"b.h"}, dependsOn: []groupId{"a"}},
+					"c": {sources: []sourceFile{"c.h"}, dependsOn: []groupId{"b"}},
 				},
 				unassigned: nil,
 			},
@@ -50,8 +50,8 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"a": {srcs: []sourceFile{"a.c"}, hdrs: []sourceFile{"a.h"}},
-					"b": {srcs: []sourceFile{"b.cc"}, hdrs: []sourceFile{"b.h"}},
+					"a": {sources: []sourceFile{"a.c", "a.h"}},
+					"b": {sources: []sourceFile{"b.cc", "b.h"}},
 				},
 				unassigned: nil,
 			},
@@ -68,8 +68,8 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"a": {srcs: []sourceFile{"a1.c", "a2.cc"}, hdrs: []sourceFile{"a.h"}},
-					"b": {srcs: []sourceFile{"b1.cc", "b2.cpp"}, hdrs: []sourceFile{"b.hpp"}},
+					"a": {sources: []sourceFile{"a.h", "a1.c", "a2.cc"}},
+					"b": {sources: []sourceFile{"b.hpp", "b1.cc", "b2.cpp"}},
 				},
 				unassigned: nil,
 			},
@@ -85,8 +85,8 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"a": {srcs: []sourceFile{"a.c", "b.cc"}, hdrs: []sourceFile{"a.h", "b.h"}},
-					"c": {hdrs: []sourceFile{"c.h"}, dependsOn: []groupId{"a"}},
+					"a": {sources: []sourceFile{"a.c", "a.h", "b.cc", "b.h"}},
+					"c": {sources: []sourceFile{"c.h"}, dependsOn: []groupId{"a"}},
 				},
 				unassigned: nil,
 			},
@@ -100,7 +100,7 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"p": {hdrs: []sourceFile{"p.h", "q.h", "r.h"}},
+					"p": {sources: []sourceFile{"p.h", "q.h", "r.h"}},
 				},
 				unassigned: nil,
 			},
@@ -115,9 +115,9 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"m": {hdrs: []sourceFile{"m.h"}},
-					"n": {hdrs: []sourceFile{"n.h"}},
-					"o": {hdrs: []sourceFile{"o.h"}},
+					"m": {sources: []sourceFile{"m.h"}},
+					"n": {sources: []sourceFile{"n.h"}},
+					"o": {sources: []sourceFile{"o.h"}},
 				},
 				unassigned: []sourceFile{"file.cpp"},
 			},
@@ -141,15 +141,15 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"a": {hdrs: []sourceFile{"a.h"}},
-					"b": {hdrs: []sourceFile{"b.h"}, dependsOn: []groupId{"a"}},
-					"c": {hdrs: []sourceFile{"c.h"}},
-					"d": {hdrs: []sourceFile{"d.h"}, dependsOn: []groupId{"c"}},
-					"e": {hdrs: []sourceFile{"e.h", "f1.h", "f2.h"}, dependsOn: []groupId{"d"}},
-					"g": {hdrs: []sourceFile{"g.h"}, dependsOn: []groupId{"b", "d"}},
-					"h": {hdrs: []sourceFile{"h.h"}, dependsOn: []groupId{"g"}},
-					"i": {hdrs: []sourceFile{"i.h"}, dependsOn: []groupId{"g"}},
-					"j": {hdrs: []sourceFile{"j.h"}, dependsOn: []groupId{"h", "i"}},
+					"a": {sources: []sourceFile{"a.h"}},
+					"b": {sources: []sourceFile{"b.h"}, dependsOn: []groupId{"a"}},
+					"c": {sources: []sourceFile{"c.h"}},
+					"d": {sources: []sourceFile{"d.h"}, dependsOn: []groupId{"c"}},
+					"e": {sources: []sourceFile{"e.h", "f1.h", "f2.h"}, dependsOn: []groupId{"d"}},
+					"g": {sources: []sourceFile{"g.h"}, dependsOn: []groupId{"b", "d"}},
+					"h": {sources: []sourceFile{"h.h"}, dependsOn: []groupId{"g"}},
+					"i": {sources: []sourceFile{"i.h"}, dependsOn: []groupId{"g"}},
+					"j": {sources: []sourceFile{"j.h"}, dependsOn: []groupId{"h", "i"}},
 				},
 				unassigned: nil,
 			},
@@ -166,10 +166,10 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"a": {hdrs: []sourceFile{"a.h"}},
-					"b": {hdrs: []sourceFile{"b.h"}, srcs: []sourceFile{"file2.c"}, dependsOn: []groupId{"a"}},
-					"c": {hdrs: []sourceFile{"c.h"}, dependsOn: []groupId{"b"}},
-					"d": {hdrs: []sourceFile{"d.h"}, srcs: []sourceFile{"file1.c"}, dependsOn: []groupId{"c"}},
+					"a": {sources: []sourceFile{"a.h"}},
+					"b": {sources: []sourceFile{"b.h", "file2.c"}, dependsOn: []groupId{"a"}},
+					"c": {sources: []sourceFile{"c.h"}, dependsOn: []groupId{"b"}},
+					"d": {sources: []sourceFile{"d.h", "file1.c"}, dependsOn: []groupId{"c"}},
 				},
 				unassigned: nil,
 			},
@@ -186,9 +186,9 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"h1": {hdrs: []sourceFile{"h1.h"}, srcs: []sourceFile{"s1.c"}},
-					"h2": {hdrs: []sourceFile{"h2.h"}, srcs: []sourceFile{"s2.cpp"}, dependsOn: []groupId{"h1"}},
-					"h3": {hdrs: []sourceFile{"h3.h"}, srcs: []sourceFile{"s3.cc"}, dependsOn: []groupId{"h2"}},
+					"h1": {sources: []sourceFile{"h1.h", "s1.c"}},
+					"h2": {sources: []sourceFile{"h2.h", "s2.cpp"}, dependsOn: []groupId{"h1"}},
+					"h3": {sources: []sourceFile{"h3.h", "s3.cc"}, dependsOn: []groupId{"h2"}},
 				},
 				unassigned: nil,
 			},
@@ -205,9 +205,9 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"h1": {hdrs: []sourceFile{"h1.h"}, srcs: []sourceFile{"s1.c"}},
-					"h2": {hdrs: []sourceFile{"h2.h"}, srcs: []sourceFile{"s2.cpp"}, dependsOn: []groupId{"h1"}},
-					"h3": {hdrs: []sourceFile{"h3.h"}, srcs: []sourceFile{"s3.cc"}, dependsOn: []groupId{"h2"}},
+					"h1": {sources: []sourceFile{"h1.h", "s1.c"}},
+					"h2": {sources: []sourceFile{"h2.h", "s2.cpp"}, dependsOn: []groupId{"h1"}},
+					"h3": {sources: []sourceFile{"h3.h", "s3.cc"}, dependsOn: []groupId{"h2"}},
 				},
 				unassigned: nil,
 			},
@@ -221,7 +221,7 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"lib": {hdrs: []sourceFile{"lib.h"}, srcs: []sourceFile{"lib.cc"}},
+					"lib": {sources: []sourceFile{"lib.cc", "lib.h"}},
 				},
 				unassigned: []sourceFile{"app.cpp"},
 			},
@@ -236,7 +236,7 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"a": {hdrs: []sourceFile{"a.h", "b.h"}, srcs: []sourceFile{"a.cc", "b.cc"}},
+					"a": {sources: []sourceFile{"a.cc", "a.h", "b.cc", "b.h"}},
 				},
 				unassigned: nil,
 			},
@@ -251,8 +251,8 @@ func TestSourceGroups(t *testing.T) {
 			},
 			expected: sourceGroups{
 				groups: map[groupId]*sourceGroup{
-					"a": {hdrs: []sourceFile{"a.h"}, srcs: []sourceFile{"a.cc"}},
-					"b": {hdrs: []sourceFile{"b.h"}, srcs: []sourceFile{"b.cc"}, dependsOn: []groupId{"a"}},
+					"a": {sources: []sourceFile{"a.cc", "a.h"}},
+					"b": {sources: []sourceFile{"b.cc", "b.h"}, dependsOn: []groupId{"a"}},
 				},
 				unassigned: nil,
 			},
@@ -260,11 +260,7 @@ func TestSourceGroups(t *testing.T) {
 	}
 
 	for idx, tc := range testCases {
-		sourceFiles := make([]sourceFile, 0, len(tc.input))
-		for k := range tc.input {
-			sourceFiles = append(sourceFiles, k)
-		}
-		result := groupSourcesByHeaders(sourceFiles, tc.input)
+		result := groupSourcesByHeaders(tc.input)
 
 		shouldFail := false
 		if slices.Compare(result.unassigned, tc.expected.unassigned) != 0 {

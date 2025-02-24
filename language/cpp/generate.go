@@ -51,29 +51,28 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 		// All sources grouped together
 		groupName := groupId(filepath.Base(args.Dir))
 		srcGroups = sourceGroups{groups: map[groupId]*sourceGroup{
-			groupName: {
-				srcs: srcInfo.srcs,
-				hdrs: srcInfo.hdrs}},
+			groupName: {sources: allSrcs}},
 		}
 	case groupSourcesByHeader:
-		srcGroups = groupSourcesByHeaders(allSrcs, srcInfo.sourceInfos)
+		srcGroups = groupSourcesByHeaders(srcInfo.sourceInfos)
 	}
 
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups.groups[groupId]
 		rule := rule.NewRule("cc_library", string(groupId))
-		if len(group.srcs) > 0 {
-			rule.SetAttr("srcs", sourceFilesToStrings(group.srcs))
+		srcs, hdrs := partitionCSources(group.sources)
+		if len(srcs) > 0 {
+			rule.SetAttr("srcs", sourceFilesToStrings(srcs))
 		}
-		if len(group.hdrs) > 0 {
-			rule.SetAttr("hdrs", sourceFilesToStrings(group.hdrs))
+		if len(hdrs) > 0 {
+			rule.SetAttr("hdrs", sourceFilesToStrings(hdrs))
 		}
 		if args.File == nil || !args.File.HasDefaultVisibility() {
 			rule.SetAttr("visibility", []string{"//visibility:public"})
 		}
 		imports := extractImports(
 			args,
-			slices.Concat(group.srcs, group.hdrs),
+			group.sources,
 			srcInfo.sourceInfos,
 		)
 		result.Gen = append(result.Gen, rule)
