@@ -154,7 +154,7 @@ func splitIntoSourceGroups(fileGroups [][]groupId, graph sourceDependencyGraph) 
 			}
 		}
 		if slices.ContainsFunc(groupSources, func(file sourceFile) bool { return file.isHeader() }) {
-			groupName := selectGroupName(groupSources, graph)
+			groupName := selectGroupName(groupSources)
 			groups[groupName] = &sourceGroup{sources: groupSources}
 		} else {
 			unassigned = slices.Concat(unassigned, groupSources)
@@ -284,25 +284,20 @@ func (groups *sourceGroups) isTransitiveDependency(id groupId, checkedGroupId gr
 }
 
 // selectGroupName picks a base header with the highest out-degree.
-func selectGroupName(files []sourceFile, dependencyGraph sourceDependencyGraph) groupId {
-	mostDependant := files[0]
-	mostDependantAlts := []sourceFile{}
-	maxOut := len(dependencyGraph[mostDependant.toGroupId()].adjacency)
-
-	for _, file := range files[1:] {
-		out := len(dependencyGraph[file.toGroupId()].adjacency)
-		if out > maxOut {
-			mostDependant = file
-			mostDependantAlts = nil
-			maxOut = out
-		} else if out == maxOut {
-			mostDependantAlts = append(mostDependantAlts, file)
-		}
+func selectGroupName(files []sourceFile) groupId {
+	var selectedFile sourceFile
+	_, hdrs := partitionCSources(files)
+	switch len(hdrs) {
+	case 0:
+		slices.Sort(files)
+		selectedFile = files[0]
+	case 1:
+		selectedFile = hdrs[0]
+	default:
+		slices.Sort(hdrs)
+		selectedFile = hdrs[0]
 	}
-
-	selectedFiles := append(mostDependantAlts, mostDependant)
-	slices.Sort(selectedFiles)
-	groupName := strings.ToLower(selectedFiles[0].baseName())
+	groupName := strings.ToLower(selectedFile.baseName())
 	return groupId(groupName)
 }
 
