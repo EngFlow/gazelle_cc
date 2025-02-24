@@ -253,13 +253,6 @@ func (groups *sourceGroups) mergeUnassignedSourcesToGroups(sourceInfos sourceInf
 			unassigned[src] = true
 		}
 	}
-
-	// Any source file not assigned goes into unassigned
-	for _, src := range srcs {
-		if _, exists := sourceToGroupId[src]; !exists {
-			unassigned[src] = true
-		}
-	}
 	groups.unassigned = slices.Collect(maps.Keys(unassigned))
 }
 
