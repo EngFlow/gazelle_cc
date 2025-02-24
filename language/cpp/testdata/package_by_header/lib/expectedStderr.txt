@@ -1,3 +1,0 @@
-gazelle: Unable to assign cc_library for 2 sources in %WORKSPACEPATH%/lib directory: [multiple_unrelated_deps.cc no-deps.cc].
-	These sources were not classified as applicable for cc_binary or cc_test rules.
-	It can occur when using cc_group:header if source file has either 0 or multiple unrelated direct header dependencies

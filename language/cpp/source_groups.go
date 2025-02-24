@@ -15,30 +15,24 @@ type sourceGroup struct {
 	sources   []sourceFile
 	dependsOn []groupId
 }
-type sourceGroups struct {
-	groups     map[groupId]*sourceGroup
-	unassigned []sourceFile
-}
+type sourceGroups map[groupId]*sourceGroup
 
 func (g *sourceGroups) groupIds() []groupId {
-	ids := slices.Collect(maps.Keys(g.groups))
+	ids := slices.Collect(maps.Keys(*g))
 	slices.Sort(ids)
 	return ids
 }
 
 func groupSourcesByHeaders(sourceInfos map[sourceFile]parser.SourceInfo) sourceGroups {
-	// First phase: Track dependencies using includes
 	graph := buildDependencyGraph(sourceInfos)
 	sccs := graph.findStronglyConnectedComponents()
 
 	groups := splitIntoSourceGroups(sccs, graph)
 	groups.resolveGroupDependencies(graph)
 
-	// Second phase: Assign remaining sources to their respective header groups
-	groups.mergeUnassignedWithOnlyDependantGroup(sourceInfos)
-
 	// Sort groups for deterministic output
 	groups.sort()
+
 	// Consistency check, panics if source defined in multiple groups
 	groups.sourceToGroupIds()
 
@@ -46,8 +40,7 @@ func groupSourcesByHeaders(sourceInfos map[sourceFile]parser.SourceInfo) sourceG
 }
 
 func (groups *sourceGroups) sort() {
-	slices.Sort(groups.unassigned)
-	for _, group := range groups.groups {
+	for _, group := range *groups {
 		slices.Sort(group.sources)
 		slices.Sort(group.dependsOn)
 	}
@@ -143,8 +136,7 @@ func (graph *sourceDependencyGraph) findStronglyConnectedComponents() [][]groupI
 }
 
 func splitIntoSourceGroups(fileGroups [][]groupId, graph sourceDependencyGraph) sourceGroups {
-	groups := map[groupId]*sourceGroup{}
-	var unassigned []sourceFile
+	groups := make(sourceGroups)
 
 	for _, sourcesGroup := range fileGroups {
 		var groupSources []sourceFile
@@ -153,22 +145,15 @@ func splitIntoSourceGroups(fileGroups [][]groupId, graph sourceDependencyGraph) 
 				groupSources = append(groupSources, src)
 			}
 		}
-		if slices.ContainsFunc(groupSources, func(file sourceFile) bool { return file.isHeader() }) {
-			groupName := selectGroupName(groupSources)
-			groups[groupName] = &sourceGroup{sources: groupSources}
-		} else {
-			unassigned = slices.Concat(unassigned, groupSources)
-		}
+		groupName := selectGroupName(groupSources)
+		groups[groupName] = &sourceGroup{sources: groupSources}
 	}
-	return sourceGroups{
-		groups:     groups,
-		unassigned: unassigned,
-	}
+	return groups
 }
 
 func (groups *sourceGroups) resolveGroupDependencies(graph sourceDependencyGraph) {
 	headerToGroupId := make(map[sourceFile]groupId)
-	for id, group := range groups.groups {
+	for id, group := range *groups {
 		for _, file := range group.sources {
 			if file.isHeader() {
 				headerToGroupId[file] = id
@@ -176,33 +161,26 @@ func (groups *sourceGroups) resolveGroupDependencies(graph sourceDependencyGraph
 		}
 	}
 
-	for id, group := range groups.groups {
+	for id, group := range *groups {
 		dependencies := make(map[groupId]bool)
-		// Find dependencies from headers
 		for _, file := range group.sources {
-			if file.isHeader() {
-				depId := file.toGroupId()
-				for dep := range graph[depId].adjacency {
-					if depGroup, exists := headerToGroupId[dep]; exists && depGroup != id {
-						dependencies[depGroup] = true
-					}
+			depId := file.toGroupId()
+			for dep := range graph[depId].adjacency {
+				if depGroup, exists := headerToGroupId[dep]; exists && depGroup != id {
+					dependencies[depGroup] = true
 				}
 			}
 		}
 
 		// Convert dependency set to slice
-		groupDependencyIds := make([]groupId, 0, len(dependencies))
-		for k := range dependencies {
-			groupDependencyIds = append(groupDependencyIds, k)
-		}
-		group.dependsOn = groupDependencyIds
+		group.dependsOn = slices.Collect(maps.Keys(dependencies))
 	}
 }
 
 // Generates a map of sourceFiles and their corresponsing groupId. Panics if source file is assigned to multiple groups
 func (groups *sourceGroups) sourceToGroupIds() map[sourceFile]groupId {
 	sourceToGroupId := map[sourceFile]groupId{}
-	for id, group := range groups.groups {
+	for id, group := range *groups {
 		for _, file := range group.sources {
 			if previous, exists := sourceToGroupId[file]; exists {
 				log.Panicf("Inconsistent source groups, file %v assigned to both groups %v and %v", file, previous, id)
@@ -211,76 +189,6 @@ func (groups *sourceGroups) sourceToGroupIds() map[sourceFile]groupId {
 		}
 	}
 	return sourceToGroupId
-}
-
-// Merges unassigned sources with group that is a single, non-transitive dependency
-// Source remain unassigned if it has either 0 or multiple direct dependencies
-func (groups *sourceGroups) mergeUnassignedWithOnlyDependantGroup(sourceInfos sourceInfos) {
-	srcs := groups.unassigned
-	if len(srcs) == 0 {
-		return
-	}
-	unassigned := make(map[sourceFile]bool)
-
-	sourceToGroupId := groups.sourceToGroupIds()
-	// assign remaining sources based on direct inclusion
-	for _, src := range srcs {
-		if _, exists := sourceToGroupId[src]; exists {
-			continue // already assigned
-		}
-
-		dependsOnGroup := map[groupId]bool{}
-		for _, include := range sourceInfos[src].Includes.DoubleQuote {
-			dep := sourceFile(include)
-			for id, group := range groups.groups {
-				if slices.Contains(group.sources, dep) {
-					dependsOnGroup[id] = true
-				}
-			}
-		}
-
-		// Exclude transitive dependencies
-		for id := range dependsOnGroup {
-			for checkedGroupId := range dependsOnGroup {
-				if id != checkedGroupId {
-					if groups.isTransitiveDependency(checkedGroupId, id) {
-						delete(dependsOnGroup, id)
-					}
-				}
-			}
-		}
-
-		// If the source is included in exactly one group, assign it to that group.
-		if len(dependsOnGroup) == 1 {
-			for id := range dependsOnGroup {
-				group := groups.groups[id]
-				group.sources = append(group.sources, src)
-				sourceToGroupId[src] = id
-			}
-		} else {
-			// If the source includes headers from multiple groups, it remains unassigned.
-			unassigned[src] = true
-		}
-	}
-
-	groups.unassigned = slices.Collect(maps.Keys(unassigned))
-}
-
-func (groups *sourceGroups) isTransitiveDependency(id groupId, checkedGroupId groupId) bool {
-	group, exists := groups.groups[id]
-	if !exists {
-		return false
-	}
-	// Check direct dependencies before traversing transitive deps
-	if slices.Contains(group.dependsOn, checkedGroupId) {
-		return true
-	}
-	for _, directDependency := range group.dependsOn {
-		if groups.isTransitiveDependency(directDependency, checkedGroupId) {
-			return true
-		}
-	}
-	return false
 }
 
 // selectGroupName picks a base header with the highest out-degree.

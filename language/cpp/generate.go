@@ -50,15 +50,13 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 	case groupSourcesByDirectory:
 		// All sources grouped together
 		groupName := groupId(filepath.Base(args.Dir))
-		srcGroups = sourceGroups{groups: map[groupId]*sourceGroup{
-			groupName: {sources: allSrcs}},
-		}
+		srcGroups = sourceGroups{groupName: {sources: allSrcs}}
 	case groupSourcesByHeader:
 		srcGroups = groupSourcesByHeaders(srcInfo.sourceInfos)
 	}
 
 	for _, groupId := range srcGroups.groupIds() {
-		group := srcGroups.groups[groupId]
+		group := srcGroups[groupId]
 		rule := rule.NewRule("cc_library", string(groupId))
 		srcs, hdrs := partitionCSources(group.sources)
 		if len(srcs) > 0 {
@@ -77,10 +75,6 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 		)
 		result.Gen = append(result.Gen, rule)
 		result.Imports = append(result.Imports, imports)
-	}
-
-	if (len(srcGroups.unassigned)) > 0 {
-		log.Printf("Unable to assign cc_library for %d sources in %v directory: %v.\n\tThese sources were not classified as applicable for cc_binary or cc_test rules.\n\tIt can occur when using %s:%v if source file has either 0 or multiple unrelated direct header dependencies", len(srcGroups.unassigned), args.Dir, srcGroups.unassigned, cc_group_directive, groupSourcesByHeader)
 	}
 }
 
