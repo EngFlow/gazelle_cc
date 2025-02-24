@@ -27,7 +27,7 @@ func (g *sourceGroups) groupIds() []groupId {
 }
 
 func groupSourcesByHeaders(sourceInfos map[sourceFile]parser.SourceInfo) sourceGroups {
-	// First phase: Track dependencies using headers
+	// First phase: Track dependencies using includes
 	graph := buildDependencyGraph(sourceInfos)
 	sccs := graph.findStronglyConnectedComponents()
 
@@ -35,10 +35,13 @@ func groupSourcesByHeaders(sourceInfos map[sourceFile]parser.SourceInfo) sourceG
 	groups.resolveGroupDependencies(graph)
 
 	// Second phase: Assign remaining sources to their respective header groups
-	groups.mergeUnassignedSourcesToGroups(sourceInfos)
+	groups.mergeUnassignedWithOnlyDependantGroup(sourceInfos)
 
 	// Sort groups for deterministic output
 	groups.sort()
+	// Consistency check, panics if source defined in multiple groups
+	groups.sourceToGroupIds()
+
 	return groups
 }
 
@@ -196,14 +199,8 @@ func (groups *sourceGroups) resolveGroupDependencies(graph sourceDependencyGraph
 	}
 }
 
-func (groups *sourceGroups) mergeUnassignedSourcesToGroups(sourceInfos sourceInfos) {
-	srcs := groups.unassigned
-	if len(srcs) == 0 {
-		return
-	}
-	unassigned := make(map[sourceFile]bool)
-
-	// First, fill initial groups info based on groups info
+// Generates a map of sourceFiles and their corresponsing groupId. Panics if source file is assigned to multiple groups
+func (groups *sourceGroups) sourceToGroupIds() map[sourceFile]groupId {
 	sourceToGroupId := map[sourceFile]groupId{}
 	for id, group := range groups.groups {
 		for _, file := range group.sources {
@@ -213,8 +210,20 @@ func (groups *sourceGroups) mergeUnassignedSourcesToGroups(sourceInfos sourceInf
 			sourceToGroupId[file] = id
 		}
 	}
+	return sourceToGroupId
+}
 
-	// Then, assign remaining sources based on direct inclusion
+// Merges unassigned sources with group that is a single, non-transitive dependency
+// Source remain unassigned if it has either 0 or multiple direct dependencies
+func (groups *sourceGroups) mergeUnassignedWithOnlyDependantGroup(sourceInfos sourceInfos) {
+	srcs := groups.unassigned
+	if len(srcs) == 0 {
+		return
+	}
+	unassigned := make(map[sourceFile]bool)
+
+	sourceToGroupId := groups.sourceToGroupIds()
+	// assign remaining sources based on direct inclusion
 	for _, src := range srcs {
 		if _, exists := sourceToGroupId[src]; exists {
 			continue // already assigned
@@ -253,6 +262,7 @@ func (groups *sourceGroups) mergeUnassignedSourcesToGroups(sourceInfos sourceInf
 			unassigned[src] = true
 		}
 	}
+
 	groups.unassigned = slices.Collect(maps.Keys(unassigned))
 }
 
