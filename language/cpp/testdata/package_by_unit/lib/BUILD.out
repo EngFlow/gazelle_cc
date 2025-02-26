@@ -1,4 +1,4 @@
-# gazelle:cc_group header
+# gazelle:cc_group unit
 
 cc_library(
     name = "a",

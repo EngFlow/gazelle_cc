@@ -40,10 +40,10 @@ func (*cppLanguage) Configure(c *config.Config, rel string, f *rule.File) {
 			switch d.Value {
 			case string(groupSourcesByDirectory):
 				conf.groupingMode = groupSourcesByDirectory
-			case string(groupSourcesByHeader):
-				conf.groupingMode = groupSourcesByHeader
+			case string(groupSourcesByUnit):
+				conf.groupingMode = groupSourcesByUnit
 			default:
-				log.Printf("%v is invalid value for directive %v, expected one of %v, %v or default", d.Value, d.Key, groupSourcesByDirectory, groupSourcesByHeader)
+				log.Printf("%v is invalid value for directive %v, expected one of %v, %v or default", d.Value, d.Key, groupSourcesByDirectory, groupSourcesByUnit)
 			}
 		}
 	}
@@ -69,6 +69,8 @@ func (conf *cppConfig) clone() *cppConfig {
 type sourceGroupingMode string
 
 const (
+	// single cc_library per directory
 	groupSourcesByDirectory sourceGroupingMode = "directory"
-	groupSourcesByHeader    sourceGroupingMode = "header"
+	// cc_library per translation unit or group of recursivelly dependant translation units
+	groupSourcesByUnit sourceGroupingMode = "unit"
 )
