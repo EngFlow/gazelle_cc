@@ -16,7 +16,7 @@ type groupId string
 // sourceGroup represents a collection of source files and their dependencies
 type sourceGroup struct {
 	sources   []sourceFile
-	dependsOn []groupId // Direct dependencies of this group
+	dependsOn []groupId // Direct dependencies of this group (only used internally for testing)
 }
 
 // sourceGroups is a mapping of groupIds to their corresponding sourceGroups
