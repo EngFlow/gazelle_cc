@@ -282,7 +282,7 @@ func (c *cppLanguage) findEmptyRules(file *rule.File, srcInfo ccSourceInfoSet, r
 }
 
 type rulesInfo struct {
-	// Map of all rules defined in existing file for quick based on rule name
+	// Map of all rules defined in existing file for quick reference based on rule name
 	definedRules map[string]*rule.Rule
 	// Sources previously assigned to cc rules, key the existing name of the rule
 	ccRuleSources map[string]sourceFileSet

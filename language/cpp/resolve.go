@@ -4,6 +4,7 @@ import (
 	"maps"
 	"path"
 	"slices"
+	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -51,7 +52,9 @@ func (*cppLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.Re
 	}
 
 	if len(deps) > 0 {
-		r.SetAttr("deps", slices.Collect(maps.Keys(deps)))
+		r.SetAttr("deps", slices.SortedStableFunc(maps.Keys(deps), func(l, r label.Label) int {
+			return strings.Compare(l.String(), r.String())
+		}))
 	}
 }
 
