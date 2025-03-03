@@ -49,7 +49,21 @@ func (c *cppLanguage) Kinds() map[string]rule.KindInfo {
 	}
 }
 
-func (c *cppLanguage) Loads() []rule.LoadInfo           { return nil }
+var ccRuleDefs = []string{
+	"cc_library", "cc_shared_libary", "cc_static_library",
+	"cc_import",
+	"cc_binary",
+	"cc_test",
+}
+
+func (c *cppLanguage) Loads() []rule.LoadInfo {
+	return []rule.LoadInfo{
+		{
+			Name:    "@rules_cc//cc:defs.bzl",
+			Symbols: ccRuleDefs,
+		},
+	}
+}
 func (*cppLanguage) Fix(c *config.Config, f *rule.File) {}
 
 var sourceExtensions = []string{".c", ".cc", ".cpp", ".cxx", ".c++", ".S"}
