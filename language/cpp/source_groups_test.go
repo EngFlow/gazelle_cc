@@ -60,8 +60,20 @@ func TestSourceGroups(t *testing.T) {
 				"c.h":  {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
 			},
 			expected: sourceGroups{
-				"a": {sources: []sourceFile{"a.c", "a.h", "b.cc", "b.h"}},
+				"a": {sources: []sourceFile{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
 				"c": {sources: []sourceFile{"c.h"}, dependsOn: []groupId{"a"}},
+			},
+		},
+		{
+			clue: "Detect implementation based cycle",
+			input: sourceInfos{
+				"a.h":  {},
+				"a.c":  {Includes: parser.Includes{DoubleQuote: []string{"b.h"}}},
+				"b.h":  {},
+				"b.cc": {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
+			},
+			expected: sourceGroups{
+				"a": {sources: []sourceFile{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
 			},
 		},
 		{
@@ -72,7 +84,7 @@ func TestSourceGroups(t *testing.T) {
 				"r.h": {Includes: parser.Includes{DoubleQuote: []string{"p.h"}}},
 			},
 			expected: sourceGroups{
-				"p": {sources: []sourceFile{"p.h", "q.h", "r.h"}},
+				"p": {sources: []sourceFile{"p.h", "q.h", "r.h"}, subGroups: []groupId{"p", "q", "r"}},
 			},
 		},
 		{
@@ -111,7 +123,7 @@ func TestSourceGroups(t *testing.T) {
 				"b": {sources: []sourceFile{"b.h"}, dependsOn: []groupId{"a"}},
 				"c": {sources: []sourceFile{"c.h"}},
 				"d": {sources: []sourceFile{"d.h"}, dependsOn: []groupId{"c"}},
-				"e": {sources: []sourceFile{"e.h", "f1.h", "f2.h"}, dependsOn: []groupId{"d"}},
+				"e": {sources: []sourceFile{"e.h", "f1.h", "f2.h"}, dependsOn: []groupId{"d"}, subGroups: []groupId{"e", "f1", "f2"}},
 				"g": {sources: []sourceFile{"g.h"}, dependsOn: []groupId{"b", "d"}},
 				"h": {sources: []sourceFile{"h.h"}, dependsOn: []groupId{"g"}},
 				"i": {sources: []sourceFile{"i.h"}, dependsOn: []groupId{"g"}},
@@ -139,7 +151,7 @@ func TestSourceGroups(t *testing.T) {
 				"b.cc": {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
 			},
 			expected: sourceGroups{
-				"a": {sources: []sourceFile{"a.cc", "a.h", "b.cc", "b.h"}},
+				"a": {sources: []sourceFile{"a.cc", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
 			},
 		},
 		{
@@ -158,7 +170,7 @@ func TestSourceGroups(t *testing.T) {
 	}
 
 	for idx, tc := range testCases {
-		result := groupSourcesByHeaders(
+		result := groupSourcesByUnits(
 			slices.Collect(maps.Keys(tc.input)),
 			tc.input,
 		)

@@ -1,0 +1,1 @@
+--allow_rules_merge=false

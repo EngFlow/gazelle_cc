@@ -9,8 +9,19 @@ import (
 )
 
 // config.Configurer methods
-func (*cppLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config) {}
-func (*cppLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error          { return nil }
+func (*cppLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config) {
+	conf := newCppConfig()
+	switch cmd {
+	case "fix", "update":
+		fs.BoolVar(
+			&conf.allowRulesMerge,
+			"allow_rules_merge",
+			true,
+			"If enabled Gazelle would automatically merge rules that define a cyclic dependency, otherwise it would emit warnings about rules requiring manual adjustment.")
+	}
+	c.Exts[languageName] = conf
+}
+func (*cppLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error { return nil }
 
 const (
 	cc_group_directive = "cc_group"
@@ -50,7 +61,10 @@ func (*cppLanguage) Configure(c *config.Config, rel string, f *rule.File) {
 }
 
 type cppConfig struct {
+	// Defines how how sources should be grouped when defining rules
 	groupingMode sourceGroupingMode
+	// Should rules with sources assigned to different targets be merged into single one if they define a cyclic dependency
+	allowRulesMerge bool
 }
 
 func getCppConfig(c *config.Config) *cppConfig {
@@ -58,7 +72,8 @@ func getCppConfig(c *config.Config) *cppConfig {
 }
 func newCppConfig() *cppConfig {
 	return &cppConfig{
-		groupingMode: groupSourcesByDirectory,
+		groupingMode:    groupSourcesByDirectory,
+		allowRulesMerge: true,
 	}
 }
 func (conf *cppConfig) clone() *cppConfig {

@@ -1,0 +1,59 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_group unit
+
+cc_library(
+    name = "a1",
+    hdrs = ["a1.h"],
+    defines = ["USE_FEATURE_A1"],
+    deps = ["//:a2"],
+)
+
+cc_library(
+    name = "a2",
+    hdrs = ["a2.h"],
+    defines = ["USE_FEATURE_A2"],
+    deps = ["//:a1"],
+)
+
+cc_library(
+    name = "b",
+    hdrs = ["b.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:a1",
+        "//:a2",
+    ],
+)
+
+cc_library(
+    name = "c",
+    srcs = ["c.cc"],
+    hdrs = ["c.h"],
+    copts = [
+        "-O2",
+        "-g",
+    ],
+    defines = ["USE_FEATURE_A"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:b",
+        "//:d",
+    ],
+)
+
+cc_library(
+    name = "d",
+    srcs = ["d.cc"],
+    hdrs = ["d.h"],
+    copts = [
+        "-O2",
+        "-g",
+    ],
+    defines = ["USE_FEATURE_B"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:b",
+        "//:c",
+    ],
+)

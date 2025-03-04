@@ -34,16 +34,52 @@ func NewLanguage() language.Language {
 // language.Language methods
 func (c *cppLanguage) Kinds() map[string]rule.KindInfo {
 	kinds := make(map[string]rule.KindInfo)
+	mergeMaps := func(m1, m2 map[string]bool) map[string]bool {
+		result := make(map[string]bool, len(m1)+len(m2))
+		for k, v := range m1 {
+			result[k] = v
+		}
+		for k, v := range m2 {
+			result[k] = v
+		}
+		return result
+	}
+
 	for _, commonDef := range ccRuleDefs {
+		// Attributes common to all rules
 		kindInfo := rule.KindInfo{
 			NonEmptyAttrs:  map[string]bool{"srcs": true},
 			MergeableAttrs: map[string]bool{"srcs": true, "deps": true},
 			ResolveAttrs:   map[string]bool{"deps": true},
 		}
 		switch commonDef {
-		case "cc_library", "cc_import":
-			kindInfo.NonEmptyAttrs["hdrs"] = true
-			kindInfo.MergeableAttrs["hdrs"] = true
+		case "cc_library":
+			kindInfo.NonEmptyAttrs = mergeMaps(kindInfo.NonEmptyAttrs, map[string]bool{
+				"hdrs": true,
+			})
+			kindInfo.MergeableAttrs = mergeMaps(kindInfo.MergeableAttrs, map[string]bool{
+				"hdrs": true,
+				// Attrs below not directly controlled by cc extension - listed only to allow squashing/merging existing rules
+				"data":                       true, // []string
+				"additional_compiler_inputs": true, // []string
+				"additional_linker_inputs":   true, // []string
+				"alwayslink":                 true, // bool
+				"conlyopts":                  true, // []string
+				"copts":                      true, // []string
+				"cxxopts":                    true, // []string
+				"defines":                    true, // []string
+				"implementation_deps":        true, // []string
+				"include_prefix":             true, // string
+				"includes":                   true, // []string
+				"linkopts":                   true, // []string
+				"linkstamp":                  true, // label
+				"linkstatic":                 true, // bool
+				"local_defines":              true, // []string
+				"module_interfaces":          true, // []string
+				"strip_include_prefix":       true, // string
+				"textual_hdrs":               true, // []string
+				"win_def_file":               true, // []string
+			})
 		}
 		kinds[commonDef] = kindInfo
 	}

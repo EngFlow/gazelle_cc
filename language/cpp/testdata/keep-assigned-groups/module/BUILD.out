@@ -1,0 +1,34 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_group unit
+
+cc_library(
+    name = "cyclic_library",
+    srcs = [
+        "a.cc",
+        "b.cc",
+    ],
+    hdrs = [
+        "a.h",
+        "b.h",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "other-lib",
+    srcs = [
+        "c.cc",
+        "d.cc",
+    ],
+    hdrs = ["c.h"],
+    visibility = ["//visibility:public"],
+    deps = ["//module:cyclic_library"],
+)
+
+cc_library(
+    name = "not-assigned",
+    srcs = ["not-assigned.cc"],
+    visibility = ["//visibility:public"],
+    deps = ["//module:other-lib"],
+)

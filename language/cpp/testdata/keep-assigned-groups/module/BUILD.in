@@ -1,0 +1,21 @@
+# gazelle:cc_group unit
+
+cc_library(
+    name = "cyclic_library",
+    srcs = [
+        "a.cc",
+        "b.cc",
+    ],
+    hdrs = [
+        "a.h",
+        "b.h",
+    ],
+)
+
+cc_library(
+    name = "other-lib",
+    srcs = [
+        "c.cc",
+        "d.cc",
+    ],
+)

@@ -1,7 +1,9 @@
 package cpp
 
 import (
+	"maps"
 	"path"
+	"slices"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -31,25 +33,25 @@ func (*cppLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.Re
 	}
 
 	cppImports := imports.(cppImports)
-	deps := []label.Label{}
+	deps := make(map[label.Label]bool)
 
 	for _, include := range cppImports.includes {
 		resolvedLabel := resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
 		if resolvedLabel != label.NoLabel {
-			deps = append(deps, resolvedLabel)
+			deps[resolvedLabel] = true
 		}
 
 		// Retry to resolve is external dependency was defined using quotes instead of braces
 		if !include.isSystemInclude {
 			resolvedLabel = resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.rawPath})
 			if resolvedLabel != label.NoLabel {
-				deps = append(deps, resolvedLabel)
+				deps[resolvedLabel] = true
 			}
 		}
 	}
 
 	if len(deps) > 0 {
-		r.SetAttr("deps", deps)
+		r.SetAttr("deps", slices.Collect(maps.Keys(deps)))
 	}
 }
 

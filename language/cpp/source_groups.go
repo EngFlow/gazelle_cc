@@ -17,6 +17,7 @@ type groupId string
 type sourceGroup struct {
 	sources   []sourceFile
 	dependsOn []groupId // Direct dependencies of this group (only used internally for testing)
+	subGroups []groupId // Sub-groups creating this group
 }
 
 // sourceGroups is a mapping of groupIds to their corresponding sourceGroups
@@ -33,8 +34,33 @@ func (g *sourceGroups) groupIds() []groupId {
 func (groups *sourceGroups) sort() {
 	for _, group := range *groups {
 		slices.Sort(group.sources)
+		slices.Sort(group.subGroups)
 		slices.Sort(group.dependsOn)
 	}
+}
+
+// Modify the sourceGroups entry refered by current groupId and rename it as replacement.
+// If the sourceGrops contians entry with replacement groupId their content would be merged
+// Returns false if sourceGroups does not define entry with current groupId or true otherwise
+func (g *sourceGroups) renameOrMergeWith(current groupId, replacement groupId) bool {
+	if current == replacement {
+		return false
+	}
+	group, exists := (*g)[current]
+	if !exists {
+		return false
+	}
+	node := group
+	if targetGroup, exists := (*g)[replacement]; exists {
+		node = &sourceGroup{
+			sources:   slices.Concat(targetGroup.sources, group.sources),
+			dependsOn: concatUnique(targetGroup.dependsOn, group.dependsOn),
+			subGroups: slices.Concat(targetGroup.subGroups, group.subGroups),
+		}
+	}
+	(*g)[replacement] = node
+	delete(*g, current)
+	return true
 }
 
 // Groups source files based on headers and their dependencies
@@ -43,7 +69,7 @@ func (groups *sourceGroups) sort() {
 // Header (.h) and it's corresponding implemention (.cc) are always grouped together.
 // Source files without corresponding headers are assigned to single-element groups and can never become dependency of any other group.
 // Each source file is guaranteed to be assigned to exactly 1 group.
-func groupSourcesByHeaders(sources []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) sourceGroups {
+func groupSourcesByUnits(sources []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) sourceGroups {
 	graph := buildDependencyGraph(sources, sourceInfos)
 	sccs := graph.findStronglyConnectedComponents()
 	groups := splitIntoSourceGroups(sccs, graph)
@@ -161,6 +187,9 @@ func splitIntoSourceGroups(fileGroups [][]groupId, graph sourceDependencyGraph) 
 		}
 		groupName := selectGroupName(groupSources)
 		groups[groupName] = &sourceGroup{sources: groupSources}
+		if len(sourcesGroup) > 1 { // Set subgroups only if multiple groups defined
+			groups[groupName].subGroups = sourcesGroup
+		}
 	}
 	return groups
 }
@@ -262,4 +291,20 @@ func sourceFilesToStrings(files []sourceFile) []string {
 		strings[idx] = value.stringValue()
 	}
 	return strings
+}
+
+// Concatenate 2 slices, preserving order but without duplicates
+func concatUnique[T comparable](arr1, arr2 []T) []T {
+	maxSize := len(arr1) + len(arr2)
+	uniqueMap := make(map[T]bool, maxSize)
+	result := make([]T, 0, maxSize)
+
+	for _, val := range append(arr1, arr2...) {
+		if !uniqueMap[val] {
+			uniqueMap[val] = true
+			result = append(result, val)
+		}
+	}
+
+	return result
 }

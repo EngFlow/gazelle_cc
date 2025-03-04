@@ -1,0 +1,2 @@
+gazelle: Existing cc_library rules [a1 a2] defined in %WORKSPACEPATH%/BUILD.bazel form a cyclic dependency. Try to resolved this issue or remove the problematic rules and restart gazelle to regenerate their definitions
+gazelle: Existing cc_library rules [c d] defined in %WORKSPACEPATH%/BUILD.bazel form a cyclic dependency. Try to resolved this issue or remove the problematic rules and restart gazelle to regenerate their definitions
