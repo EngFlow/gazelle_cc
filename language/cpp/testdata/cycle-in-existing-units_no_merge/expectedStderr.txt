@@ -1,2 +1,8 @@
-gazelle: Existing cc_library rules [a1 a2] defined in %WORKSPACEPATH%/BUILD.bazel form a cyclic dependency. Try to resolved this issue or remove the problematic rules and restart gazelle to regenerate their definitions
-gazelle: Existing cc_library rules [c d] defined in %WORKSPACEPATH%/BUILD.bazel form a cyclic dependency. Try to resolved this issue or remove the problematic rules and restart gazelle to regenerate their definitions
+gazelle: Existing cc_library rules [a1 a2] defined in %WORKSPACEPATH%/BUILD.bazel form a cyclic dependency. Possible resolutions:
+  - Set `# gazelle:cc_group_unit_cycles merge` to automatically merge targets to avoid cyclic dependencies.
+  - Manually combine targets to avoid cyclic dependencies.
+  - Remove `#include`s from source files that cause cyclic dependencies: [a1.h a2.h]
+gazelle: Existing cc_library rules [c d] defined in %WORKSPACEPATH%/BUILD.bazel form a cyclic dependency. Possible resolutions:
+  - Set `# gazelle:cc_group_unit_cycles merge` to automatically merge targets to avoid cyclic dependencies.
+  - Manually combine targets to avoid cyclic dependencies.
+  - Remove `#include`s from source files that cause cyclic dependencies: [c.cc c.h d.cc d.h]

@@ -230,7 +230,12 @@ func (c *cppLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs,
 	case warnOnGroupsCycle:
 		// Merging was disabled by user, don't edit existing rules
 		slices.Sort(ambigiousRuleAssignments) // for deterministic output
-		log.Printf("Existing cc_library rules %v defined in %v form a cyclic dependency. Try to resolved this issue or remove the problematic rules and restart gazelle to regenerate their definitions", ambigiousRuleAssignments, args.File.Path)
+		log.Printf(
+			"Existing cc_library rules %v defined in %v form a cyclic dependency. Possible resolutions:\n"+
+				"  - Set `# gazelle:%v %v` to automatically merge targets to avoid cyclic dependencies.\n"+
+				"  - Manually combine targets to avoid cyclic dependencies.\n"+
+				"  - Remove `#include`s from source files that cause cyclic dependencies: %v",
+			ambigiousRuleAssignments, args.File.Path, cc_group_unit_cycles, mergeOnGroupsCycle, group.sources)
 		// Collect labels to rules creating a cycle
 		deps := make([]label.Label, len(ambigiousRuleAssignments))
 		for idx, group := range ambigiousRuleAssignments {
