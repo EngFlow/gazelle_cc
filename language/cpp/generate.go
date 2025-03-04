@@ -215,6 +215,11 @@ func (c *cppLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs,
 	switch conf.groupsCycleHandlingMode {
 	case mergeOnGroupsCycle:
 		// Merge rules creating a cyclic dependency into a single rule and remove old ones
+		log.Printf("Rules %v defined in %v create a cyclic dependency between sources %v, they would be merged into a single rule '%v'. "+
+			"To prevent automatic merging of rules set `# gazelle:%v %v`",
+			slices.Sorted(slices.Values(ambigiousRuleAssignments)), args.Dir, slices.Sorted(slices.Values(group.sources)), newRule.Name(),
+			cc_group_unit_cycles, warnOnGroupsCycle,
+		)
 		for _, referedRuleName := range ambigiousRuleAssignments {
 			referedRule := rulesInfo.definedRules[referedRuleName]
 			if err := rule.SquashRules(referedRule, newRule, args.File.Path); err != nil {
