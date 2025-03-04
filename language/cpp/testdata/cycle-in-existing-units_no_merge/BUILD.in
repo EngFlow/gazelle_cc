@@ -1,4 +1,5 @@
 # gazelle:cc_group unit
+# gazelle:cc_group_unit_cycles warn
 
 cc_library(
     name = "a1",

@@ -212,7 +212,8 @@ func (srcGroups *sourceGroups) adjustToExistingRules(rulesInfo rulesInfo) (ambig
 // * otherwise warns user about cyclic deps and sets cyclic deps attributes to newRule and returns false
 // Returns true if successfully handled issues and it's possible to finalize creation of newRule
 func (c *cppLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, conf *cppConfig, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, newRule *rule.Rule, result *language.GenerateResult, group sourceGroup, ambigiousRuleAssignments []string) (handled bool) {
-	if conf.allowRulesMerge {
+	switch conf.groupsCycleHandlingMode {
+	case mergeOnGroupsCycle:
 		// Merge rules creating a cyclic dependency into a single rule and remove old ones
 		for _, referedRuleName := range ambigiousRuleAssignments {
 			referedRule := rulesInfo.definedRules[referedRuleName]
@@ -226,7 +227,7 @@ func (c *cppLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs,
 			}
 		}
 		return true
-	} else {
+	case warnOnGroupsCycle:
 		// Merging was disabled by user, don't edit existing rules
 		slices.Sort(ambigiousRuleAssignments) // for deterministic output
 		log.Printf("Existing cc_library rules %v defined in %v form a cyclic dependency. Try to resolved this issue or remove the problematic rules and restart gazelle to regenerate their definitions", ambigiousRuleAssignments, args.File.Path)
@@ -246,6 +247,9 @@ func (c *cppLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs,
 			result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
 		}
 		return false // Skip processing these groups, keep existing rules unchanged
+	default:
+		log.Panicf("Unknown group cycle handling mode: %v", conf.groupsCycleHandlingMode)
+		return false
 	}
 }
 

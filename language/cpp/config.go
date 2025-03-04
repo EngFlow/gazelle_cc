@@ -9,27 +9,18 @@ import (
 )
 
 // config.Configurer methods
-func (*cppLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config) {
-	conf := newCppConfig()
-	switch cmd {
-	case "fix", "update":
-		fs.BoolVar(
-			&conf.allowRulesMerge,
-			"allow_rules_merge",
-			true,
-			"If enabled Gazelle would automatically merge rules that define a cyclic dependency, otherwise it would emit warnings about rules requiring manual adjustment.")
-	}
-	c.Exts[languageName] = conf
-}
-func (*cppLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error { return nil }
+func (*cppLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config) {}
+func (*cppLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error          { return nil }
 
 const (
-	cc_group_directive = "cc_group"
+	cc_group_directive   = "cc_group"
+	cc_group_unit_cycles = "cc_group_unit_cycles"
 )
 
 func (c *cppLanguage) KnownDirectives() []string {
 	return []string{
 		cc_group_directive,
+		cc_group_unit_cycles,
 	}
 }
 
@@ -45,26 +36,34 @@ func (*cppLanguage) Configure(c *config.Config, rel string, f *rule.File) {
 	if f == nil {
 		return
 	}
+
 	for _, d := range f.Directives {
 		switch d.Key {
 		case cc_group_directive:
-			switch d.Value {
-			case string(groupSourcesByDirectory):
-				conf.groupingMode = groupSourcesByDirectory
-			case string(groupSourcesByUnit):
-				conf.groupingMode = groupSourcesByUnit
-			default:
-				log.Printf("%v is invalid value for directive %v, expected one of %v, %v or default", d.Value, d.Key, groupSourcesByDirectory, groupSourcesByUnit)
-			}
+			selectDirectiveChoice(&conf.groupingMode, sourceGroupingModes, d)
+		case cc_group_unit_cycles:
+			selectDirectiveChoice(&conf.groupsCycleHandlingMode, groupsCycleHandlingModes, d)
 		}
 	}
+}
+
+// Compares the directive value with list of expected choices. If there is a match it updates the target with matching value
+// If there is no match is emits warning on stderr
+func selectDirectiveChoice[T ~string](target *T, options []T, d rule.Directive) {
+	for _, choice := range options {
+		if string(choice) == d.Value {
+			*target = choice
+			return
+		}
+	}
+	log.Printf("Invalid value for directive %v, expected one of %v, got: %v", d.Key, options, d.Value)
 }
 
 type cppConfig struct {
 	// Defines how how sources should be grouped when defining rules
 	groupingMode sourceGroupingMode
 	// Should rules with sources assigned to different targets be merged into single one if they define a cyclic dependency
-	allowRulesMerge bool
+	groupsCycleHandlingMode groupsCycleHandlingMode
 }
 
 func getCppConfig(c *config.Config) *cppConfig {
@@ -72,8 +71,8 @@ func getCppConfig(c *config.Config) *cppConfig {
 }
 func newCppConfig() *cppConfig {
 	return &cppConfig{
-		groupingMode:    groupSourcesByDirectory,
-		allowRulesMerge: true,
+		groupingMode:            groupSourcesByDirectory,
+		groupsCycleHandlingMode: mergeOnGroupsCycle,
 	}
 }
 func (conf *cppConfig) clone() *cppConfig {
@@ -83,9 +82,22 @@ func (conf *cppConfig) clone() *cppConfig {
 
 type sourceGroupingMode string
 
+var sourceGroupingModes = []sourceGroupingMode{groupSourcesByDirectory, groupSourcesByUnit}
+
 const (
 	// single cc_library per directory
 	groupSourcesByDirectory sourceGroupingMode = "directory"
 	// cc_library per translation unit or group of recursivelly dependant translation units
 	groupSourcesByUnit sourceGroupingMode = "unit"
+)
+
+type groupsCycleHandlingMode string
+
+var groupsCycleHandlingModes = []groupsCycleHandlingMode{mergeOnGroupsCycle, warnOnGroupsCycle}
+
+const (
+	// All groups forming a cycle would be merged into a single one
+	mergeOnGroupsCycle groupsCycleHandlingMode = "merge"
+	// Don't modify rules forming a cycle, let user handle it manually
+	warnOnGroupsCycle groupsCycleHandlingMode = "warn"
 )
