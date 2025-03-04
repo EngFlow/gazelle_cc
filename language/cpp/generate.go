@@ -74,11 +74,9 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 
 		// Assign sources to gorups
 		srcs, hdrs := partitionCSources(group.sources)
-		newRule.DelAttr("srcs")
 		if len(srcs) > 0 {
 			newRule.SetAttr("srcs", sourceFilesToStrings(srcs))
 		}
-		newRule.DelAttr("hdrs")
 		if len(hdrs) > 0 {
 			newRule.SetAttr("hdrs", sourceFilesToStrings(hdrs))
 		}
