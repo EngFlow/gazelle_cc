@@ -1,0 +1,9 @@
+# gazelle:cc_group directory
+
+cc_binary(
+  name = "my_app",
+  copts = ["-g"],
+)
+
+cc_library(name = "lib_a_interface", srcs = ["lib_a.h"])
+cc_library(name = "lib_b_interface", hdrs = ["lib_b.h"])

@@ -1,0 +1,1 @@
+Under directory mode Gazelle should merge generated rules with exisitng ones if there is exactly on cc_library, cc_binary or cc_test even if there are no sources assigned

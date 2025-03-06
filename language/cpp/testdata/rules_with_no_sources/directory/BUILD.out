@@ -1,0 +1,34 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+# gazelle:cc_group directory
+
+cc_library(
+    name = "my_library",
+    srcs = ["lib.cc"],
+    hdrs = [
+        "lib.h",
+        "util.h",
+    ],
+    defines = ["FOO"],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "my_binary",
+    srcs = ["bin.cc"],
+    copts = ["-g"],
+    deps = ["//directory:my_library"],
+)
+
+cc_test(
+    name = "my_tests",
+    srcs = [
+        "lib_test.cc",
+        "util_test.cc",
+    ],
+    copts = [
+        "-g",
+        "-O0",
+    ],
+    deps = ["//directory:my_library"],
+)

@@ -1,0 +1,2 @@
+Gazelle should keep existing cc_libraries (user defined) and create a fresh one that's created by Gazelle under directory mode.
+If multiple binaries exists each of them should be put in distinct cc_binary

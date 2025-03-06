@@ -1,0 +1,34 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+# gazelle:cc_group directory
+
+cc_library(
+    name = "lib_a_interface",
+    srcs = ["lib_a.h"],
+)
+
+cc_library(
+    name = "lib_b_interface",
+    hdrs = ["lib_b.h"],
+)
+
+cc_library(
+    name = "ambigious",
+    srcs = ["lib_a.h"],
+    hdrs = [
+        "lib_a.h",
+        "lib_b.h",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "app",
+    srcs = ["app.cc"],
+)
+
+cc_binary(
+    name = "bin",
+    srcs = ["bin.cc"],
+)
+

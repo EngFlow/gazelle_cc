@@ -1,0 +1,1 @@
+gazelle: Rules [lib_a_interface lib_b_interface] defined in %WORKSPACEPATH%/directory/ambigious are invalidating the 'cc_group directive' setting, their sources [lib_a.h lib_b.h] would be merged into a single rule 'ambigious'. To prevent automatic merging of rules set `# gazelle:cc_group_unit_cycles warn`
