@@ -8,10 +8,7 @@ cc_library(
         "a1.h",
         "a2.h",
     ],
-    defines = [
-        "USE_FEATURE_A1",
-        "USE_FEATURE_A2",
-    ],
+    defines = ["USE_FEATURE_A1"],
     visibility = ["//visibility:public"],
 )
 
@@ -36,10 +33,7 @@ cc_library(
         "-O2",
         "-g",
     ],
-    defines = [
-        "USE_FEATURE_A",
-        "USE_FEATURE_B",
-    ],
+    defines = ["USE_FEATURE_A"],
     visibility = ["//visibility:public"],
 )
 

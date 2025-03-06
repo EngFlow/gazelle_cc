@@ -59,26 +59,6 @@ func (c *cppLanguage) Kinds() map[string]rule.KindInfo {
 			})
 			kindInfo.MergeableAttrs = mergeMaps(kindInfo.MergeableAttrs, map[string]bool{
 				"hdrs": true,
-				// Attrs below not directly controlled by cc extension - listed only to allow squashing/merging existing rules
-				"data":                       true, // []string
-				"additional_compiler_inputs": true, // []string
-				"additional_linker_inputs":   true, // []string
-				"alwayslink":                 true, // bool
-				"conlyopts":                  true, // []string
-				"copts":                      true, // []string
-				"cxxopts":                    true, // []string
-				"defines":                    true, // []string
-				"implementation_deps":        true, // []string
-				"include_prefix":             true, // string
-				"includes":                   true, // []string
-				"linkopts":                   true, // []string
-				"linkstamp":                  true, // label
-				"linkstatic":                 true, // bool
-				"local_defines":              true, // []string
-				"module_interfaces":          true, // []string
-				"strip_include_prefix":       true, // string
-				"textual_hdrs":               true, // []string
-				"win_def_file":               true, // []string
 			})
 		}
 		kinds[commonDef] = kindInfo
