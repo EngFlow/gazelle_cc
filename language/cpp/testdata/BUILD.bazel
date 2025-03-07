@@ -30,7 +30,7 @@ gazelle_binary(
         # subdirectories," so any directory with a BUILD or BUILD.bazel file
         # will not match, but those with BUILD.in and BUILD.out will.
         for p in glob([
-            # "**/WORKSPACE",
+            "**/WORKSPACE",
             "**/MODULE.bazel",
         ])
     ]))]

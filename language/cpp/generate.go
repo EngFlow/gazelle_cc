@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cpp/language/internal/cpp/parser"
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
@@ -16,7 +17,7 @@ import (
 
 func (c *cppLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	srcInfo := collectSourceInfos(args)
-	rulesInfo := extractRulesInfo(args.File)
+	rulesInfo := extractRulesInfo(args)
 
 	var result = language.GenerateResult{}
 	c.generateLibraryRules(args, srcInfo, rulesInfo, &result)
@@ -333,16 +334,17 @@ type rulesInfo struct {
 	groupAssignment map[groupId]string
 }
 
-func extractRulesInfo(file *rule.File) rulesInfo {
+func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 	info := rulesInfo{
 		definedRules:    make(map[string]*rule.Rule),
 		ccRuleSources:   make(map[string]sourceFileSet),
 		groupAssignment: make(map[groupId]string),
 	}
-	if file == nil {
+	if args.File == nil {
 		return info
 	}
-	for _, rule := range file.Rules {
+	inverseKindMaps := kindMapInverseMap(args.Config)
+	for _, rule := range args.File.Rules {
 		ruleName := rule.Name()
 		info.definedRules[ruleName] = rule
 		assignSources := func(srcs []string) {
@@ -355,7 +357,12 @@ func extractRulesInfo(file *rule.File) rulesInfo {
 				info.groupAssignment[srcFile.toGroupId()] = ruleName
 			}
 		}
-		switch rule.Kind() {
+		ruleKind := rule.Kind()
+		// Handle mapped kinds introduced using gazelle:map_kind directive
+		if unmappedKind, exists := inverseKindMaps[ruleKind]; exists {
+			ruleKind = unmappedKind
+		}
+		switch ruleKind {
 		case "cc_library":
 			assignSources(rule.AttrStrings("srcs"))
 			assignSources(rule.AttrStrings("hdrs"))
@@ -366,6 +373,14 @@ func extractRulesInfo(file *rule.File) rulesInfo {
 		}
 	}
 	return info
+}
+
+func kindMapInverseMap(config *config.Config) map[string]string {
+	inverseMap := make(map[string]string)
+	for _, mapping := range config.KindMap {
+		inverseMap[mapping.KindName] = mapping.FromKind
+	}
+	return inverseMap
 }
 
 // Return list of existing rules of kind or with matching kind mapping

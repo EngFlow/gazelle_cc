@@ -1,0 +1,11 @@
+custom_cc_binary(
+    name = "bin",
+)
+
+custom_cc_library(
+    name = "lib",
+)
+
+custom_cc_test(
+    name = "lib_test",
+)

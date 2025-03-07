@@ -1,0 +1,3 @@
+# gazelle:map_kind cc_library custom_cc_library //:custom_cc.bzl
+# gazelle:map_kind cc_binary custom_cc_binary //:custom_cc.bzl
+# gazelle:map_kind cc_test custom_cc_test //:custom_cc.bzl
