@@ -375,6 +375,7 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 	return info
 }
 
+// Returns the inverse of config.KindMap resulting in map[customKind]targetKind
 func kindMapInverseMap(config *config.Config) map[string]string {
 	inverseMap := make(map[string]string)
 	for _, mapping := range config.KindMap {
