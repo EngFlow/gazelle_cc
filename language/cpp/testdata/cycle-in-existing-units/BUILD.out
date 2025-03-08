@@ -16,7 +16,7 @@ cc_library(
     name = "b",
     hdrs = ["b.h"],
     visibility = ["//visibility:public"],
-    deps = ["//:a1"],
+    deps = [":a1"],
 )
 
 cc_library(

@@ -7,14 +7,14 @@ cc_library(
     name = "a1",
     hdrs = ["a1.h"],
     defines = ["USE_FEATURE_A1"],
-    deps = ["//:a2"],
+    deps = [":a2"],
 )
 
 cc_library(
     name = "a2",
     hdrs = ["a2.h"],
     defines = ["USE_FEATURE_A2"],
-    deps = ["//:a1"],
+    deps = [":a1"],
 )
 
 cc_library(
@@ -22,8 +22,8 @@ cc_library(
     hdrs = ["b.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//:a1",
-        "//:a2",
+        ":a1",
+        ":a2",
     ],
 )
 
@@ -38,8 +38,8 @@ cc_library(
     defines = ["USE_FEATURE_A"],
     visibility = ["//visibility:public"],
     deps = [
-        "//:b",
-        "//:d",
+        ":b",
+        ":d",
     ],
 )
 
@@ -54,7 +54,7 @@ cc_library(
     defines = ["USE_FEATURE_B"],
     visibility = ["//visibility:public"],
     deps = [
-        "//:b",
-        "//:c",
+        ":b",
+        ":c",
     ],
 )

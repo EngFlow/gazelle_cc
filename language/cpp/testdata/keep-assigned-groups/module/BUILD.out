@@ -23,12 +23,12 @@ cc_library(
     ],
     hdrs = ["c.h"],
     visibility = ["//visibility:public"],
-    deps = ["//module:cyclic_library"],
+    deps = [":cyclic_library"],
 )
 
 cc_library(
     name = "not-assigned",
     srcs = ["not-assigned.cc"],
     visibility = ["//visibility:public"],
-    deps = ["//module:other-lib"],
+    deps = [":other-lib"],
 )

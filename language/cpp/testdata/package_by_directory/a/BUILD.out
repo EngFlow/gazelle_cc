@@ -23,5 +23,5 @@ cc_test(
         "a_test.c",
         "d_test.c",
     ],
-    deps = ["//a"],
+    deps = [":a"],
 )

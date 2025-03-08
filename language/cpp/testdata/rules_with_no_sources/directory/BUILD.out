@@ -17,7 +17,7 @@ cc_binary(
     name = "my_binary",
     srcs = ["bin.cc"],
     copts = ["-g"],
-    deps = ["//directory:my_library"],
+    deps = [":my_library"],
 )
 
 cc_test(
@@ -30,5 +30,5 @@ cc_test(
         "-g",
         "-O0",
     ],
-    deps = ["//directory:my_library"],
+    deps = [":my_library"],
 )

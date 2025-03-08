@@ -3,7 +3,7 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 cc_binary(
     name = "a_main",
     srcs = ["a_main.cc"],
-    deps = ["//less_srcs"],
+    deps = [":less_srcs"],
 )
 
 cc_library(
@@ -16,5 +16,5 @@ cc_library(
 cc_test(
     name = "less_srcs_test",
     srcs = ["a_test.c"],
-    deps = ["//less_srcs"],
+    deps = [":less_srcs"],
 )

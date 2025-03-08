@@ -52,17 +52,16 @@ func (*cppLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.Re
 
 	for _, include := range cppImports.includes {
 		resolvedLabel := resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
-		if resolvedLabel != label.NoLabel {
-			deps[resolvedLabel] = true
-		}
-
-		// Retry to resolve is external dependency was defined using quotes instead of braces
-		if !include.isSystemInclude {
+		if resolvedLabel == label.NoLabel && !include.isSystemInclude {
+			// Retry to resolve is external dependency was defined using quotes instead of braces
 			resolvedLabel = resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.rawPath})
-			if resolvedLabel != label.NoLabel {
-				deps[resolvedLabel] = true
-			}
 		}
+		if resolvedLabel == label.NoLabel {
+			// We typically can get here is given file does not exists or if is assigned to the resolved rule
+			continue // failed to resolve
+		}
+		resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
+		deps[resolvedLabel] = true
 	}
 
 	if len(deps) > 0 {

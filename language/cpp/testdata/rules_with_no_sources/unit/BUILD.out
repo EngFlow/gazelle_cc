@@ -6,7 +6,7 @@ cc_binary(
     name = "my_binary",
     srcs = ["bin.cc"],
     copts = ["-g"],
-    deps = ["//unit:lib"],
+    deps = [":lib"],
 )
 
 cc_test(
@@ -20,8 +20,8 @@ cc_test(
         "-O0",
     ],
     deps = [
-        "//unit:lib",
-        "//unit:util",
+        ":lib",
+        ":util",
     ],
 )
 

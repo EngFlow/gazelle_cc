@@ -10,5 +10,5 @@ cc_library(
 cc_binary(
     name = "app",
     srcs = ["app.cpp"],
-    deps = ["//a/b"],
+    deps = [":b"],
 )

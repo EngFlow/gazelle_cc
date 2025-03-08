@@ -13,7 +13,7 @@ cc_library(
     srcs = ["b.c"],
     hdrs = ["b.h"],
     visibility = ["//visibility:public"],
-    deps = ["//lib:a"],
+    deps = [":a"],
 )
 
 cc_library(
@@ -33,7 +33,7 @@ cc_library(
     name = "e",
     srcs = ["e.cc"],
     visibility = ["//visibility:public"],
-    deps = ["//lib:c"],
+    deps = [":c"],
 )
 
 cc_library(
@@ -41,8 +41,8 @@ cc_library(
     srcs = ["multiple_unrelated_deps.cc"],
     visibility = ["//visibility:public"],
     deps = [
-        "//lib:b",
-        "//lib:c",
+        ":b",
+        ":c",
     ],
 )
 

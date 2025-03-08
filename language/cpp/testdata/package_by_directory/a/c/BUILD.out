@@ -10,5 +10,5 @@ cc_library(
 cc_test(
     name = "c_test",
     srcs = ["c_test.cc"],
-    deps = ["//a/c"],
+    deps = [":c"],
 )
