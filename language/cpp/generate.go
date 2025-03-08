@@ -35,7 +35,8 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 	for _, file := range files {
 		sourceInfo := sourceInfos[file]
 		for _, include := range sourceInfo.Includes.DoubleQuote {
-			includes = append(includes, cppInclude{rawPath: include, normalizedPath: path.Join(args.Rel, include), isSystemInclude: false})
+			rawPath := path.Clean(include)
+			includes = append(includes, cppInclude{rawPath: rawPath, normalizedPath: path.Join(args.Rel, rawPath), isSystemInclude: false})
 		}
 		for _, include := range sourceInfo.Includes.Bracket {
 			includes = append(includes, cppInclude{rawPath: include, normalizedPath: include, isSystemInclude: true})

@@ -1,0 +1,8 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "lib",
+    hdrs = ["lib.h"],
+    visibility = ["//visibility:public"],
+    deps = ["//module_b:b"],
+)

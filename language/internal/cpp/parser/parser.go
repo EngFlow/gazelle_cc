@@ -103,7 +103,6 @@ func extractSourceInfo(input io.Reader) SourceInfo {
 		prevToken := lastToken
 		token := scanner.Text()
 		lastToken = token
-		// log.Printf("prev=%v, cur=%v\n", prevToken, token)
 
 		if token == "#include" && scanner.Scan() {
 			include := scanner.Text()
