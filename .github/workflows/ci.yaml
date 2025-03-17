@@ -25,3 +25,11 @@ jobs:
       - name: Test
         run: |
           bazel test --test_output=errors //...
+          
+  license-headers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/license_check.sh 
