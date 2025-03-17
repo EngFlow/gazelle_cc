@@ -1,3 +1,7 @@
 # gazelle:map_kind cc_library custom_cc_library //:custom_cc.bzl
 # gazelle:map_kind cc_binary custom_cc_binary //:custom_cc.bzl
 # gazelle:map_kind cc_test custom_cc_test //:custom_cc.bzl
+
+# gazelle:alias_kind my_custom_lib cc_library
+# gazelle:alias_kind my_custom_bin cc_binary
+# gazelle:alias_kind my_custom_test cc_test

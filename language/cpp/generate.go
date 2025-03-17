@@ -66,16 +66,22 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups[groupId]
 		ruleName := string(groupId)
+		newRule := rule.NewRule("cc_library", ruleName)
 		// If there is only 1 target target rule and exactly 1 existing rule reuse it
 		switch len(srcGroups) {
 		case 1:
 			existingRules := rulesInfo.existingRulesOfKind("cc_library", args)
 			if len(existingRules) == 1 {
-				ruleName = existingRules[0].Name()
+				existing := existingRules[0]
+				newRule.SetName(existing.Name())
+				// Use exisitng kind only when is an alias. Required to allow for correct merge
+				// In case of mapped kinds it would lead to problems in resolve
+				if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
+					newRule.SetKind(existing.Kind())
+				}
 			}
 		}
 
-		newRule := rule.NewRule("cc_library", ruleName)
 		// Deal with rules that conflict with existing defintions
 		if ambigiousRuleAssignments, exists := ambigiousRuleAssignments[groupId]; exists {
 			if !c.handleAmbigiousRulesAssignment(args, conf, srcInfo, rulesInfo, newRule, result, *group, ambigiousRuleAssignments) {
@@ -103,16 +109,22 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 func (c *cppLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo *rulesInfo, result *language.GenerateResult) {
 	for _, binSource := range srcInfo.mainSrcs {
 		ruleName := binSource.baseName()
+		rule := rule.NewRule("cc_binary", ruleName)
 		// If there exists exactly 1 existing rule and 1 target reuse it
 		switch len(srcInfo.mainSrcs) {
 		case 1:
 			existingRules := rulesInfo.existingRulesOfKind("cc_binary", args)
 			if len(existingRules) == 1 {
-				ruleName = existingRules[0].Name()
+				existing := existingRules[0]
+				rule.SetName(existing.Name())
+				// Use exisitng kind only when is an alias. Required to allow for correct merge
+				// In case of mapped kinds it would lead to problems in resolve
+				if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
+					rule.SetKind(existing.Kind())
+				}
 			}
 		}
 
-		rule := rule.NewRule("cc_binary", ruleName)
 		rule.SetAttr("srcs", []string{binSource.stringValue()})
 		result.Gen = append(result.Gen, rule)
 		result.Imports = append(result.Imports, extractImports(args, []sourceFile{binSource}, srcInfo.sourceInfos))
@@ -126,14 +138,20 @@ func (c *cppLanguage) generateTestRule(args language.GenerateArgs, srcInfo ccSou
 	// TODO: group tests by framework (unlikely but possible)
 	baseName := filepath.Base(args.Dir)
 	ruleName := baseName + "_test"
+	rule := rule.NewRule("cc_test", ruleName)
 
 	// If there exists exactly 1 existing rule and 1 target reuse it
 	existingRules := rulesInfo.existingRulesOfKind("cc_test", args)
 	if len(existingRules) == 1 {
-		ruleName = existingRules[0].Name()
+		existing := existingRules[0]
+		rule.SetName(existing.Name())
+		// Use exisitng kind only when is an alias. Required to allow for correct merge
+		// In case of mapped kinds it would lead to problems in resolve
+		if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
+			rule.SetKind(existing.Kind())
+		}
 	}
 
-	rule := rule.NewRule("cc_test", ruleName)
 	rule.SetAttr("srcs", sourceFilesToStrings(srcInfo.testSrcs))
 	result.Gen = append(result.Gen, rule)
 	result.Imports = append(result.Imports, extractImports(args, srcInfo.testSrcs, srcInfo.sourceInfos))
@@ -343,7 +361,6 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 	if args.File == nil {
 		return info
 	}
-	inverseKindMaps := kindMapInverseMap(args.Config)
 	for _, rule := range args.File.Rules {
 		ruleName := rule.Name()
 		info.definedRules[ruleName] = rule
@@ -357,12 +374,7 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 				info.groupAssignment[srcFile.toGroupId()] = ruleName
 			}
 		}
-		ruleKind := rule.Kind()
-		// Handle mapped kinds introduced using gazelle:map_kind directive
-		if unmappedKind, exists := inverseKindMaps[ruleKind]; exists {
-			ruleKind = unmappedKind
-		}
-		switch ruleKind {
+		switch resolveCCRuleKind(rule.Kind(), args.Config) {
 		case "cc_library":
 			assignSources(rule.AttrStrings("srcs"))
 			assignSources(rule.AttrStrings("hdrs"))
@@ -375,25 +387,23 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 	return info
 }
 
-// Returns the inverse of config.KindMap resulting in map[customKind]targetKind
-func kindMapInverseMap(config *config.Config) map[string]string {
-	inverseMap := make(map[string]string)
-	for _, mapping := range config.KindMap {
-		inverseMap[mapping.KindName] = mapping.FromKind
+func resolveCCRuleKind(kind string, config *config.Config) string {
+	if target, exists := config.AliasMap[kind]; exists {
+		return target
 	}
-	return inverseMap
+	for _, mapping := range config.KindMap {
+		if mapping.KindName == kind {
+			return mapping.FromKind
+		}
+	}
+	return kind
 }
 
 // Return list of existing rules of kind or with matching kind mapping
 func (info *rulesInfo) existingRulesOfKind(kind string, args language.GenerateArgs) []*rule.Rule {
 	rules := make([]*rule.Rule, 0, len(info.ccRuleSources))
-	mappedKind := kind
-	if mapping, exists := args.Config.KindMap[kind]; exists {
-		mappedKind = mapping.KindName
-	}
 	for _, rule := range info.definedRules {
-		switch rule.Kind() {
-		case kind, mappedKind:
+		if resolveCCRuleKind(rule.Kind(), args.Config) == kind {
 			rules = append(rules, rule)
 		}
 	}

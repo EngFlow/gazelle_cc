@@ -1,0 +1,17 @@
+my_custom_bin(
+    name = "bin",
+    srcs = ["bin.c"],
+    deps = ["//exisitng_alias:lib"],
+)
+
+my_custom_lib(
+    name = "lib",
+    hdrs = ["lib.h"],
+    visibility = ["//visibility:public"],
+)
+
+my_custom_test(
+    name = "lib_test",
+    srcs = ["lib_test.c"],
+    deps = ["//exisitng_alias:lib"],
+)

@@ -1,0 +1,11 @@
+my_custom_bin(
+    name = "bin",
+)
+
+my_custom_lib(
+    name = "lib",
+)
+
+my_custom_test(
+    name = "lib_test",
+)
