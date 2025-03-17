@@ -1,0 +1,2 @@
+Source grouping and dependency resolution shall not be based only on file (base) name. 
+In case if multiple files with the same name exist in different directories the dependencies needs to be resolved correctly

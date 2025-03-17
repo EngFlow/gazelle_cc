@@ -1,0 +1,6 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+custom_cc_library(
+    name = "client_interface",
+    hdrs = ["client.h"],
+)

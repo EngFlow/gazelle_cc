@@ -1,0 +1,7 @@
+load("custom_cc.bzl", "custom_cc_library")
+
+custom_cc_library(
+    name = "upstream_interface",
+    hdrs = ["upstream.h"],
+    visibility = ["//visibility:public"],
+)

@@ -17,6 +17,7 @@ package cpp
 import (
 	"log"
 	"maps"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -125,10 +126,14 @@ func buildDependencyGraph(sourceFiles []sourceFile, sourceInfos map[sourceFile]p
 		node := file.toGroupId()
 		graph[node].sources[file] = true
 		for _, include := range info.Includes.DoubleQuote {
-			dep := sourceFile(include)
 			// Exclude non local headers, these are handled independently as target dependency
-			if _, exists := graph[dep.toGroupId()]; exists {
-				graph[node].adjacency[dep] = true
+			// The include can be either workspace relative or source file relative
+			for _, baseDir := range []string{"", path.Dir(file.stringValue())} {
+				dep := newSourceFile(baseDir, include)
+				if _, exists := graph[dep.toGroupId()]; exists {
+					graph[node].adjacency[dep] = true
+					break
+				}
 			}
 		}
 	}
@@ -296,15 +301,21 @@ func (s *sourceFile) stringValue() string {
 }
 
 func (s *sourceFile) toGroupId() groupId {
-	return groupId(s.baseName())
+	name := string(*s)
+	id := strings.TrimSuffix(name, filepath.Ext(name))
+	return groupId(id)
 }
 
-func sourceFilesToStrings(files []sourceFile) []string {
-	strings := make([]string, len(files))
+func toRelativePaths(dir string, files []sourceFile) []string {
+	relPaths := make([]string, len(files))
 	for idx, value := range files {
-		strings[idx] = value.stringValue()
+		path, err := filepath.Rel(dir, value.stringValue())
+		if err != nil {
+			log.Panicf("Cannot relativize: %v - %v", dir, value)
+		}
+		relPaths[idx] = path
 	}
-	return strings
+	return relPaths
 }
 
 // Concatenate 2 slices, preserving order but without duplicates

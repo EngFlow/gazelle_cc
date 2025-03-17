@@ -107,10 +107,10 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 		// Assign sources to gorups
 		srcs, hdrs := partitionCSources(group.sources)
 		if len(srcs) > 0 {
-			newRule.SetAttr("srcs", sourceFilesToStrings(srcs))
+			newRule.SetAttr("srcs", toRelativePaths(args.Rel, srcs))
 		}
 		if len(hdrs) > 0 {
-			newRule.SetAttr("hdrs", sourceFilesToStrings(hdrs))
+			newRule.SetAttr("hdrs", toRelativePaths(args.Rel, hdrs))
 		}
 		if args.File == nil || !args.File.HasDefaultVisibility() {
 			newRule.SetAttr("visibility", []string{"//visibility:public"})
@@ -140,7 +140,7 @@ func (c *cppLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo cc
 			}
 		}
 
-		rule.SetAttr("srcs", []string{binSource.stringValue()})
+		rule.SetAttr("srcs", toRelativePaths(args.Rel, []sourceFile{binSource}))
 		result.Gen = append(result.Gen, rule)
 		result.Imports = append(result.Imports, extractImports(args, []sourceFile{binSource}, srcInfo.sourceInfos))
 	}
@@ -167,11 +167,12 @@ func (c *cppLanguage) generateTestRule(args language.GenerateArgs, srcInfo ccSou
 		}
 	}
 
-	rule.SetAttr("srcs", sourceFilesToStrings(srcInfo.testSrcs))
+	rule.SetAttr("srcs", toRelativePaths(args.Rel, srcInfo.testSrcs))
 	result.Gen = append(result.Gen, rule)
 	result.Imports = append(result.Imports, extractImports(args, srcInfo.testSrcs, srcInfo.sourceInfos))
 }
 
+// Source file path relative to the workspace directory
 type sourceFile string
 type sourceInfos map[sourceFile]parser.SourceInfo
 type ccSourceInfoSet struct {
@@ -187,6 +188,10 @@ type ccSourceInfoSet struct {
 	unmatched []sourceFile
 	// Map containing information extracted from recognized CC source
 	sourceInfos sourceInfos
+}
+
+func newSourceFile(directory string, filename string) sourceFile {
+	return sourceFile(path.Join(directory, filename))
 }
 
 func (s *ccSourceInfoSet) buildableSources() []sourceFile {
@@ -206,7 +211,7 @@ func collectSourceInfos(args language.GenerateArgs) ccSourceInfoSet {
 	res.sourceInfos = map[sourceFile]parser.SourceInfo{}
 
 	for _, fileName := range args.RegularFiles {
-		file := sourceFile(fileName)
+		file := newSourceFile(args.Rel, fileName)
 		if !hasMatchingExtension(fileName, cExtensions) {
 			res.unmatched = append(res.unmatched, file)
 			continue
@@ -284,7 +289,7 @@ func (c *cppLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs,
 		}
 		log.Printf("Rules %v defined in %v %v, their sources %v would be merged into a single rule '%v'. "+
 			"To prevent automatic merging of rules set `# gazelle:%v %v`",
-			slices.Sorted(slices.Values(ambigiousRuleAssignments)), args.Dir, mergeReason, slices.Sorted(slices.Values(group.sources)), newRule.Name(),
+			slices.Sorted(slices.Values(ambigiousRuleAssignments)), args.Dir, mergeReason, slices.Sorted(slices.Values(toRelativePaths(args.Rel, group.sources))), newRule.Name(),
 			cc_group_unit_cycles, warnOnGroupsCycle,
 		)
 		for _, referedRuleName := range ambigiousRuleAssignments {
@@ -381,7 +386,7 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 		info.definedRules[ruleName] = rule
 		assignSources := func(srcs []string) {
 			for _, filename := range srcs {
-				srcFile := sourceFile(filename)
+				srcFile := newSourceFile(args.Rel, filename)
 				if _, exists := info.ccRuleSources[ruleName]; !exists {
 					info.ccRuleSources[ruleName] = make(sourceFileSet)
 				}

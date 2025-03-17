@@ -1,0 +1,2 @@
+# gazelle:cc_group unit
+# gazelle:map_kind cc_library custom_cc_library custom_cc.bzl

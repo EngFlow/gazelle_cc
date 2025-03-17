@@ -1,0 +1,11 @@
+load("custom_cc.bzl", "custom_cc_library")
+
+custom_cc_library(
+    name = "client_interface",
+    hdrs = ["client.h"],
+)
+
+custom_cc_library(
+    name = "upstream_interface",
+    hdrs = ["upstream.h"],
+)
