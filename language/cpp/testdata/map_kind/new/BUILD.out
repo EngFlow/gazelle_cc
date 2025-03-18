@@ -9,11 +9,11 @@ custom_cc_library(
 custom_cc_binary(
     name = "bin",
     srcs = ["bin.c"],
-    deps = ["//new"],
+    deps = [":new"],
 )
 
 custom_cc_test(
     name = "new_test",
     srcs = ["lib_test.c"],
-    deps = ["//new"],
+    deps = [":new"],
 )

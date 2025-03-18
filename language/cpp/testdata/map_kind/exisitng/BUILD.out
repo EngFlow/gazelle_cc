@@ -3,7 +3,7 @@ load("//:custom_cc.bzl", "custom_cc_binary", "custom_cc_library", "custom_cc_tes
 custom_cc_binary(
     name = "my_bin",
     srcs = ["bin.c"],
-    deps = ["//exisitng:my_lib"],
+    deps = [":my_lib"],
 )
 
 custom_cc_library(
@@ -15,5 +15,5 @@ custom_cc_library(
 custom_cc_test(
     name = "my_lib_test",
     srcs = ["lib_test.c"],
-    deps = ["//exisitng:my_lib"],
+    deps = [":my_lib"],
 )

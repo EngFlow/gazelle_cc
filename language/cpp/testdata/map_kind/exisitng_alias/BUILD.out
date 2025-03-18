@@ -1,7 +1,7 @@
 my_custom_bin(
     name = "bin",
     srcs = ["bin.c"],
-    deps = ["//exisitng_alias:lib"],
+    deps = [":lib"],
 )
 
 my_custom_lib(
@@ -13,5 +13,5 @@ my_custom_lib(
 my_custom_test(
     name = "lib_test",
     srcs = ["lib_test.c"],
-    deps = ["//exisitng_alias:lib"],
+    deps = [":lib"],
 )
