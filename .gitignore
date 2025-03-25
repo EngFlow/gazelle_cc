@@ -4,3 +4,7 @@ bazel-out
 bazel-testlogs
 .vscode
 sandbox/*
+.cache
+.scala-build
+.metals
+.bsp

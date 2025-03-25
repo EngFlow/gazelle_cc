@@ -1,0 +1,47 @@
+name: Generate header mapping index
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Runs at 03:00 AM, on day 1 of the month
+    - cron: "0 3 1 * *"
+jobs:
+  build-plan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: coursier/cache-action@v6     
+      - uses: coursier/setup-action@v1
+        with:
+          apps: scala
+          
+      # Reuse already resolved info if available
+      - uses: actions/cache@v4
+        with:
+          path: .cache/
+          key: gen-mappings-indexer-cache
+
+      - name: Generate mappings
+        run: scala run scripts/indexBzlModules.scala -- --output-mappings=./language/cpp/bzldep-index.json
+        
+      - name: Create PR
+        run: |
+          branchName="cron/update-index/$(date +%Y-%m-%d)"
+
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git checkout -b $branchName
+          git add ./language/cpp/bzldep-index.json
+          git commit -m "Automated update of headers index based on bazel-central-registry"
+          git push origin $branchName
+          
+          gh pr create \
+            --base=main \
+            --head=$branchName \
+            --title='[Bot] Update bazel-central-registry headers index' \
+            --fill
+        

@@ -1,2 +1,3 @@
 gazelle: Rules [a1 a2] defined in %WORKSPACEPATH% create a cyclic dependency, their sources [a1.h a2.h] would be merged into a single rule 'a1'. To prevent automatic merging of rules set `# gazelle:cc_group_unit_cycles warn`
 gazelle: Rules [c d] defined in %WORKSPACEPATH% create a cyclic dependency, their sources [c.cc c.h d.cc d.h] would be merged into a single rule 'c'. To prevent automatic merging of rules set `# gazelle:cc_group_unit_cycles warn`
+gazelle: //:c: Resolved mapping of '#include c.h' to @libuuid//:common, but 'bazel_dep(name = "libuuid")' is missing in MODULE.bazel

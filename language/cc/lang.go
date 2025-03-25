@@ -15,17 +15,27 @@
 package cc
 
 import (
+	_ "embed"
+	"encoding/json"
+	"log"
 	"path/filepath"
 	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
 const languageName = "cc"
 
-type ccLanguage struct{}
+type ccLanguage struct {
+	// Index of header includes parsed from Bazel Central Registry
+	bzlmodDependenciesIndex map[string]label.Label
+	// Set of missing bazel_dep modules referenced in includes but not defined
+	// Used for deduplication of missing modul_dep warnings
+	notFoundBzlModDeps map[string]bool
+}
 
 type cppInclude struct {
 	// Include path extracted from brackets or double quotes
@@ -44,7 +54,10 @@ type cppImports struct {
 const ccProtoLibraryFilesKey = "_protos"
 
 func NewLanguage() language.Language {
-	return &ccLanguage{}
+	return &ccLanguage{
+		bzlmodDependenciesIndex: loadBzlModDependenciesIndex(),
+		notFoundBzlModDeps:      make(map[string]bool),
+	}
 }
 
 // language.Language methods
@@ -122,4 +135,23 @@ func hasMatchingExtension(filename string, extensions []string) bool {
 		}
 	}
 	return false
+}
+
+//go:embed bzldep-index.json
+var bzlDepHeadersIndex string
+
+func loadBzlModDependenciesIndex() map[string]label.Label {
+	var parsedLabels map[string]string
+	if err := json.Unmarshal([]byte(bzlDepHeadersIndex), &parsedLabels); err != nil {
+		log.Printf("Failed to parsed Bazel modules dependencies index, resolving external dependenices would not work: %v", err)
+		return make(map[string]label.Label)
+	}
+
+	index := make(map[string]label.Label, len(parsedLabels))
+	for hdr, target := range parsedLabels {
+		if decoded, err := label.Parse(target); err == nil {
+			index[hdr] = decoded
+		}
+	}
+	return index
 }

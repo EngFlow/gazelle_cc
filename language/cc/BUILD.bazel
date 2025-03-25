@@ -9,6 +9,9 @@ go_library(
         "resolve.go",
         "source_groups.go",
     ],
+    embedsrcs = [
+        "bzldep-index.json",
+    ],
     importpath = "github.com/EngFlow/gazelle_cc/language/cc",
     visibility = ["//visibility:public"],
     deps = [

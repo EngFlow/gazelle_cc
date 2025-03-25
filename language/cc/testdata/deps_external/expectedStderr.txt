@@ -1,0 +1,1 @@
+gazelle: //bracket:bracket_test: Resolved mapping of '#include boost/thread.hpp' to @boost.thread//:boost.thread, but 'bazel_dep(name = "boost.thread")' is missing in MODULE.bazel

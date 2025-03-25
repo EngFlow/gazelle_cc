@@ -6,5 +6,10 @@ load("@rules_cc//cc:defs.bzl", "cc_test")
 cc_test(
     name = "quoted_test",
     srcs = ["my_test.cc"],
-    deps = ["@googletest//:gtest_main"],
+    deps = [
+        "@abseil-cpp//absl/algorithm",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log",
+        "@googletest//:gtest_main",
+    ],
 )

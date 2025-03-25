@@ -1,0 +1,1 @@
+gazelle: //a/c: Resolved mapping of '#include c.h' to @libuuid//:common, but 'bazel_dep(name = "libuuid")' is missing in MODULE.bazel

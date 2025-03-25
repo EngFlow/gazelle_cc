@@ -6,3 +6,4 @@ gazelle: Existing cc_library rules [c d] defined in %WORKSPACEPATH%/BUILD.bazel 
   - Set `# gazelle:cc_group_unit_cycles merge` to automatically merge targets to avoid cyclic dependencies.
   - Manually combine targets to avoid cyclic dependencies.
   - Remove `#include`s from source files that cause cyclic dependencies: [c.cc c.h d.cc d.h]
+gazelle: //:c: Resolved mapping of '#include c.h' to @libuuid//:common, but 'bazel_dep(name = "libuuid")' is missing in MODULE.bazel

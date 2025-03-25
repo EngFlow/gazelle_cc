@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"log"
 	"maps"
 	"path"
 	"slices"
@@ -57,7 +58,7 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 	return imports
 }
 
-func (*ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports interface{}, from label.Label) {
+func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports interface{}, from label.Label) {
 	if imports == nil {
 		return
 	}
@@ -66,10 +67,10 @@ func (*ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.Rem
 	deps := make(map[label.Label]bool)
 
 	for _, include := range cppImports.includes {
-		resolvedLabel := resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
+		resolvedLabel := lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
 		if resolvedLabel == label.NoLabel && !include.isSystemInclude {
 			// Retry to resolve is external dependency was defined using quotes instead of braces
-			resolvedLabel = resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.rawPath})
+			resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.rawPath})
 		}
 		if resolvedLabel == label.NoLabel {
 			// We typically can get here is given file does not exists or if is assigned to the resolved rule
@@ -86,7 +87,7 @@ func (*ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.Rem
 	}
 }
 
-func resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec) label.Label {
+func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec) label.Label {
 	// Resolve the gazele:resolve overrides if defined
 	if resolvedLabel, ok := resolve.FindRuleWithOverride(c, importSpec, languageName); ok {
 		return resolvedLabel
@@ -98,5 +99,20 @@ func resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label
 			return searchResult.Label
 		}
 	}
+
+	if label, exists := lang.bzlmodDependenciesIndex[importSpec.Imp]; exists {
+		apparantName := c.ModuleToApparentName(label.Repo)
+		// Empty apparentName means that there is no such a repository added by bazel_dep
+		if apparantName != "" {
+			label.Repo = apparantName
+			return label
+		}
+		if _, exists := lang.notFoundBzlModDeps[label.Repo]; !exists {
+			// Warn only once per missing module_dep
+			lang.notFoundBzlModDeps[label.Repo] = true
+			log.Printf("%v: Resolved mapping of '#include %v' to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, importSpec.Imp, label, label.Repo)
+		}
+	}
+
 	return label.NoLabel
 }
