@@ -46,7 +46,7 @@ import upickle.default.*
 import sttp.client4.*
 import sttp.client4.wrappers.{FollowRedirectsBackend, TryBackend}
 import sttp.model.Uri
-import java.io.FileInputStream
+import java.io.{FileInputStream, IOException}
 import java.util.zip.{GZIPInputStream}
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
@@ -363,13 +363,15 @@ def resolveTargets(projectRoot: os.Path) = Try {
           Option.when(bazelVersion.forall(_.major >= 5))("--check_direct_dependencies=off")
       ).call(cwd = projectRoot, stderr = os.Pipe, check = false)
       // Important for disk space management, each tmp dir for bazel can easily take 100 MB
-    } finally os.remove.all(tmpOutputBase)
+    } finally
+      try os.remove.all(tmpOutputBase)
+      catch { case _: IOException => () }
 
   // Allow exitCode 3 signaling error under --keep-going
   queryResult.exitCode
     .ensuring(
         Seq(0, 3).contains(_),
-        s"bazel query failed, exitCode: ${queryResult.exitCode}, version: ${bazelVersion.getOrElse("unknown")}" // , stderr: ${cmd.err.text()}"
+        s"bazel query failed, exitCode: ${queryResult.exitCode}, version: ${bazelVersion.getOrElse("unknown")}" // stderr: ${queryResult.err.text()}"
     )
 
   val xmlDoc = xml.XML.loadStringDocument(queryResult.out.text())
@@ -549,10 +551,9 @@ def extractArchive(archiveFile: os.Path, outputDir: os.Path, stripPrefix: Option
         use(new ZipArchiveInputStream(inputStream))
     }
     if !os.exists(outputDir) then os.makeDir.all(outputDir)
-    Iterator
-      .continually(stream.getNextEntry())
-      .takeWhile(_ != null)
-      .foreach { entry =>
+    stream
+      .iterator()
+      .forEachRemaining { entry =>
         val outputPath = outputDir / os.SubPath(entry.getName())
         if entry.isDirectory() then os.makeDir.all(outputPath)
         else
