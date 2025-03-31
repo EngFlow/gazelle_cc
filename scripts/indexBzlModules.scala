@@ -1,7 +1,8 @@
 //> using scala 3.7.0-RC1
-//> using options --preview
+//> using options --preview -Wunused:all
 //> using jvm 21
 //> using toolkit 0.7.0
+//> using dep com.softwaremill.sttp.client4::core:4.0.0-RC3 // overrides version from toolkit, see https://github.com/softwaremill/sttp/issues/2505
 //> using dep org.apache.commons:commons-compress:1.27.1
 //> using dep org.tukaani:xz:1.10 // needed for .tar.xz compressor
 //> using dep org.scala-lang.modules::scala-xml:2.3.0
@@ -23,7 +24,7 @@
  * Scala runner is required for the script: either any version of Scala 3.5+ or scala-cli - it would download the required JVM and dependencies if needed.
  * See https://www.scala-lang.org/download/ or https://scala-cli.virtuslab.org/install (Scala runner is powered internally by scala-cli)
  * 
- * It does also use system binaries: git, curl, patch (gpatch is required on MacOs instead to correctly apply patches to Bazel modules) and bazel (bazelisk preferred)
+ * It does also use system binaries: git, patch (gpatch is required on MacOs instead to correctly apply patches to Bazel modules) and bazel (bazelisk preferred)
  * Usage: scala indexBzlModules.scala -- <options* | --help>
  */
 @main def Index(args: String*) = {
@@ -42,7 +43,8 @@
 }
 
 import upickle.default.*
-import sttp.client4.quick.*
+import sttp.client4.*
+import sttp.client4.wrappers.{FollowRedirectsBackend, TryBackend}
 import sttp.model.Uri
 import java.io.FileInputStream
 import java.util.zip.{GZIPInputStream}
@@ -56,16 +58,11 @@ import java.io.FileOutputStream
 import scala.concurrent.*
 import scala.concurrent.duration.*
 import java.util.concurrent.Executors
-import java.util.zip.ZipInputStream
-import os.RelPath
 import scala.util.*
 import scala.util.chaining.*
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.LinkedHashMap
 
 import types.*
 import ModuleResolveResult.*
-import os.Source
 
 case class Config(
     cacheDir: os.Path = os.pwd / ".cache",
@@ -82,17 +79,18 @@ object Config {
     given Read[os.Path] = summon[Read[String]].map: path =>
       Try(os.Path(path))
         .getOrElse(os.pwd / os.RelPath(path))
-    
+
     val parser = OParser.sequence(
         opt[os.Path]("cache-dir")
           .action((value, c) => c.copy(cacheDir = value))
           .text(s"Path to cache directory, default: ${default.cacheDir.relativeTo(os.pwd)}"),
         opt[os.Path]("output-mappings")
           .action((value, c) => c.copy(outputPath = value))
-          .text(s"Path were to output created header mappings index, default: ${default.outputPath.relativeTo(os.pwd)}"),
+          .text(
+              s"Path were to output created header mappings index, default: ${default.outputPath.relativeTo(os.pwd)}"),
         opt[Unit]('v', "verbose")
           .action((_, c) => c.copy(verbose = true)),
-        help("help").text("Show the usage of the script"),
+        help("help").text("Show the usage of the script")
     )
     OParser
       .parse(parser, args, default)
@@ -250,7 +248,7 @@ def gatherModuleInfos(registryRepo: os.Path)(using config: Config): List[ModuleI
     for
       modules = os.list(registryRepo / "modules")
       _ = println(s"Scanning ${modules.size} modules for cc_rules")
-      results <- Future.traverse(modules){ module =>
+      results <- Future.traverse(modules) { module =>
         // A concurrent task for each module, parallelism limited by provided ExecutionContext in runWithFixedThreadPool
         // In verbose mode prints info about result of the query: success-rulesCount/failure-reason,
         Future:
@@ -489,29 +487,24 @@ def prepareModuleSources(sourcesDir: os.Path)(
 def prepareArchiveModule(url: Uri, targetDir: os.Path, sourcesDir: os.Path, stripPrefix: Option[String],
     patchStrip: Option[Int], patchFiles: Set[String]): Try[os.Path] = {
   val fileName = url.path.last
-  val artifactPath = os.temp.dir(deleteOnExit = true) / fileName
   // Download file with possible retries
-  def downloadArchive(retries: Int): Try[Unit] =
-    Try:
-      val _ = os
-        .proc(
-            "curl",
-            url.toString,
-            "-L",
-            "-o",
-            artifactPath,
-            "--silent"
-        )
-        .call()
-    .recoverWith {
-      case _ if retries > 0 =>
-        Thread.sleep(Random.nextInt(15).seconds.toMillis)
-        downloadArchive(retries - 1)
-    }
+  def downloadArchive(retries: Int): Try[os.Path] =
+    val artifactPath = os.temp.dir(deleteOnExit = true) / fileName
+    basicRequest
+      .get(url)
+      .response(asPathAlways(artifactPath.toNIO))
+      .send(TryBackend(FollowRedirectsBackend.encodeUriAll(DefaultSyncBackend())))
+      .map: response =>
+        os.Path(response.body)
+      .recoverWith {
+        case _ if retries > 0 =>
+          Thread.sleep(Random.nextInt(15).seconds.toMillis)
+          downloadArchive(retries - 1)
+      }
   downloadArchive(retries = 3)
-    .flatMap: _ =>
+    .flatMap: artifactPath =>
       extractArchive(archiveFile = artifactPath, outputDir = targetDir, stripPrefix = stripPrefix)
-    .tap(_ => os.remove(artifactPath))
+        .tap(_ => os.remove(artifactPath))
     .map { targetDir =>
       assert(os.exists(targetDir), s"Does not exists $targetDir")
 
@@ -524,7 +517,7 @@ def prepareArchiveModule(url: Uri, targetDir: os.Path, sourcesDir: os.Path, stri
             .foreach: patchFile =>
               // MacOS patch does not support renaming files - brew install gpatch
               val patchBin = if isMacOS then "gpatch" else "patch"
-              val result = os
+              val _ = os
                 .proc(patchBin, s"-p${patchStrip.getOrElse(0)}", "-f", "-l", "-i", patchFile)
                 .call(cwd = targetDir, stderr = os.Pipe, stdout = os.Pipe, check = true)
       Option(sourcesDir / "overlay")
@@ -703,7 +696,7 @@ given JsonCacheDriver[ModuleVersion, ModuleResolveResult]:
     case _: Unresolved => RecomputeUnresolvedModules
     case _: ModuleInfo => false // always valid
   }
-  override def destination(module: ModuleVersion): RelPath =
+  override def destination(module: ModuleVersion): os.RelPath =
     os.rel / "modules" / module.name / module.version / "module-info.json"
   override def write(value: ModuleResolveResult): Option[String] = value match {
     case _: Unresolved if !CacheUnresolvedModules => None
