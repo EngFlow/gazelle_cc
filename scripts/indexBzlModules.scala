@@ -138,7 +138,8 @@ def createHeaderIndex(infos: Seq[ModuleInfo])(using config: Config): (
   }
   // Check if file might be internal or hidden
   def shouldExcludeHeader(path: os.RelPath): Boolean = {
-    path.toString.isBlank
+    standardLibraryHeaderFiles.contains(path)
+    || path.toString.isBlank
     || path.segments.exists: segment =>
       Seq(".", "_").exists(segment.startsWith)
     || path.segments.headOption.exists:
@@ -757,3 +758,39 @@ extension [T](value: T)
   inline def tapIf(cond: Boolean)(fn: T => Unit): T =
     if cond then fn(value)
     value
+
+/* scalafmt: {
+     binPack.defnSite = always
+     binPack.callSite = always
+     newlines.configStyle.fallBack.prefer = false
+   }
+ */
+// https://pubs.opengroup.org/onlinepubs/9799919799/idx/headers.html
+lazy val posixStdlibHeaders = Set("aio.h", "arpa/inet.h", "assert.h",
+  "complex.h", "cpio.h", "ctype.h", "devctl.h", "dirent.h", "dlfcn.h",
+  "endian.h", "errno.h", "fcntl.h", "fenv.h", "float.h", "fmtmsg.h",
+  "fnmatch.h", "ftw.h", "glob.h", "grp.h", "iconv.h", "inttypes.h", "iso646.h",
+  "langinfo.h", "libgen.h", "libintl.h", "limits.h", "locale.h", "math.h",
+  "monetary.h", "mqueue.h", "ndbm.h", "net/if.h", "netdb.h", "netinet/in.h",
+  "netinet/tcp.h", "nl_types.h", "poll.h", "pthread.h", "pwd.h", "regex.h",
+  "sched.h", "search.h", "semaphore.h", "setjmp.h", "signal.h", "spawn.h",
+  "stdalign.h", "stdarg.h", "stdatomic.h", "stdbool.h", "stddef.h", "stdint.h",
+  "stdio.h", "stdlib.h", "stdnoreturn.h", "string.h", "strings.h", "sys.h",
+  "sys/ipc.h", "sys/cdefs.h", "sys/mman.h", "sys/msg.h", "sys/resource.h",
+  "sys/select.h", "sys/sem.h", "sys/shm.h", "sys/socket.h", "sys/stat.h",
+  "sys/statvfs.h", "sys/time.h", "sys/times.h", "sys/types.h", "sys/uio.h",
+  "sys/un.h", "sys/utsname.h", "sys/wait.h", "syslog.h", "tar.h", "termios.h",
+  "tgmath.h", "threads.h", "time.h", "uchar.h", "unistd.h", "utmpx.h",
+  "wchar.h", "wctype.h", "wordexp.h")
+
+// https://en.cppreference.com/w/c/header
+val cStdLibHeaders = Set("assert.h", "complex.h", "ctype.h", "errno.h",
+  "fenv.h", "float.h", "inttypes.h", "iso646.h", "limits.h", "locale.h",
+  "math.h", "setjmp.h", "signal.h", "stdalign.h", "stdarg.h", "stdatomic.h",
+  "stdbit.h", "stdbool.h", "stdckdint.h", "stddef.h", "stdint.h", "stdio.h",
+  "stdlib.h", "stdmchar.h", "stdnoreturn.h", "string.h", "tgmath.h",
+  "threads.h", "time.h", "uchar.h", "wchar.h", "wctype.h")
+
+lazy val standardLibraryHeaderFiles =
+  (cStdLibHeaders ++ posixStdlibHeaders)
+    .map(os.RelPath(_))
