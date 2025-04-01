@@ -35,8 +35,8 @@ func (c *cppLanguage) GenerateRules(args language.GenerateArgs) language.Generat
 
 	var result = language.GenerateResult{}
 	c.generateLibraryRules(args, srcInfo, rulesInfo, &result)
-	c.generateBinaryRules(args, srcInfo, &rulesInfo, &result)
-	c.generateTestRule(args, srcInfo, &rulesInfo, &result)
+	c.generateBinaryRules(args, srcInfo, rulesInfo, &result)
+	c.generateTestRules(args, srcInfo, rulesInfo, &result)
 
 	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
 	// However we need to inspect for existing rules that are no longer matching any files
@@ -60,42 +60,54 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 	return cppImports{includes: includes}
 }
 
+func splitSourcesIntoGroups(args language.GenerateArgs, srcs []sourceFile, srcInfo ccSourceInfoSet) sourceGroups {
+	conf := getCppConfig(args.Config)
+	var srcGroups sourceGroups
+	switch conf.groupingMode {
+	case groupSourcesByDirectory:
+		// All sources grouped together
+		groupName := groupId(filepath.Base(args.Dir))
+		srcGroups = sourceGroups{groupName: {sources: srcs}}
+	case groupSourcesByUnit:
+		srcGroups = groupSourcesByUnits(srcs, srcInfo.sourceInfos)
+	}
+	return srcGroups
+}
+
+/* Helper merthod to create new rule of given type that is aware of existing context.
+ * If there exists exactly 1 new group of given kind the returned rule would reuse it's name and possibly aliased kind
+ */
+func newOrExistingRule(kind string, ruleName string, srcGroups sourceGroups, rulesInfo rulesInfo, args language.GenerateArgs) *rule.Rule {
+	newRule := rule.NewRule(kind, ruleName)
+	// If there is only 1 target target rule and exactly 1 existing rule reuse it
+	if len(srcGroups) == 1 {
+		existingRules := rulesInfo.existingRulesOfKind(kind, args)
+		if len(existingRules) == 1 {
+			existing := existingRules[0]
+			newRule.SetName(existing.Name())
+			// Use exisitng kind only when is an alias. Required to allow for correct merge
+			// In case of mapped kinds it would lead to problems in resolve
+			if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
+				newRule.SetKind(existing.Kind())
+			}
+		}
+	}
+	return newRule
+}
+
 func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
 	conf := getCppConfig(args.Config)
 	allSrcs := slices.Concat(srcInfo.srcs, srcInfo.hdrs)
 	if len(allSrcs) == 0 {
 		return
 	}
-	var srcGroups sourceGroups
-	switch conf.groupingMode {
-	case groupSourcesByDirectory:
-		// All sources grouped together
-		groupName := groupId(filepath.Base(args.Dir))
-		srcGroups = sourceGroups{groupName: {sources: allSrcs}}
-	case groupSourcesByUnit:
-		srcGroups = groupSourcesByUnits(allSrcs, srcInfo.sourceInfos)
-	}
-
+	srcGroups := splitSourcesIntoGroups(args, allSrcs, srcInfo)
 	ambigiousRuleAssignments := srcGroups.adjustToExistingRules(rulesInfo)
 
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups[groupId]
 		ruleName := string(groupId)
-		newRule := rule.NewRule("cc_library", ruleName)
-		// If there is only 1 target target rule and exactly 1 existing rule reuse it
-		switch len(srcGroups) {
-		case 1:
-			existingRules := rulesInfo.existingRulesOfKind("cc_library", args)
-			if len(existingRules) == 1 {
-				existing := existingRules[0]
-				newRule.SetName(existing.Name())
-				// Use exisitng kind only when is an alias. Required to allow for correct merge
-				// In case of mapped kinds it would lead to problems in resolve
-				if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
-					newRule.SetKind(existing.Kind())
-				}
-			}
-		}
+		newRule := newOrExistingRule("cc_library", ruleName, srcGroups, rulesInfo, args)
 
 		// Deal with rules that conflict with existing defintions
 		if ambigiousRuleAssignments, exists := ambigiousRuleAssignments[groupId]; exists {
@@ -121,55 +133,45 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 	}
 }
 
-func (c *cppLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo *rulesInfo, result *language.GenerateResult) {
-	for _, binSource := range srcInfo.mainSrcs {
-		ruleName := binSource.baseName()
-		rule := rule.NewRule("cc_binary", ruleName)
-		// If there exists exactly 1 existing rule and 1 target reuse it
-		switch len(srcInfo.mainSrcs) {
-		case 1:
-			existingRules := rulesInfo.existingRulesOfKind("cc_binary", args)
-			if len(existingRules) == 1 {
-				existing := existingRules[0]
-				rule.SetName(existing.Name())
-				// Use exisitng kind only when is an alias. Required to allow for correct merge
-				// In case of mapped kinds it would lead to problems in resolve
-				if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
-					rule.SetKind(existing.Kind())
-				}
-			}
-		}
-
-		rule.SetAttr("srcs", toRelativePaths(args.Rel, []sourceFile{binSource}))
-		result.Gen = append(result.Gen, rule)
-		result.Imports = append(result.Imports, extractImports(args, []sourceFile{binSource}, srcInfo.sourceInfos))
+func (c *cppLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
+	srcGroups := identitySourceGroups(srcInfo.mainSrcs)
+	for _, groupId := range srcGroups.groupIds() {
+		group := srcGroups[groupId]
+		ruleName := group.sources[0].baseName()
+		newRule := newOrExistingRule("cc_binary", ruleName, srcGroups, rulesInfo, args)
+		newRule.SetAttr("srcs", toRelativePaths(args.Rel, group.sources))
+		result.Gen = append(result.Gen, newRule)
+		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
 	}
 }
 
-func (c *cppLanguage) generateTestRule(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo *rulesInfo, result *language.GenerateResult) {
+func (c *cppLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
 	if len(srcInfo.testSrcs) == 0 {
 		return
 	}
 	// TODO: group tests by framework (unlikely but possible)
-	baseName := filepath.Base(args.Dir)
-	ruleName := baseName + "_test"
-	rule := rule.NewRule("cc_test", ruleName)
+	conf := getCppConfig(args.Config)
+	srcGroups := splitSourcesIntoGroups(args, srcInfo.testSrcs, srcInfo)
+	ambigiousRuleAssignments := srcGroups.adjustToExistingRules(rulesInfo)
 
-	// If there exists exactly 1 existing rule and 1 target reuse it
-	existingRules := rulesInfo.existingRulesOfKind("cc_test", args)
-	if len(existingRules) == 1 {
-		existing := existingRules[0]
-		rule.SetName(existing.Name())
-		// Use exisitng kind only when is an alias. Required to allow for correct merge
-		// In case of mapped kinds it would lead to problems in resolve
-		if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
-			rule.SetKind(existing.Kind())
+	for _, groupId := range srcGroups.groupIds() {
+		group := srcGroups[groupId]
+		ruleName := string(groupId)
+		if !(strings.HasSuffix(ruleName, "test") || strings.HasPrefix(ruleName, "test")) {
+			ruleName = ruleName + "_test"
 		}
-	}
+		newRule := newOrExistingRule("cc_test", ruleName, srcGroups, rulesInfo, args)
 
-	rule.SetAttr("srcs", toRelativePaths(args.Rel, srcInfo.testSrcs))
-	result.Gen = append(result.Gen, rule)
-	result.Imports = append(result.Imports, extractImports(args, srcInfo.testSrcs, srcInfo.sourceInfos))
+		// Deal with rules that conflict with existing defintions
+		if ambigiousRuleAssignments, exists := ambigiousRuleAssignments[groupId]; exists {
+			if !c.handleAmbigiousRulesAssignment(args, conf, srcInfo, rulesInfo, newRule, result, *group, ambigiousRuleAssignments) {
+				continue // Failed to handle issue, skip this group. New rule could have been modified
+			}
+		}
+		newRule.SetAttr("srcs", toRelativePaths(args.Rel, group.sources))
+		result.Gen = append(result.Gen, newRule)
+		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
+	}
 }
 
 // Source file path relative to the workspace directory
@@ -194,9 +196,6 @@ func newSourceFile(directory string, filename string) sourceFile {
 	return sourceFile(path.Join(directory, filename))
 }
 
-func (s *ccSourceInfoSet) buildableSources() []sourceFile {
-	return slices.Concat(s.srcs, s.hdrs, s.mainSrcs, s.testSrcs)
-}
 func (s *ccSourceInfoSet) containsBuildableSource(src sourceFile) bool {
 	return slices.Contains(s.srcs, src) ||
 		slices.Contains(s.hdrs, src) ||

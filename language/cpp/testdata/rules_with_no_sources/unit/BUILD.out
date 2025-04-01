@@ -9,22 +9,6 @@ cc_binary(
     deps = [":lib"],
 )
 
-cc_test(
-    name = "my_tests",
-    srcs = [
-        "lib_test.cc",
-        "util_test.cc",
-    ],
-    copts = [
-        "-g",
-        "-O0",
-    ],
-    deps = [
-        ":lib",
-        ":util",
-    ],
-)
-
 cc_library(
     name = "lib",
     srcs = ["lib.cc"],
@@ -38,5 +22,14 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+cc_test(
+    name = "lib_test",
+    srcs = ["lib_test.cc"],
+    deps = [":lib"],
+)
 
-
+cc_test(
+    name = "util_test",
+    srcs = ["util_test.cc"],
+    deps = [":util"],
+)

@@ -38,6 +38,16 @@ type sourceGroup struct {
 // sourceGroups is a mapping of groupIds to their corresponding sourceGroups
 type sourceGroups map[groupId]*sourceGroup
 
+// Returns a source group by assigning files based on their filename (excluding extension)
+// without analyzing dependencies between sources
+func identitySourceGroups(srcs []sourceFile) sourceGroups {
+	srcGroups := make(sourceGroups)
+	for _, src := range srcs {
+		srcGroups[src.toGroupId()] = &sourceGroup{sources: []sourceFile{src}}
+	}
+	return srcGroups
+}
+
 // returns a sorted list of groupIds from the sourceGroups
 func (g *sourceGroups) groupIds() []groupId {
 	ids := slices.Collect(maps.Keys(*g))
