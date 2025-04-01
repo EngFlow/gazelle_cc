@@ -222,10 +222,12 @@ func collectSourceInfos(args language.GenerateArgs) ccSourceInfoSet {
 			continue
 		}
 		res.sourceInfos[file] = sourceInfo
+		baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+		baseName = strings.ToLower(baseName)
 		switch {
 		case hasMatchingExtension(fileName, headerExtensions):
 			res.hdrs = append(res.hdrs, file)
-		case strings.Contains(fileName, "_test."):
+		case strings.HasPrefix(baseName, "test") || strings.HasSuffix(baseName, "test"):
 			res.testSrcs = append(res.testSrcs, file)
 		case sourceInfo.HasMain:
 			res.mainSrcs = append(res.mainSrcs, file)
