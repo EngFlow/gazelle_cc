@@ -15,7 +15,7 @@ cc_proto_library(
 )
 
 cc_library(
-    name = "protobuf_filter_generated",
+    name = "default",
     hdrs = ["other.pb.h"],
     visibility = ["//visibility:public"],
     deps = [":model_cc_proto"],

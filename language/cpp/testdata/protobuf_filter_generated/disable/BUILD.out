@@ -1,0 +1,12 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:proto disable
+
+cc_library(
+    name = "disable",
+    hdrs = [
+        "model.pb.h",
+        "other.pb.h",
+    ],
+    visibility = ["//visibility:public"],
+)
