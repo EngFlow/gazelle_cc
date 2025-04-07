@@ -1,0 +1,43 @@
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# gazelle:proto package
+
+proto_library(
+    name = "service_c_proto",
+    srcs = [
+        "model.proto",
+        "service.proto",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["//:root_proto"],
+)
+
+proto_library(
+    name = "utils_proto",
+    srcs = ["other.proto"],
+    visibility = ["//visibility:public"],
+)
+
+cc_proto_library(
+    name = "service_c_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":service_c_proto"],
+)
+
+cc_proto_library(
+    name = "utils_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":utils_proto"],
+)
+
+cc_test(
+    name = "test",
+    srcs = ["test.cc"],
+    deps = [
+        ":service_c_cc_proto",
+        "//service_a:protobuf_service_a_cc_proto",
+    ],
+)
+

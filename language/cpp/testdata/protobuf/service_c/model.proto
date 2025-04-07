@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+package protobuf.service_c;
+
+import "other.proto";

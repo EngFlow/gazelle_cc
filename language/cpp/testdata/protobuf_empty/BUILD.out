@@ -1,0 +1,11 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+# gazelle:cc_group unit
+
+cc_test(
+    name = "test",
+    srcs = ["test.cc"],
+)
+
+
+

@@ -11,7 +11,8 @@ load("@bazel_skylib//lib:sets.bzl", "sets")
 gazelle_binary(
     name = "gazelle_cpp",
     languages = [
-        "//language/cpp"
+        "@gazelle//language/proto",
+        "//language/cpp",
     ],
     visibility = ["//visibility:private"],
 )

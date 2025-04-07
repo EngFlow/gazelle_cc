@@ -1,0 +1,22 @@
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+proto_library(
+    name = "model_proto",
+    srcs = ["model.proto"],
+    visibility = ["//visibility:public"],
+)
+
+cc_proto_library(
+    name = "model_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":model_proto"],
+)
+
+cc_library(
+    name = "protobuf_filter_generated",
+    hdrs = ["other.pb.h"],
+    visibility = ["//visibility:public"],
+    deps = [":model_cc_proto"],
+)

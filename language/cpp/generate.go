@@ -34,7 +34,8 @@ func (c *cppLanguage) GenerateRules(args language.GenerateArgs) language.Generat
 	rulesInfo := extractRulesInfo(args)
 
 	var result = language.GenerateResult{}
-	c.generateLibraryRules(args, srcInfo, rulesInfo, &result)
+	consumedProtoFiles := c.generateProtoLibraryRules(args, rulesInfo, &result)
+	c.generateLibraryRules(args, srcInfo, rulesInfo, consumedProtoFiles, &result)
 	c.generateBinaryRules(args, srcInfo, rulesInfo, &result)
 	c.generateTestRules(args, srcInfo, rulesInfo, &result)
 
@@ -95,9 +96,15 @@ func newOrExistingRule(kind string, ruleName string, srcGroups sourceGroups, rul
 	return newRule
 }
 
-func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
+func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, excludedSources sourceFileSet, result *language.GenerateResult) {
 	conf := getCppConfig(args.Config)
-	allSrcs := slices.Concat(srcInfo.srcs, srcInfo.hdrs)
+	// Ignore files that might have been consumed by other rules
+	allSrcs := []sourceFile{}
+	for _, file := range slices.Concat(srcInfo.srcs, srcInfo.hdrs) {
+		if isExcluded := excludedSources[file]; !isExcluded {
+			allSrcs = append(allSrcs, file)
+		}
+	}
 	if len(allSrcs) == 0 {
 		return
 	}
@@ -172,6 +179,54 @@ func (c *cppLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSo
 		result.Gen = append(result.Gen, newRule)
 		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
 	}
+}
+
+// Generated a cc_proto_library rules based on outputs of protobuf proto_library
+// Returns a set of .pb.h files that should be excluded from normal cc_library rules
+func (c *cppLanguage) generateProtoLibraryRules(args language.GenerateArgs, rulesInfo rulesInfo, result *language.GenerateResult) sourceFileSet {
+	consumedProtoFiles := make(sourceFileSet)
+	const ccProtoRuleSufix = "_cc_proto"
+	for _, protoRule := range args.OtherGen {
+		switch protoRule.Kind() {
+		case "proto_library":
+			protoFiles := protoRule.AttrStrings("srcs")
+			if len(protoFiles) == 0 {
+				continue
+			}
+			for _, file := range protoFiles {
+				// If generated pb.h files exists exclude it, refer to cc_proto_library instead
+				if baseName, isProto := strings.CutSuffix(file, ".proto"); isProto {
+					consumedProtoFiles[newSourceFile(args.Rel, baseName+".pb.h")] = true
+					consumedProtoFiles[newSourceFile(args.Rel, baseName+".pb.cc")] = true
+				}
+			}
+			protoRuleLabel, err := label.Parse(":" + protoRule.Name())
+			if err != nil {
+				log.Panicf("Failed to parse proto_library label of %v", protoRule.Name())
+			}
+			baseName := strings.TrimSuffix(protoRuleLabel.Name, "_proto")
+			ruleName := baseName + ccProtoRuleSufix
+			newRule := newOrExistingRule("cc_proto_library", ruleName, nil, rulesInfo, args)
+			// Every cc_proto_library needs to have exactyl 1 deps entry - the label or proto_library
+			// https://github.com/protocolbuffers/protobuf/blob/d3560e72e791cb61c24df2a1b35946efbd972738/bazel/private/bazel_cc_proto_library.bzl#L132-L142
+			newRule.SetAttr("deps", []label.Label{protoRuleLabel})
+			newRule.SetPrivateAttr(ccProtoLibraryFilesKey, protoFiles)
+
+			if args.File == nil || !args.File.HasDefaultVisibility() {
+				newRule.SetAttr("visibility", []string{"//visibility:public"})
+			}
+
+			result.Gen = append(result.Gen, newRule)
+			result.Imports = append(result.Imports, cppImports{})
+		}
+	}
+	for _, r := range args.OtherEmpty {
+		if r.Kind() == "proto_library" {
+			ccProtoName := strings.TrimSuffix(r.Name(), "_proto") + ccProtoRuleSufix
+			result.Empty = append(result.Empty, rule.NewRule("cc_proto_library", ccProtoName))
+		}
+	}
+	return consumedProtoFiles
 }
 
 // Source file path relative to the workspace directory

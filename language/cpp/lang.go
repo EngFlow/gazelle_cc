@@ -41,6 +41,8 @@ type cppImports struct {
 	// TODO: module imports / exports
 }
 
+const ccProtoLibraryFilesKey = "_protos"
+
 func NewLanguage() language.Language {
 	return &cppLanguage{}
 }
@@ -62,7 +64,7 @@ func (c *cppLanguage) Kinds() map[string]rule.KindInfo {
 	for _, commonDef := range ccRuleDefs {
 		// Attributes common to all rules
 		kindInfo := rule.KindInfo{
-			NonEmptyAttrs:  map[string]bool{"srcs": true},
+			NonEmptyAttrs:  map[string]bool{"srcs": true, "deps": true},
 			MergeableAttrs: map[string]bool{"srcs": true, "deps": true},
 			ResolveAttrs:   map[string]bool{"deps": true},
 		}
@@ -76,6 +78,12 @@ func (c *cppLanguage) Kinds() map[string]rule.KindInfo {
 			})
 		}
 		kinds[commonDef] = kindInfo
+	}
+	kinds["cc_proto_library"] = rule.KindInfo{
+		MatchAttrs:     []string{"deps"},
+		NonEmptyAttrs:  map[string]bool{"deps": true},
+		MergeableAttrs: map[string]bool{"deps": true},
+		ResolveAttrs:   map[string]bool{"deps": true},
 	}
 
 	return kinds
@@ -93,6 +101,10 @@ func (c *cppLanguage) Loads() []rule.LoadInfo {
 		{
 			Name:    "@rules_cc//cc:defs.bzl",
 			Symbols: ccRuleDefs,
+		},
+		{
+			Name:    "@protobuf//bazel:cc_proto_library.bzl",
+			Symbols: []string{"cc_proto_library"},
 		},
 	}
 }

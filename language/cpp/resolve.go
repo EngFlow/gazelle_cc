@@ -32,13 +32,28 @@ func (c *cppLanguage) Name() string                                        { ret
 func (c *cppLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
 
 func (*cppLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
-	rel := f.Pkg
-	prefix := rel
-	hdrs := r.AttrStrings("hdrs")
-	imports := make([]resolve.ImportSpec, len(hdrs))
-	for i, hdr := range hdrs {
-		imports[i] = resolve.ImportSpec{Lang: languageName, Imp: path.Join(prefix, hdr)}
+	var imports []resolve.ImportSpec
+	switch r.Kind() {
+	case "cc_proto_library":
+		if !slices.Contains(r.PrivateAttrKeys(), ccProtoLibraryFilesKey) {
+			break
+		}
+		protos := r.PrivateAttr(ccProtoLibraryFilesKey).([]string)
+		imports = make([]resolve.ImportSpec, len(protos))
+		for i, protoFile := range protos {
+			if baseFileName, isProto := strings.CutSuffix(protoFile, ".proto"); isProto {
+				generatedHeaderName := baseFileName + ".pb.h"
+				imports[i] = resolve.ImportSpec{Lang: languageName, Imp: path.Join(f.Pkg, generatedHeaderName)}
+			}
+		}
+	default:
+		hdrs := r.AttrStrings("hdrs")
+		imports = make([]resolve.ImportSpec, len(hdrs))
+		for i, hdr := range hdrs {
+			imports[i] = resolve.ImportSpec{Lang: languageName, Imp: path.Join(f.Pkg, hdr)}
+		}
 	}
+
 	return imports
 }
 
