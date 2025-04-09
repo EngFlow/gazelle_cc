@@ -10,30 +10,17 @@ Gazelle is a build file generator for Bazel projects. This extension adds suppor
 
 Add the following to your `MODULE.bazel` file:
 
-```python
+```bazel
 bazel_dep(name = "gazelle", version = "0.42.0")
 bazel_dep(name = "gazelle_cpp", version = "0.1.0") # This extension, use the latest version
 
 bazel_dep(name = "rules_cc", version = "0.1.1")
 bazel_dep(name = "protobuf", version = "30.2") # Optional for protobuf support
-
-
-# Optional, gazelle_cpp requires go 1.24.0 or later 
-bazel_dep(name = "rules_go", version = "0.53.0")
-go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.download(version = "1.24.0")
-
-
-# Example external dependencies, would be resolved by gazelle based on the included headers
-bazel_dep(name = "googletest", version = "1.16.0")
-bazel_dep(name = "fmt", version = "11.1.4")
-bazel_dep(name = "abseil-cpp", version = "20250127.0")
-
 ```
 
 Add the `gazelle` task in the top-level `BUILD.bazel` file:
 
-```python
+```bazel
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 
 # Define a gazelle binary with a list of enabled extensions
@@ -49,8 +36,6 @@ gazelle_binary(
 gazelle(
     name = "gazelle",
     gazelle = ":gazelle_cc",
-    # command = "fix",
-    # extra_args = ["--mode=diff"],
 )
 ```
 
@@ -63,7 +48,7 @@ The extension defines the following custom directives:
 Controls how C++ source files are grouped into rules:
 
 - `directory`: Creates one `cc_library` per directory **(default)**
-- `unit`: Creates one `cc_library`/`cc_test` per translation unit or group of recursively dependent translation units. Corresponding `.h` and `.cc` files are always defined in the same group
+- `unit`: Creates one `cc_library`/`cc_test` per translation unit or group of cyclicly dependent translation units. Corresponding `.h` and `.cc` files are always defined in the same group
 
 ### `# gazelle:cc_group_unit_cycles [merge|warn]`
 
@@ -120,7 +105,7 @@ In case of source-file relative includes the path is resolved based on the direc
 
 Rules/subdirectories that are not managed by the Gazelle do not populate the internal dependencies index and would not be automatically resolved. Gazelle can be instructed to use user defined resolution rules to work around this limitation
 
-```python
+```bazel
 # gazelle:resolve c++ path/to/my_include.h //target/defining:library
 ```
 
@@ -143,7 +128,7 @@ Gazelle C++ extension is using a [built-in index](./language/cpp/bzldep-index.js
 
 Currently that's the recommended way of defining external dependencies
 
-```python
+```bazel
 # MODULE.bazel
 bazel_dep(name = "googletest", version = "1.16.0")
 bazel_dep(name = "fmt", version = "11.1.4", repo_name = "fmt_repo")
@@ -174,7 +159,7 @@ Here's an example of how to use the extension in your C++ project:
 
 1. Provide the default configuration in `BUILD.bazel` created in [installation step](#installation) and provide configuration for gazelle (optional):
 
-```python
+```bazel
 ## Exclude following subtrees from being managed by gazelle. Be aware that it also prevents other targets from automatic dependency resolution in these modules using gazelle
 # gazelle:exclude third-party
 # gazelle:exclude examples/usage
@@ -207,7 +192,7 @@ After running Gazelle, it will generate appropriate BUILD files with dependencie
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We are not accepting pull requests at this time while we're defining our contribution policy. Please file an issue instead!
 
 ## License
 
