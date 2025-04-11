@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cpp
+package cc
 
 import (
 	"log"
@@ -22,7 +22,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/EngFlow/gazelle_cpp/language/internal/cpp/parser"
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 )
 
 // groupId represents a unique identifier for a group of source files

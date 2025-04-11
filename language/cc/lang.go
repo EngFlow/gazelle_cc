@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cpp
+package cc
 
 import (
 	"path/filepath"
@@ -23,9 +23,9 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
-const languageName = "c++"
+const languageName = "cc"
 
-type cppLanguage struct{}
+type ccLanguage struct{}
 
 type cppInclude struct {
 	// Include path extracted from brackets or double quotes
@@ -44,11 +44,11 @@ type cppImports struct {
 const ccProtoLibraryFilesKey = "_protos"
 
 func NewLanguage() language.Language {
-	return &cppLanguage{}
+	return &ccLanguage{}
 }
 
 // language.Language methods
-func (c *cppLanguage) Kinds() map[string]rule.KindInfo {
+func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 	kinds := make(map[string]rule.KindInfo)
 	mergeMaps := func(m1, m2 map[string]bool) map[string]bool {
 		result := make(map[string]bool, len(m1)+len(m2))
@@ -96,7 +96,7 @@ var ccRuleDefs = []string{
 	"cc_test",
 }
 
-func (c *cppLanguage) Loads() []rule.LoadInfo {
+func (c *ccLanguage) Loads() []rule.LoadInfo {
 	return []rule.LoadInfo{
 		{
 			Name:    "@rules_cc//cc:defs.bzl",
@@ -108,7 +108,7 @@ func (c *cppLanguage) Loads() []rule.LoadInfo {
 		},
 	}
 }
-func (*cppLanguage) Fix(c *config.Config, f *rule.File) {}
+func (*ccLanguage) Fix(c *config.Config, f *rule.File) {}
 
 var sourceExtensions = []string{".c", ".cc", ".cpp", ".cxx", ".c++", ".S"}
 var headerExtensions = []string{".h", ".hh", ".hpp", ".hxx"}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cpp
+package cc
 
 import (
 	"maps"
@@ -28,10 +28,10 @@ import (
 )
 
 // resolve.Resolver methods
-func (c *cppLanguage) Name() string                                        { return languageName }
-func (c *cppLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
+func (c *ccLanguage) Name() string                                        { return languageName }
+func (c *ccLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
 
-func (*cppLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
+func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	var imports []resolve.ImportSpec
 	switch r.Kind() {
 	case "cc_proto_library":
@@ -57,7 +57,7 @@ func (*cppLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []reso
 	return imports
 }
 
-func (*cppLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports interface{}, from label.Label) {
+func (*ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports interface{}, from label.Label) {
 	if imports == nil {
 		return
 	}

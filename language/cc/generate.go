@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cpp
+package cc
 
 import (
 	"log"
@@ -22,7 +22,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/EngFlow/gazelle_cpp/language/internal/cpp/parser"
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -30,7 +30,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
-func (c *cppLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	srcInfo := collectSourceInfos(args)
 	rulesInfo := extractRulesInfo(args)
 
@@ -97,7 +97,7 @@ func newOrExistingRule(kind string, ruleName string, srcGroups sourceGroups, rul
 	return newRule
 }
 
-func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, excludedSources sourceFileSet, result *language.GenerateResult) {
+func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, excludedSources sourceFileSet, result *language.GenerateResult) {
 	conf := getCppConfig(args.Config)
 	// Ignore files that might have been consumed by other rules
 	allSrcs := []sourceFile{}
@@ -141,7 +141,7 @@ func (c *cppLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo c
 	}
 }
 
-func (c *cppLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
+func (c *ccLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
 	srcGroups := identitySourceGroups(srcInfo.mainSrcs)
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups[groupId]
@@ -153,7 +153,7 @@ func (c *cppLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo cc
 	}
 }
 
-func (c *cppLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
+func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
 	if len(srcInfo.testSrcs) == 0 {
 		return
 	}
@@ -184,7 +184,7 @@ func (c *cppLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSo
 
 // Generated a cc_proto_library rules based on outputs of protobuf proto_library
 // Returns a set of .pb.h files that should be excluded from normal cc_library rules
-func (c *cppLanguage) generateProtoLibraryRules(args language.GenerateArgs, rulesInfo rulesInfo, result *language.GenerateResult) sourceFileSet {
+func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rulesInfo rulesInfo, result *language.GenerateResult) sourceFileSet {
 	consumedProtoFiles := make(sourceFileSet)
 	protoConfig := proto.GetProtoConfig(args.Config)
 	if protoConfig == nil || !protoConfig.Mode.ShouldGenerateRules() {
@@ -337,7 +337,7 @@ func (srcGroups *sourceGroups) adjustToExistingRules(rulesInfo rulesInfo) (ambig
 // * if allowRulesMerge merges all rules refering to this group sources into a single rule
 // * otherwise warns user about cyclic deps and sets cyclic deps attributes to newRule and returns false
 // Returns true if successfully handled issues and it's possible to finalize creation of newRule
-func (c *cppLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, conf *cppConfig, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, newRule *rule.Rule, result *language.GenerateResult, group sourceGroup, ambigiousRuleAssignments []string) (handled bool) {
+func (c *ccLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, conf *cppConfig, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, newRule *rule.Rule, result *language.GenerateResult, group sourceGroup, ambigiousRuleAssignments []string) (handled bool) {
 	switch conf.groupsCycleHandlingMode {
 	case mergeOnGroupsCycle:
 		// Merge rules creating a cyclic dependency into a single rule and remove old ones
@@ -398,7 +398,7 @@ func (c *cppLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs,
 	}
 }
 
-func (c *cppLanguage) findEmptyRules(file *rule.File, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, generatedRules []*rule.Rule) []*rule.Rule {
+func (c *ccLanguage) findEmptyRules(file *rule.File, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, generatedRules []*rule.Rule) []*rule.Rule {
 	if file == nil {
 		return nil
 	}

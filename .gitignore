@@ -1,5 +1,5 @@
 bazel-bin
-bazel-gazelle_cpp
+bazel-gazelle_cc
 bazel-out
 bazel-testlogs
 .vscode

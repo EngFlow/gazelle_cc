@@ -1,4 +1,4 @@
-module github.com/EngFlow/gazelle_cpp
+module github.com/EngFlow/gazelle_cc
 
 go 1.23.2
 

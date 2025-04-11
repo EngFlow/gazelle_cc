@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cpp
+package cc
 
 import (
 	"flag"
@@ -23,22 +23,22 @@ import (
 )
 
 // config.Configurer methods
-func (*cppLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config) {}
-func (*cppLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error          { return nil }
+func (*ccLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config) {}
+func (*ccLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error          { return nil }
 
 const (
 	cc_group_directive   = "cc_group"
 	cc_group_unit_cycles = "cc_group_unit_cycles"
 )
 
-func (c *cppLanguage) KnownDirectives() []string {
+func (c *ccLanguage) KnownDirectives() []string {
 	return []string{
 		cc_group_directive,
 		cc_group_unit_cycles,
 	}
 }
 
-func (*cppLanguage) Configure(c *config.Config, rel string, f *rule.File) {
+func (*ccLanguage) Configure(c *config.Config, rel string, f *rule.File) {
 	var conf *cppConfig
 	if parentConf, ok := c.Exts[languageName]; !ok {
 		conf = newCppConfig()

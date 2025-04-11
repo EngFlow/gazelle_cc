@@ -1,7 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_test")
 
 # Based on https://google.github.io/googletest/quickstart-bazel.html
-# gazelle:resolve c++ gtest/gtest.h @googletest//:gtest_main
+# gazelle:resolve cc gtest/gtest.h @googletest//:gtest_main
 
 cc_test(
     name = "quoted_test",

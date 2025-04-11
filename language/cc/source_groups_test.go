@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cpp
+package cc
 
 import (
 	"fmt"
@@ -20,7 +20,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/EngFlow/gazelle_cpp/language/internal/cpp/parser"
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 )
 
 func TestSourceGroups(t *testing.T) {

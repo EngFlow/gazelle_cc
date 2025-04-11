@@ -4,7 +4,7 @@ shopt -s extglob
 
 # Paths ignored when checking the headers
 IGNORE_PATHS=(
-  "language/cpp/testdata/*",
+  "language/cc/testdata/*",
 )
 # Source extensions that should be checked
 EXTS=(".go")

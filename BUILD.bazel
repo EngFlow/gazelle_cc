@@ -1,9 +1,9 @@
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 
 gazelle_binary(
-    name = "gazelle_cpp",
+    name = "gazelle_cc",
     languages = [
-        "//language/cpp",
+        "//language/cc",
     ],
     visibility = ["//visibility:public"],
 )

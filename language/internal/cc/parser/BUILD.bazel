@@ -3,8 +3,8 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "parser",
     srcs = ["parser.go"],
-    importpath = "github.com/EngFlow/gazelle_cpp/language/internal/cpp/parser",
-    visibility = ["//language/cpp:__pkg__"],
+    importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc/parser",
+    visibility = ["//language/cc:__pkg__"],
 )
 
 go_test(

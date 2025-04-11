@@ -12,7 +12,7 @@ Add the following to your `MODULE.bazel` file:
 
 ```bazel
 bazel_dep(name = "gazelle", version = "0.42.0")
-bazel_dep(name = "gazelle_cpp", version = "0.1.0") # This extension, use the latest version
+bazel_dep(name = "gazelle_cc", version = "0.1.0") # This extension, use the latest version
 
 bazel_dep(name = "rules_cc", version = "0.1.1")
 bazel_dep(name = "protobuf", version = "30.2") # Optional for protobuf support
@@ -27,8 +27,8 @@ load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 gazelle_binary(
     name = "gazelle_cc",
     languages = [
-        "@gazelle//language/proto",  # Optional, should be defined before cpp 
-        "@gazelle_cpp//language/cpp",
+        "@gazelle//language/proto",  # Optional, should be defined before cc 
+        "@gazelle_cc//language/cc",
     ],
 )
 
@@ -124,7 +124,7 @@ The knowledge about the headers and their defining rules of external repositorie
 
 #### `bazel_dep`
 
-Gazelle C++ extension is using a [built-in index](./language/cpp/bzldep-index.json) created based on all the `cc_library` rules found in [Bazel Central Registry](https://registry.bazel.build/) repositories.
+Gazelle C++ extension is using a [built-in index](./language/cc/bzldep-index.json) created based on all the `cc_library` rules found in [Bazel Central Registry](https://registry.bazel.build/) repositories.
 
 Currently that's the recommended way of defining external dependencies
 
