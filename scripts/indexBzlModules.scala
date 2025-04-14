@@ -2,7 +2,7 @@
 //> using options --preview -Wunused:all
 //> using jvm 21
 //> using toolkit 0.7.0
-//> using dep com.softwaremill.sttp.client4::core:4.0.0-RC3 // overrides version from toolkit, see https://github.com/softwaremill/sttp/issues/2505
+//> using dep com.softwaremill.sttp.client4::core:4.0.2 // overrides version from toolkit
 //> using dep org.apache.commons:commons-compress:1.27.1
 //> using dep org.tukaani:xz:1.10 // needed for .tar.xz compressor
 //> using dep org.scala-lang.modules::scala-xml:2.3.0
