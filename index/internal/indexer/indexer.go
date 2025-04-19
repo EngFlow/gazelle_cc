@@ -28,49 +28,51 @@ import (
 )
 
 type (
+	// Represents information about structure of possibly external dependency
 	Module struct {
+		// Name of external repository, or empty if targets are defined in the same Bazel repository
 		Repository string
-		Targets    []*ModuleTarget
+		// List of targets defined in given module, typically a single cc_library
+		Targets []*ModuleTarget
 	}
-	// Informations about Module
+	// Defines information about structure of rule that might be indexed, typically based on cc_library
 	ModuleTarget struct {
 		Name               label.Label
 		Hdrs               collections.Set[label.Label] // header files (each header is represented as a Label)
 		Includes           collections.Set[string]      // list of include paths
 		StripIncludePrefix string                       // optional prefix to remove
 		IncludePrefix      string                       // optional prefix to add
-		Deps               collections.Set[label.Label]
+		Deps               collections.Set[label.Label] // dependencies on other targets
 	}
 )
 
-// createHeaderIndex processes module infos to create three mappings:
-// 1. headerToRule: headers mapping to exactly one Bazel rule (Label).
-// 2. ambiguous: headers defined in multiple rules.
 type IndexingResult struct {
+	// Headers mapping to exactly one Bazel rule
 	HeaderToRule map[string]label.Label
-	Ambiguous    map[string]collections.Set[label.Label]
+	// Headers defined in multiple rules
+	Ambiguous map[string]collections.Set[label.Label]
 }
 
-func CreateHeaderIndex(infos []Module) IndexingResult {
+// Process list of modules to create an unfiorm index mapping header to exactly one rule that provides their definition.
+// In case if multiple modules define same headers might try to select one that behaves as clousers over remaining ambigious rules.
+func CreateHeaderIndex(modules []Module) IndexingResult {
 	// headersMapping will store header paths to a collections.Set of Labels.
 	headersMapping := map[string]*collections.Set[label.Label]{}
-
-	// Iterate through every module and every target.
-	for _, module := range infos {
+	for _, module := range modules {
 		for _, target := range module.Targets {
 			// Create a targetLabel for the target using the module repository.
+			// It's required to correctly map external module to sources found possibly in other rules
 			targetLabel := label.New(module.Repository, target.Name.Pkg, target.Name.Name)
 			if shouldExcludeTarget(targetLabel) {
 				continue
 			}
 
+			// Normalize headers and add to mapping
 			for hdr := range target.Hdrs {
 				normalizedPath := normalizeHeaderPath(hdr.Name, *target)
 				if shouldExcludeHeader(normalizedPath) {
 					continue
 				}
-
-				// Add the label to the header mapping.
 				if _, exists := headersMapping[normalizedPath]; !exists {
 					headersMapping[normalizedPath] = &collections.Set[label.Label]{}
 				}
@@ -83,13 +85,14 @@ func CreateHeaderIndex(infos []Module) IndexingResult {
 	headerToRule := make(map[string]label.Label)
 	ambiguous := make(map[string]collections.Set[label.Label])
 	for path, labels := range headersMapping {
-		if len(*labels) == 1 {
+		switch len(*labels) {
+		case 1:
 			// Extract the only label in the collections.Set.
 			for l := range *labels {
 				headerToRule[path] = l
 				break
 			}
-		} else {
+		default:
 			ambiguous[path] = *labels
 		}
 	}
@@ -100,6 +103,8 @@ func CreateHeaderIndex(infos []Module) IndexingResult {
 	}
 }
 
+// Writes the mapping of IndexingResult.HeaderToRule to disk in JSON format.
+// Labels are stored as renered strings
 func (result IndexingResult) WriteToFile(outputFile string) {
 	mappings := make(map[string]string, len(result.HeaderToRule))
 	for hdr, lbl := range result.HeaderToRule {
@@ -117,6 +122,7 @@ func (result IndexingResult) WriteToFile(outputFile string) {
 	}
 }
 
+// Prints to stdout detailed information about headers with resolved mappings and the ambigious header definitions.
 func (result IndexingResult) Show() {
 	log.Printf("Indexing result:")
 	log.Printf("Headers with mapping: %v", len(result.HeaderToRule))
@@ -130,6 +136,8 @@ func (result IndexingResult) Show() {
 	}
 }
 
+// Groups targets into disjoint groups based on the their defined headers.
+// Allows to find targets that contain at least 1 common header defined in their definition.
 func (module Module) GroupTargetsByHeaders() []collections.Set[*ModuleTarget] {
 	targets := module.Targets
 	var groups []collections.Set[*ModuleTarget]
@@ -172,6 +180,7 @@ func (module Module) GroupTargetsByHeaders() []collections.Set[*ModuleTarget] {
 	return groups
 }
 
+// Given set of targets that define the same headers try to select ones that contain other targets as their direct or transitive dependencies
 func SelectRootTargets(targets collections.Set[*ModuleTarget]) []*ModuleTarget {
 	allTargets := make(map[label.Label]*ModuleTarget)
 	dependentTargets := make(collections.Set[label.Label])
@@ -205,8 +214,8 @@ func shouldExcludeHeader(path string) bool {
 		return true
 	}
 
-	segments := filepath.SplitList(path)
 	// Exlucde possily hidden files
+	segments := filepath.SplitList(path)
 	for _, segment := range segments {
 		if strings.HasPrefix(segment, ".") || strings.HasPrefix(segment, "_") {
 			return true

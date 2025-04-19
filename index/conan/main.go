@@ -29,6 +29,8 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
 
+// Creates an index defining mapping between header and the Bazel rule that defines it, based on the Conan Bazel integration.
+// The created index can be used as input for gazelle_cc allowing to resolve external dependenices.
 func main() {
 	verbose := flag.Bool("verbose", false, "Enable verbose logging")
 	install := flag.Bool("install", false, "Should conan deps be installed before indexing")
@@ -75,6 +77,9 @@ func main() {
 		}
 	}
 
+	// After installation the conanDirectory would contain it's specific rules and a declarations of external modules.
+	// Each directory has the same name as external Bazel repository defined in ~/conan2, and contains a matching declarations for it's rules in BUILD.bazel file.
+	// Rules in ./conan directory have no sources, that's why we need to query on the external repository instead.
 	subdirs, err := listSubdirectories(conanDirectory)
 	if err != nil {
 		log.Fatalf("Failed to list subdirectories in %s: %v", conanDirectory, err)
@@ -83,17 +88,21 @@ func main() {
 	modules := []indexer.Module{}
 	for _, dir := range subdirs {
 		repoName := dir
+		// Search for cc_library in external repository
 		result := bazel.Query(callerRoot, fmt.Sprintf("kind(cc_library, @%s//...)", repoName))
 		module := extractIndexerModule(result, repoName)
 
 		// If multiple rules refer to the same headers (typicall in Conan integration) then
 		// pick to targets that are on top of dependency chain - does not depend on other rules in group
 		selectedTargets := []*indexer.ModuleTarget{}
+		// In conan most of cc_libraries defines filegroup using **/* glob pattern.
+		// We need to index only top-level target that depend on all other remaining targets
 		for _, intersectingTargets := range module.GroupTargetsByHeaders() {
 			roots := indexer.SelectRootTargets(intersectingTargets)
 			if len(roots) != 1 {
 				log.Fatal("Incosistient state, should be only 1 root header")
 			}
+			// Typically there should be exacly 1 root, but just for sanity let's merge other ones if needed
 			root := roots[0]
 			for target := range intersectingTargets {
 				if target != root {
@@ -116,6 +125,7 @@ func main() {
 
 }
 
+// Processes bazel query result to extrct cc_library targets as a module
 func extractIndexerModule(query *bazel.QueryResult, moduleName string) indexer.Module {
 	targets := []*indexer.ModuleTarget{}
 	for _, info := range query.GetTarget() {

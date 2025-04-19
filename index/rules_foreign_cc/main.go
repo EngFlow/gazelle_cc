@@ -27,6 +27,8 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
 
+// Creates an index defining mapping between header and the Bazel rule that defines it, based on the `rules_foreign_cc` definitions found in the project.
+// The created index can be used as input for gazelle_cc allowing to resolve external dependenices.
 func main() {
 	verbose := flag.Bool("verbose", false, "Enable verbose logging")
 	output := flag.String("output", "rules_foreign.ccindex", "Output file path for index")

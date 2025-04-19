@@ -27,6 +27,8 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
 
+// Creates an index defining mapping between header and the Bazel rule that defines it, based on the cc_library definitions found in the project.
+// The created index can be used as input for gazelle_cc allowing to resolve external dependenices.
 func main() {
 	selectors := defaultSelectors
 	verbose := flag.Bool("verbose", false, "Enable verbose logging")
