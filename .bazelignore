@@ -1,0 +1,4 @@
+index/conan/integration_tests/testcases
+index/rules_foreign_cc/integration_tests/testcases
+index/vendor/integration_tests/testcases
+sandbox

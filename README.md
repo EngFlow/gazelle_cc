@@ -57,6 +57,14 @@ Controls how to handle cyclic dependencies between translation units:
 - `merge`: All groups forming a cycle will be merged into a single one **(default)**
 - `warn`: Don't modify rules forming a cycle, let user handle it manually
 
+### `# gazelle:cc_indexfile <path>`
+
+Adds index file, containing mapping between headers to rules providing their definitions and/or implementation.
+Index allow for automatic dependency resolution for targets not managed by the gazelle, eg. provided by integrated package manager or vendored inside repository.
+Multiple `cc_indexfile` are allowed. It's recommended to use it only in top-level BUILD file.
+Argument of the directive needs to be a repository-root relative or absolute path.
+Visit [external dependenices section](#external-dependencies) to learn how to obtain indexes.
+
 ## Rules for target rule selection
 
 The extension automatically selects the appropriate rule type based on the following criteria:
@@ -143,11 +151,79 @@ bazel_dep(name = "fmt", version = "11.1.4", repo_name = "fmt_repo")
 
 ```
 
+#### `conan`
+
+Resolving external dependencies managed by [Conan](https://docs.conan.io/2/integrations/bazel.html) requires creation of index by the user using `@gazelle_cc//index/conan` binary. 
+
+```bash
+conan profile detect 
+conan install . --build=missing
+bazel run @gazelle_cc//index/conan -- --output=conan.ccindex $PWD
+```
+
+The resulting index needs to be added to Gazelle directive in top-level `BUILD` file.
+
+```bazel
+# gazelle cc_indexfile conan.ccindex
+```
+
+Additional options for `@gazelle_cc//index/conan`:
+
+| Flag | Default | Definition |
+| ---- | ------- | ---------- |
+| --output=\<path> | ./conan.ccidx | Output file for created index |
+| --install | false | Should conan profile detection and installation be done automatically before indexing |
+| --conanDir=\<path> | ./conan | Controls the paths contains conan specific and external dependencies definitions. Typically created during `conan install .` invocation |
+| --verbose | false | Enable verbose logging and debug information |
+
+#### `rules_foreign_cc`
+
+Resolving external dependencies managed by [rules_foreign_cc](https://github.com/bazel-contrib/rules_foreign_cc) requires creation of index by the user using `@gazelle_cc//index/rules_foreign_cc` binary. It would use `bazel query` to find definitions of `rules_foreign_cc` rules, eg. `cmake` and would use their assigned sources and rules to create an index.
+
+```bash
+bazel run @gazelle_cc//index/rules_foreign_cc -- --output=foreign.ccindex $PWD
+```
+
+The resulting index needs to be added to Gazelle directive in top-level `BUILD` file.
+
+```bazel
+# gazelle cc_indexfile foreign.ccindex
+```
+
+Additional options for `@gazelle_cc//index/rules_foreign_cc`:
+
+| Flag | Default | Definition |
+| ---- | ------- | ---------- |
+| --output=\<path> | ./conan.ccidx | Output file for created index |
+| --verbose | false | Enable verbose logging and debug information |
+
+#### Vendored external dependencies
+
+External dependenices vendored as part of Bazel repository typically might not be managed by Gazelle. To allow for dependency resolution based on these sources it is required to create a index using `@gazelle_cc//index/vendor` binary.
+
+```bash
+bazel run @gazelle_cc//index/rules_foreign_cc -- --output=vendored.ccindex $PWD
+```
+
+The resulting index needs to be added to Gazelle directive in top-level `BUILD` file.
+
+```bazel
+# gazelle cc_indexfile vendored.ccindex
+```
+
+Additional options for `@gazelle_cc//index/rules_foreign_cc`:
+
+| Flag | Default | Definition |
+| ---- | ------- | ---------- |
+| --select=\<selector> | //third_party/..., //external/..., //vendored/... | Provides a selector for rules that should be indexed. Multiple --select flags are allowed  |
+| --output=\<path> | ./vendor.ccidx | Output file for created index |
+| --verbose | false | Enable verbose logging and debug information |
+
 #### Other package managers
 
-Other package managers [Conan](https://docs.conan.io/2/integrations/bazel.html), [vcpkg](https://vcpkg.io/en/) or rules for defining external dependencies like [rules_foreign_cc](https://github.com/bazel-contrib/rules_foreign_cc) are currently not yet supported.
+Other package managers like [vcpkg](https://vcpkg.io/en/) are currently not yet supported. Please create an issue in this repository if you need additional integrations.
 
-These can still be used by defining a manual mapping between header and defining rules using `# gazelle:resolve` directives
+Unsupported package managers can still be used by defining a manual mapping between header and defining rules using `# gazelle:resolve` directives
 
 ## C++20 Modules support
 

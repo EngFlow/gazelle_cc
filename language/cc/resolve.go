@@ -63,7 +63,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 		return
 	}
 
-	cppImports := imports.(cppImports)
+	cppImports := imports.(ccImports)
 	deps := make(map[label.Label]bool)
 
 	for _, include := range cppImports.includes {
@@ -100,7 +100,13 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 		}
 	}
 
-	if label, exists := lang.bzlmodDependenciesIndex[importSpec.Imp]; exists {
+	for _, index := range lang.dependencyIndexes {
+		if label, exists := index[importSpec.Imp]; exists {
+			return label
+		}
+	}
+
+	if label, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists {
 		apparantName := c.ModuleToApparentName(label.Repo)
 		// Empty apparentName means that there is no such a repository added by bazel_dep
 		if apparantName != "" {

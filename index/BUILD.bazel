@@ -1,0 +1,9 @@
+test_suite(
+    name = "integration_tests",
+    tags = ["manual"],
+    tests = [
+        "//index/vendor/integration_tests:integration_tests_test",
+        "//index/conan/integration_tests:integration_tests_test",
+        "//index/rules_foreign_cc/integration_tests:integration_tests_test",
+    ],
+)
