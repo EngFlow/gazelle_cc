@@ -4,7 +4,10 @@ shopt -s extglob
 
 # Paths ignored when checking the headers
 IGNORE_PATHS=(
-  "language/cc/testdata/*",
+  "language/cc/testdata/*"
+  "index/conan/integration_tests/testcases"
+  "index/rules_foreign_cc/integration_tests/testcases"
+  "index/vendor/integration_tests/testcases"
 )
 # Source extensions that should be checked
 EXTS=(".go")
