@@ -1,0 +1,20 @@
+{
+  "fmt/args.h": "@fmt//:fmt",
+  "fmt/chrono.h": "@fmt//:fmt",
+  "fmt/color.h": "@fmt//:fmt",
+  "fmt/compile.h": "@fmt//:fmt",
+  "fmt/core.h": "@fmt//:fmt",
+  "fmt/format-inl.h": "@fmt//:fmt",
+  "fmt/format.h": "@fmt//:fmt",
+  "fmt/os.h": "@fmt//:fmt",
+  "fmt/ostream.h": "@fmt//:fmt",
+  "fmt/printf.h": "@fmt//:fmt",
+  "fmt/ranges.h": "@fmt//:fmt",
+  "fmt/std.h": "@fmt//:fmt",
+  "fmt/xchar.h": "@fmt//:fmt",
+  "iconv.h": "@libiconv//:libiconv",
+  "libcharset.h": "@libiconv//:libiconv",
+  "localcharset.h": "@libiconv//:libiconv",
+  "zconf.h": "@zlib//:zlib",
+  "zlib.h": "@zlib//:zlib"
+}
