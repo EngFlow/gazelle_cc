@@ -57,6 +57,14 @@ Controls how to handle cyclic dependencies between translation units:
 - `merge`: All groups forming a cycle will be merged into a single one **(default)**
 - `warn`: Don't modify rules forming a cycle, let user handle it manually
 
+### `# gazelle:cc_indexfile <path>`
+
+Adds index file, containing mapping between headers to rules providing their definitions and/or implementation.
+Index allow for automatic dependency resolution for targets not managed by the gazelle, eg. provided by integrated package manager or vendored inside repository.
+Multiple `cc_indexfile` are allowed. It's recommended to use it only in top-level BUILD file.
+Argument of the directive needs to be a repository-root relative or absolute path.
+Visit [external dependenices section](#external-dependencies) to learn how to obtain indexes.
+
 ## Rules for target rule selection
 
 The extension automatically selects the appropriate rule type based on the following criteria:

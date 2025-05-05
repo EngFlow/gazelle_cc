@@ -1,0 +1,2 @@
+# gazelle:cc_indexfile internal/second.ccIndex
+# gazelle:cc_indexfile ./invalid.ccIndex
