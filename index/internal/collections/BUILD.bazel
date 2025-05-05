@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "collections",
+    srcs = [
+        "collections.go",
+        "set.go",
+    ],
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/collections",
+    visibility = ["//index:__subpackages__"],
+)
+
+go_test(
+    name = "collections_test",
+    srcs = [
+        "collections_test.go",
+        "set_test.go",
+    ],
+    embed = [":collections"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)

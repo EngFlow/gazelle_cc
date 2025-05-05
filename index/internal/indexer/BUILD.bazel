@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "indexer",
+    srcs = ["indexer.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/indexer",
+    visibility = ["//index:__subpackages__"],
+    deps = [
+        "//index/internal/collections",
+        "@gazelle//label",
+    ],
+)
+
+go_test(
+    name = "indexer_test",
+    srcs = ["indexer_test.go"],
+    embed = [":indexer"],
+    deps = [
+        "//index/internal/collections",
+        "@com_github_stretchr_testify//assert",
+        "@gazelle//label",
+    ],
+)

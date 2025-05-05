@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "tests",
+    srcs = ["utils.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/tests",
+    visibility = ["//index:__subpackages__"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)

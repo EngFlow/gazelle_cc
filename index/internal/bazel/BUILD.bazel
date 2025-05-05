@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "bazel",
+    srcs = ["query.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/bazel",
+    visibility = ["//index:__subpackages__"],
+    deps = [
+        "//index/internal/bazel/proto:build_go_proto",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
