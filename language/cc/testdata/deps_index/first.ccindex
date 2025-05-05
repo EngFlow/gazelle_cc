@@ -1,0 +1,4 @@
+{
+  "first/lib/interface.h": "@external//first:lib",
+  "first/lib/utils.hpp": "@external//first:lib"
+}
