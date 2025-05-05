@@ -2,5 +2,6 @@ test_suite(
     name = "integration_tests",
     tags = ["manual"],
     tests = [
+        "//index/vendor/integration_tests:integration_tests_test",
     ],
 )

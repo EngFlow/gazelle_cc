@@ -150,6 +150,27 @@ bazel_dep(name = "fmt", version = "11.1.4", repo_name = "fmt_repo")
 #include "boost/chrono.hpp"       // Warning: defined in @boost.chrono//:boost.chrono but not added as bazel_dep
 
 ```
+#### Vendored external dependencies
+
+External dependenices vendored as part of Bazel repository typically might not be managed by Gazelle. To allow for dependency resolution based on these sources it is required to create a index using `@gazelle_cc//index/vendor` binary.
+
+```bash
+bazel run @gazelle_cc//index/rules_foreign_cc -- --output=vendored.ccindex $PWD
+```
+
+The resulting index needs to be added to Gazelle directive in top-level `BUILD` file.
+
+```bazel
+# gazelle cc_indexfile vendored.ccindex
+```
+
+Additional options for `@gazelle_cc//index/rules_foreign_cc`:
+
+| Flag | Default | Definition |
+| ---- | ------- | ---------- |
+| --select=\<selector> | //third_party/..., //external/..., //vendored/... | Provides a selector for rules that should be indexed. Multiple --select flags are allowed  |
+| --output=\<path> | ./vendor.ccidx | Output file for created index |
+| --verbose | false | Enable verbose logging and debug information |
 
 #### Other package managers
 
