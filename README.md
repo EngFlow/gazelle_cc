@@ -151,11 +151,32 @@ bazel_dep(name = "fmt", version = "11.1.4", repo_name = "fmt_repo")
 
 ```
 
+#### `rules_foreign_cc`
+
+Resolving external dependencies managed by [rules_foreign_cc](https://github.com/bazel-contrib/rules_foreign_cc) requires creation of index by the user using `@gazelle_cc//index/rules_foreign_cc` binary. It would use `bazel query` to find definitions of `rules_foreign_cc` rules, eg. `cmake` and would use their assigned sources and rules to create an index.
+
+```bash
+bazel run @gazelle_cc//index/rules_foreign_cc -- --output=foreign.ccindex $PWD
+```
+
+The resulting index needs to be added to Gazelle directive in top-level `BUILD` file.
+
+```bazel
+# gazelle cc_indexfile foreign.ccindex
+```
+
+Additional options for `@gazelle_cc//index/rules_foreign_cc`:
+
+| Flag | Default | Definition |
+| ---- | ------- | ---------- |
+| --output=\<path> | ./conan.ccidx | Output file for created index |
+| --verbose | false | Enable verbose logging and debug information |
+
 #### Other package managers
 
-Other package managers [Conan](https://docs.conan.io/2/integrations/bazel.html), [vcpkg](https://vcpkg.io/en/) or rules for defining external dependencies like [rules_foreign_cc](https://github.com/bazel-contrib/rules_foreign_cc) are currently not yet supported.
+Other package managers like [vcpkg](https://vcpkg.io/en/) are currently not yet supported. Please create an issue in this repository if you need additional integrations.
 
-These can still be used by defining a manual mapping between header and defining rules using `# gazelle:resolve` directives
+Unsupported package managers can still be used by defining a manual mapping between header and defining rules using `# gazelle:resolve` directives
 
 ## C++20 Modules support
 
