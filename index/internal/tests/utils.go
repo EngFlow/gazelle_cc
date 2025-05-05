@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Defines utilities commonly used in indexer integration tests
 package tests
 
 import (
@@ -28,8 +29,9 @@ import (
 )
 
 type ExecConfig struct {
-	Dir string
-	Env []string
+	Dir     string
+	Env     []string
+	CanFail bool
 }
 
 // Utility to execute commands
@@ -45,7 +47,10 @@ func Execute(t *testing.T, config ExecConfig, program string, args ...string) ex
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to execute %v: %v", cmd.Args, err)
+		t.Logf("Failed to execute %v: %v", cmd.Args, err)
+		if !config.CanFail {
+			t.FailNow()
+		}
 	}
 	return *cmd
 }

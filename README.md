@@ -161,14 +161,38 @@ bazel_dep(name = "fmt", version = "11.1.4", repo_name = "fmt_repo")
 #include <gmock/gmock-matchers.h> // Resolved to @googletest//:gtest
 #include "fmt/core.h"             // Resolved to @fmt_repo//:fmt
 #include "boost/chrono.hpp"       // Warning: defined in @boost.chrono//:boost.chrono but not added as bazel_dep
-
 ```
+
+#### `conan`
+
+Resolving external dependencies managed by [Conan](https://docs.conan.io/2/integrations/bazel.html) requires creation of index by the user using `@gazelle_cc//index/conan` binary. 
+
+```bash
+conan profile detect 
+conan install . --build=missing
+bazel run @gazelle_cc//index/conan -- --output=conan.ccindex
+```
+
+The resulting index needs to be added to Gazelle directive in top-level `BUILD` file.
+
+```bazel
+# gazelle:cc_indexfile conan.ccindex
+```
+
+Additional options for `@gazelle_cc//index/conan`:
+
+| Flag | Default | Definition |
+| ---- | ------- | ---------- |
+| --output=\<path> | ./conan.ccidx | Output file for created index |
+| --install | false | Should conan profile detection and installation be done automatically before indexing |
+| --conanDir=\<path> | ./conan | Controls the paths contains conan specific and external dependencies definitions. Typically created during `conan install .` invocation |
+| --verbose | false | Enable verbose logging and debug information |
 
 #### Other package managers
 
-Other package managers [Conan](https://docs.conan.io/2/integrations/bazel.html), [vcpkg](https://vcpkg.io/en/) or rules for defining external dependencies like [rules_foreign_cc](https://github.com/bazel-contrib/rules_foreign_cc) are currently not yet supported.
+Other package managers like [vcpkg](https://vcpkg.io/en/) are currently not yet supported. Please create an issue in this repository if you need additional integrations.
 
-These can still be used by defining a manual mapping between header and defining rules using `# gazelle:resolve` directives
+Unsupported package managers can still be used by defining a manual mapping between header and defining rules using `# gazelle:resolve` directives
 
 ## C++20 Modules support
 

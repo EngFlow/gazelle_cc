@@ -1,0 +1,5 @@
+bazel_dep(name = "rules_cc", version = "0.1.1")
+
+# Register direct and transitive dependencies
+load_conan_dependencies = use_extension("//conan:conan_deps_module_extension.bzl", "conan_extension")
+use_repo(load_conan_dependencies, "fmt", "libiconv", "zlib")

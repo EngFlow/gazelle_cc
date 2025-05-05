@@ -27,7 +27,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4  
+    - uses: actions/checkout@v4
+    - name: Install Conan
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install conan
     - name: Execute manual integration tests
       run: bazel test --test_output=errors //index:integration_tests
           

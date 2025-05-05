@@ -1,0 +1,19 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+cc_binary(
+    name = "fmt",
+    srcs = ["fmt.cpp"],
+    deps = ["@fmt"],
+)
+
+cc_binary(
+    name = "iconv",
+    srcs = ["iconv.cc"],
+    deps = ["@libiconv"],
+)
+
+cc_binary(
+    name = "zlib",
+    srcs = ["zlib.cc"],
+    deps = ["@zlib"],
+)

@@ -3,5 +3,6 @@ test_suite(
     tags = ["manual"],
     tests = [
         "//index/internal/tests/example_integration_test",
+        "//index/conan/integration_tests:integration_test",
     ],
 )

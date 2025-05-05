@@ -1,5 +1,6 @@
 example/bzlmod/
 example/workspace/
 index/internal/tests/example_integration_test/testcases
+index/conan/integration_tests/testcases
 sandbox/
 .cache/
