@@ -17,24 +17,42 @@ package bazel
 import (
 	"bytes"
 	"log"
-	"os"
 	"os/exec"
 
 	"github.com/EngFlow/gazelle_cc/index/internal/collections"
 	"google.golang.org/protobuf/proto"
 )
 
-// Execute given bazel query inside directory. Returns nil if query fails
 func Query(cwd string, query string) *QueryResult {
+	return ConfiguredQuery(cwd, query, QueryConfig{
+		KeepGoing: false,
+	})
+}
+
+type QueryConfig struct {
+	KeepGoing bool
+}
+
+// Execute given bazel query inside directory. Returns nil if query fails
+func ConfiguredQuery(cwd string, query string, opts QueryConfig) *QueryResult {
 	var bufStdout bytes.Buffer
 	var bufStderr bytes.Buffer
-	cmd := exec.Command("bazel", "query", query, "--output=proto", "--incompatible_disallow_empty_glob=false")
+	args := []string{"query", query,
+		"--output=proto",
+		"--incompatible_disallow_empty_glob=false",
+	}
+	if opts.KeepGoing {
+		args = append(args, "--keep_going")
+	}
+	cmd := exec.Command("bazel", args...)
 	cmd.Dir = cwd
 	cmd.Stdout = &bufStdout
-	cmd.Stderr = os.Stderr // &bufStderr
+	cmd.Stderr = &bufStderr
 	if err := cmd.Run(); err != nil {
-		log.Printf("Bazel query failed for %s: %v. Stderr: %v", cmd.Args, err, bufStderr.String())
-		return nil
+		if cmd.ProcessState.ExitCode() != 3 && !opts.KeepGoing {
+			log.Printf("Bazel query failed for query '%s': %v. Stderr: %v", query, err, bufStderr.String())
+			return nil
+		}
 	}
 	var result QueryResult
 	if err := proto.Unmarshal(bufStdout.Bytes(), &result); err != nil {
