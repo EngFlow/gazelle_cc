@@ -49,7 +49,7 @@ func main() {
 	}
 	modules := []indexer.Module{}
 	for _, foreignDefn := range defsQuery.GetTarget() {
-		if module := collectModuleInfo(callerRoot, foreignDefn); module != nil {
+		if module := collectModuleInfo(callerRoot, foreignDefn, *verbose); module != nil {
 			modules = append(modules, *module)
 		}
 	}
@@ -62,11 +62,17 @@ func main() {
 	}
 }
 
-func collectModuleInfo(callerRoot string, foreignDefn *bazel.Target) *indexer.Module {
+func collectModuleInfo(callerRoot string, foreignDefn *bazel.Target, verbose bool) *indexer.Module {
 	targets := []*indexer.ModuleTarget{}
 	libSource := foreignDefn.GetNamedAttribute("lib_source").GetStringValue()
 	includeDir := foreignDefn.GetNamedAttribute("out_include_dir").GetStringValue()
-
+	if verbose {
+		log.Printf("Processing foreign_cc rule %v: %v", foreignDefn.GetRule().GetRuleClass(), foreignDefn.GetRule().GetName())
+	}
+	if libSource == "" {
+		log.Printf("Cannot resolve 'lib_source' attr in %v: %v, target would be skipped", foreignDefn.GetRule().GetRuleClass(), foreignDefn.GetRule().GetName())
+		return nil
+	}
 	hdrs := collections.Set[label.Label]{}
 	sourcesQuery := bazel.Query(callerRoot, libSource)
 	for _, sourcesTarget := range sourcesQuery.GetTarget() {
@@ -84,7 +90,10 @@ func collectModuleInfo(callerRoot string, foreignDefn *bazel.Target) *indexer.Mo
 		}
 	}
 
-	depsQuery := bazel.Query(callerRoot, fmt.Sprintf("kind(cc_library, rdeps(//..., %s, 1))", foreignDefn.GetRule().GetName()))
+	depsQuery := bazel.ConfiguredQuery(callerRoot,
+		fmt.Sprintf("kind(cc_library, rdeps(//..., %s, 1))", foreignDefn.GetRule().GetName()),
+		bazel.QueryConfig{KeepGoing: true},
+	)
 	if depsQuery == nil {
 		log.Printf("Failed to found direct dependanant of %v:%v", foreignDefn.GetRule().GetRuleClass(), foreignDefn.GetRule().GetName())
 		return nil
