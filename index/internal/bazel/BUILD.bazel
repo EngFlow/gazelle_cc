@@ -1,0 +1,30 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# gazelle:proto package
+
+proto_library(
+    name = "bazel_proto",
+    srcs = ["build.proto"],
+    visibility = ["//index:__subpackages__"],
+)
+
+go_proto_library(
+    name = "bazel_go_proto",
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/bazel",
+    proto = ":bazel_proto",
+    visibility = ["//index:__subpackages__"],
+)
+
+go_library(
+    name = "bazel",
+    srcs = ["query.go"],
+    embed = [":bazel_go_proto"],
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/bazel",
+    visibility = ["//index:__subpackages__"],
+    deps = [
+        "//index/internal/collections",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
