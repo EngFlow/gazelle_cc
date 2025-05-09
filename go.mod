@@ -3,7 +3,7 @@ module github.com/EngFlow/gazelle_cc
 go 1.23.2
 
 require (
-	github.com/bazelbuild/bazel-gazelle v0.42.0
+	github.com/bazelbuild/bazel-gazelle v0.43.0
 	google.golang.org/protobuf v1.36.6
 )
 
