@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "lib",
+    srcs = ["main.go"],
+    importmap = "github.com/EngFlow/gazelle_cc/index/vendor",
+    importpath = "",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//index/internal/bazel",
+        "//index/internal/collections",
+        "//index/internal/indexer",
+        "@gazelle//label",
+    ],
+)
+
+go_binary(
+    name = "vendor",
+    embed = [":lib"],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,5 @@
+{
+  "bar.h": "//third_party/b:bar",
+  "lib_a/foo.h": "//third_party/a:foo",
+  "third_party/c/baz.h": "//third_party/c:baz"
+}
