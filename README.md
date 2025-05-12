@@ -15,7 +15,6 @@ bazel_dep(name = "gazelle", version = "0.42.0")
 bazel_dep(name = "gazelle_cc", version = "0.1.0") # This extension, use the latest version
 
 bazel_dep(name = "rules_cc", version = "0.1.1")
-bazel_dep(name = "protobuf", version = "30.2") # Optional for protobuf support
 ```
 
 Add the `gazelle` task in the top-level `BUILD.bazel` file:
@@ -38,6 +37,12 @@ gazelle(
     gazelle = ":gazelle_cc",
 )
 ```
+
+### Using WORKSPACE
+
+The `gazelle_cc` is build and distributed using using Bazel modules. It is possible to use it using legacy WORKSPACE defintions, but it is neither tested nor encouraged.
+
+For instructions how to setup `gazelle_cc` using WORKSPACEs visit [this guide](./docs/workspace_setup.md)
 
 ## Custom Directives
 
