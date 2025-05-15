@@ -357,7 +357,7 @@ def resolveTargets(projectRoot: os.Path) = Try {
           "--max_idle_secs=5",
           s"--output_base=$tmpOutputBase",
           "query",
-          s"""kind(cc_.*library, $selector) intersect attr(visibility, //visibility:public, $selector)""",
+          s"""(kind(cc_.*library, $selector) intersect attr(visibility, //visibility:public, $selector)) union kind("expand_template|filegroup", $selector)""",
           s"--output=xml",
           "--keep_going",
           "--incompatible_disallow_empty_glob=false",
@@ -385,8 +385,8 @@ def extractModuleTargets(doc: xml.Document): Seq[ModuleTarget] = {
     def withName(name: String) = nodes.find: node =>
       (node \@ "name") == name
   extension (node: xml.Node)
-    def stringOptAttr(name: String) =
-      (node \ "string")
+    def stringOptAttr(name: String, kind: "string" | "label" | "output" = "string") =
+      (node \ kind)
         .withName(name)
         .map(_ \@ "value")
     def stringListAttr(name: String, kind: "string" | "label" = "string"): List[String] =
@@ -396,16 +396,43 @@ def extractModuleTargets(doc: xml.Document): Seq[ModuleTarget] = {
         .flatMap(_ \ kind)
         .map(_ \@ "value")
   extension (value: String) def toRelPath: os.RelPath = os.RelPath(value.stripPrefix("/"))
+  val filegroups: Map[Label, Seq[Label]] = {
+    for 
+      rule <- doc \ "rule"
+      if rule \@ "class" == "filegroup"
+      name <- Label.validate(rule \@ "name")
+    yield name -> rule
+      .stringListAttr("srcs", kind = "label")
+      .flatMap(Label.validate)
+      .map(_.relativizeTo(name))
+  }.toMap
+  
+  val expandTemplates: Map[Label, Label] = {
+    for 
+      rule <- doc \ "rule"
+      if rule \@ "class" == "expand_template"
+      name <- Label.validate(rule \@ "name")
+      out <- rule
+      .stringOptAttr("out", kind = "output")
+      .flatMap(Label.validate)
+      .map(_.relativizeTo(name))
+    yield name -> out
+  }.toMap
+   
   for
     rule <- doc \ "rule"
+    if !Seq("filegroup", "expand_template").contains(rule \@ "class")
     name <- Label.validate(rule \@ "name")
   yield ModuleTarget(
       name = name,
       hdrs = rule
         .stringListAttr("hdrs", kind = "label")
         .flatMap(Label.validate)
+        .flatMap: src => 
+          filegroups.get(src)
+          .orElse(expandTemplates.get(src).map(Seq(_)))
+          .getOrElse(Seq(src))
         .map(_.relativizeTo(name)),
-      // textualHdrs = rule.stringListAttr("textual_hdrs", kind = "label").flatMap(Label.validate),
       includes = rule
         .stringListAttr("includes")
         .map(_.toRelPath),
