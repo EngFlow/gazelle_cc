@@ -1,0 +1,14 @@
+module(name = "gazelle_cc_example")
+
+bazel_dep(name = "gazelle", version = "0.42.0")
+bazel_dep(name = "gazelle_cc", version = "")
+local_path_override(
+    module_name = "gazelle_cc",
+    path = "../../",
+)
+
+bazel_dep(name = "rules_cc", version = "0.1.1")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "protobuf", version = "30.2", repo_name = "com_google_protobuf")
+bazel_dep(name = "googletest", version = "1.17.0", dev_dependency = True)
+bazel_dep(name = "fmt", version = "11.1.4")

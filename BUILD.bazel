@@ -9,3 +9,5 @@ gazelle_binary(
 )
 
 gazelle(name = "gazelle")
+
+# gazelle:exclude example

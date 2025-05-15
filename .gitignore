@@ -1,7 +1,4 @@
-bazel-bin
-bazel-gazelle_cc
-bazel-out
-bazel-testlogs
+bazel-*
 .vscode
 sandbox/*
 .cache
