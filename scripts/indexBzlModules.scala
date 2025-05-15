@@ -171,7 +171,13 @@ def createHeaderIndex(infos: Seq[ModuleInfo])(using config: Config): (
   for
     module <- infos
     target <- module.targets
-    label = target.name.withRepository(module.module.name)
+    label = target.alias
+      .filter: alias =>
+        // Apply alias only if it would allow to relativize the label 
+        alias.pkg.contains(alias.target) 
+        || (alias.pkg.forall(_.isEmpty) && alias.target == module.module.name)
+      .getOrElse(target.name)
+      .withRepository(module.module.name)
     if !shouldExcludeTarget(label)
       .tapIf(_ == true)(_ => recordExcluded(label, target))
     hdr <- target.hdrs
@@ -365,7 +371,7 @@ def resolveTargets(projectRoot: os.Path) = Try {
           "--max_idle_secs=5",
           s"--output_base=$tmpOutputBase",
           "query",
-          s"""(kind(cc_.*library, $selector) intersect attr(visibility, //visibility:public, $selector)) union kind("expand_template|filegroup", $selector)""",
+          s"""(kind("cc_.*library|alias", $selector) intersect attr(visibility, //visibility:public, $selector)) union kind("expand_template|filegroup", $selector)""",
           s"--output=xml",
           "--keep_going",
           "--incompatible_disallow_empty_glob=false",
@@ -404,6 +410,20 @@ def extractModuleTargets(doc: xml.Document): Seq[ModuleTarget] = {
         .flatMap(_ \ kind)
         .map(_ \@ "value")
   extension (value: String) def toRelPath: os.RelPath = os.RelPath(value.stripPrefix("/"))
+  
+  // Map of cc_library -> alias rules found in project 
+  val aliases: Map[Label, Label] = {
+    for 
+      rule <- doc \ "rule"
+      if rule \@ "class" == "alias"
+      name <- Label.validate(rule \@ "name")
+      target <- rule.stringOptAttr("actual", kind = "label").flatMap(Label.validate)
+    yield (alias=name, target=target)
+  }.groupBy(_.target)
+  .collect:
+    case (target, Seq(singleRef)) => target -> singleRef.alias
+  .toMap
+  
   val filegroups: Map[Label, Seq[Label]] = {
     for 
       rule <- doc \ "rule"
@@ -429,10 +449,11 @@ def extractModuleTargets(doc: xml.Document): Seq[ModuleTarget] = {
    
   for
     rule <- doc \ "rule"
-    if !Seq("filegroup", "expand_template").contains(rule \@ "class")
+    if !Seq("alias", "filegroup", "expand_template").contains(rule \@ "class")
     name <- Label.validate(rule \@ "name")
   yield ModuleTarget(
       name = name,
+      alias = aliases.get(name),
       hdrs = rule
         .stringListAttr("hdrs", kind = "label")
         .flatMap(Label.validate)
@@ -464,6 +485,7 @@ case class ModuleVersion(name: String, version: String) derives ReadWriter:
 
 case class ModuleTarget(
     name: Label,
+    alias: Option[Label],
     hdrs: List[Label],
     includes: List[os.RelPath],
     stripIncludePrefix: Option[os.RelPath] = None,
