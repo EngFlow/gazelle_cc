@@ -1,4 +1,4 @@
-//> using scala 3.7.0-RC1
+//> using scala 3.7.0
 //> using options --preview -Wunused:all
 //> using jvm 21
 //> using toolkit 0.7.0
@@ -159,7 +159,7 @@ def createHeaderIndex(infos: Seq[ModuleInfo])(using config: Config): (
     def excludePkg = target.pkgRelPath.exists { path =>
       path.segments.headOption.exists(Seq("test").contains) ||
       path.segments.exists: segment =>
-        Seq("third-party", "third_party", "deps", "tests", "internal", "impl")
+        Seq("third-party", "third_party", "3rd_party", "deps", "tests", "internal", "impl")
           .exists(segment.contains)
     }
     excludePkg || excludeName
@@ -221,7 +221,7 @@ def normalizeHeaderPath(hdrPath: os.RelPath, target: ModuleTarget): Seq[os.RelPa
     target.name.pkgRelPath.foldRight(path)(_ / _)
     
   def stripIncludePrefix(path: os.RelPath): os.RelPath = 
-        target.stripIncludePrefix
+    target.stripIncludePrefix
       .toSeq
       .flatMap: prefix =>
         Seq(prefix, targetPkgResolved(prefix))
@@ -233,12 +233,12 @@ def normalizeHeaderPath(hdrPath: os.RelPath, target: ModuleTarget): Seq[os.RelPa
   
    // Relativize to the longest matching includes
   def resolveIncludes(path: os.RelPath): Seq[os.RelPath] = 
-        target.includes
+    target.includes
       .map(include => targetPkgResolved(include))
-          .filter(path.startsWith)
-          .map:
-            case os.rel  => path
-            case include => path.relativeTo(include)
+      .filter(path.startsWith)
+      .map:
+        case os.rel  => path
+        case include => path.relativeTo(include)
       .match {
         case Nil => path :: Nil
         case paths => paths
@@ -247,7 +247,7 @@ def normalizeHeaderPath(hdrPath: os.RelPath, target: ModuleTarget): Seq[os.RelPa
   targetPkgResolved
   .andThen(stripIncludePrefix)
   .andThen(resolveIncludes)
-    .apply(hdrPath)
+  .apply(hdrPath)
   .map(includePrefix)
 }
 
