@@ -175,7 +175,7 @@ def createHeaderIndex(infos: Seq[ModuleInfo])(using config: Config): (
     if !shouldExcludeTarget(label)
       .tapIf(_ == true)(_ => recordExcluded(label, target))
     hdr <- target.hdrs
-    path = normalizeHeaderPath(hdr.targetPath, target)
+    path <- normalizeHeaderPath(hdr.targetPath, target)
     if !shouldExcludeHeader(path)
       .tapIf(_ == true)(_ => recordExcluded(label, hdr))
     assignedLabels = headersMapping.getOrElseUpdate(path, mutable.Set.empty)
@@ -209,32 +209,40 @@ def createHeaderIndex(infos: Seq[ModuleInfo])(using config: Config): (
  * Normalizes the path to the format that might be valid for C imports. It applies (strip_)include_prefix and includes
  * attributes to the format that allows the default cc_rules and C compiler to correctly resolve the header
  */
-def normalizeHeaderPath(hdrPath: os.RelPath, target: ModuleTarget): os.RelPath = {
-  val normalizationSteps = Seq[os.RelPath => os.RelPath](
-      path =>
+def normalizeHeaderPath(hdrPath: os.RelPath, target: ModuleTarget): Seq[os.RelPath] = {
+  // Prepend target pkg to the header name, required to correctly resolve strip_include_prefix
+  def targetPkgResolved(path: os.RelPath): os.RelPath = 
+    target.name.pkgRelPath.foldRight(path)(_ / _)
+    
+  def stripIncludePrefix(path: os.RelPath): os.RelPath = 
         target.stripIncludePrefix
-          .filter(path.startsWith)
-          .foldLeft(path)(_.relativeTo(_)),
-      path =>
-        target.includePrefix
-          .foldRight(path)(_ / _),
-      path =>
+      .toSeq
+      .flatMap: prefix =>
+        Seq(prefix, targetPkgResolved(prefix))
+      .find(path.startsWith)
+      .foldLeft(path)(_.relativeTo(_))
+      
+  def includePrefix(path: os.RelPath): os.RelPath = 
+      target.includePrefix.foldRight(path)(_ / _)
+  
+   // Relativize to the longest matching includes
+  def resolveIncludes(path: os.RelPath): Seq[os.RelPath] = 
         target.includes
+      .map(include => targetPkgResolved(include))
           .filter(path.startsWith)
-          .maxByOption(_.segments.size)
           .map:
             case os.rel  => path
             case include => path.relativeTo(include)
-          .getOrElse(path),
-      path =>
-        target.name.pkgRelPath
-          .filter: _ => // only if none previous normalization were applied
-            path == hdrPath && !target.includes.contains(os.rel)
-          .foldRight(path)(_ / _)
-  )
-  normalizationSteps
-    .reduce(_.andThen(_))
+      .match {
+        case Nil => path :: Nil
+        case paths => paths
+      }
+    
+  targetPkgResolved
+  .andThen(stripIncludePrefix)
+  .andThen(resolveIncludes)
     .apply(hdrPath)
+  .map(includePrefix)
 }
 
 /**
