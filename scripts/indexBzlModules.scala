@@ -491,18 +491,23 @@ def prepareArchiveModule(url: Uri, targetDir: os.Path, sourcesDir: os.Path, stri
     patchStrip: Option[Int], patchFiles: Set[String]): Try[os.Path] = {
   val fileName = url.path.last
   // Download file with possible retries
-  def downloadArchive(retries: Int): Try[os.Path] =
+  def downloadArchive(retries: Int, options: RequestOptions = basicRequest.options): Try[os.Path] =
     val artifactPath = os.temp.dir(deleteOnExit = true) / fileName
     basicRequest
       .get(url)
       .response(asPathAlways(artifactPath.toNIO))
+      .withOptions(options)
       .send(TryBackend(FollowRedirectsBackend.encodeUriAll(DefaultSyncBackend())))
       .map: response =>
         os.Path(response.body)
       .recoverWith {
-        case _ if retries > 0 =>
+        case ex if retries > 0 =>
           Thread.sleep(Random.nextInt(15).seconds.toMillis)
-          downloadArchive(retries - 1)
+          val newOptions = ex.getCause() match {
+            case _: java.io.UnsupportedEncodingException => options.copy(decompressResponseBody = false)
+            case _ => options
+          }
+          downloadArchive(retries - 1, newOptions)
       }
   downloadArchive(retries = 3)
     .flatMap: artifactPath =>
