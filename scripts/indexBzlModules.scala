@@ -627,6 +627,7 @@ object types:
       case s"@$repo//$pkg:$target"  => Some((repo = Some(repo), pkg = Some(pkg), target = target))
       case s"//$pkg:$target"        => Some((repo = None, pkg = Some(pkg), target = target))
       case s":$target"              => Some((repo = None, pkg = None, target = target))
+      case _                        => None
 
 /**
  * Wrapes given computation into caching layer controlled by [[CacheDriver]] If the cache file exists and can be
