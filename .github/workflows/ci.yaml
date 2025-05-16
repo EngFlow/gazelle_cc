@@ -13,23 +13,38 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-    
       - name: Build
         run: |
           bazel build //...
-    
       - name: Test
         run: |
           bazel test --test_output=errors //...
           
+  test-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4  
+    - name: Test Bzlmod Example
+      working-directory: example/bzlmod
+      run: |
+        # Run gazelle to generate BUILD files
+        bazel run :gazelle
+        
+        # Verify that BUILD files were generated
+        test -f mylib/BUILD.bazel
+        test -f proto/BUILD.bazel
+        
+        bazel build //...
+        bazel test --test_output=errors //mylib:mylib_test //proto:mock_test
+        bazel run //proto:example 
+          
   license-headers:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    
     steps:
       - uses: actions/checkout@v4
       - run: ./scripts/license_check.sh 
