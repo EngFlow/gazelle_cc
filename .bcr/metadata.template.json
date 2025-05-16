@@ -1,0 +1,20 @@
+{
+  "homepage": "https://github.com/engflow/gazelle_cc",
+  "maintainers": [
+    {
+      "name": "Jay Conrod",
+      "email": "jayconrod@gmail.com",
+      "github": "jayconrod"
+    },
+    {
+      "name": "Wojciech Mazur",
+      "email": "wmazur@virtuslab.com",
+      "github": "WojciechMazur"
+    }
+  ],
+  "repository": [
+    "github:engflow/gazelle_cc"
+  ],
+  "versions": [],
+  "yanked_versions": {}
+}
