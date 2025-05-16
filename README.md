@@ -192,7 +192,7 @@ After running Gazelle, it will generate appropriate BUILD files with dependencie
 
 ## Contributing
 
-We are not accepting pull requests at this time while we're defining our contribution policy. Please file an issue instead!
+See [CONTRIBUTING.md](CONTRIBUTING.md) for instructions on how to contribute to this project.
 
 ## License
 
