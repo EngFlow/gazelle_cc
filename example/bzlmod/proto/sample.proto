@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/type.proto";
+
+message Foo {
+  string name = 1;
+  google.protobuf.Timestamp last_updated = 2;
+  google.protobuf.Type type = 3;
+}
