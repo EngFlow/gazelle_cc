@@ -35,5 +35,5 @@ http_archive(
 )
 \`\`\`
 
-See https://github.com/engflow/gazelle_cc\#installation for full setup instructions.
+See https://github.com/engflow/gazelle_cc#installation for full setup instructions.
 EOF
