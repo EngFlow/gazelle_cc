@@ -1,3 +1,5 @@
+"""Bazel Gazelle extension for rules_cc"""
+
 module(
     name = "gazelle_cc",
 )
