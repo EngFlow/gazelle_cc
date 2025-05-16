@@ -39,7 +39,7 @@ No issue is necessary for small PRs, such as those improving documentation or fi
     git push --force
     ```
 
-    Avoid rewrite history if you can. It complicates the review process.
+    Avoid rewriting history if you can. It complicates the review process.
 
 1. Create your PR.
 
