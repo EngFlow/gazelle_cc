@@ -58,7 +58,7 @@ No issue is necessary for small PRs, such as those improving documentation or fi
 
     The PR description will be used as the commit message when the PR is merged. Update this field if your PR diverges during review.
 
-    If your PR is co-authored or based on an earlier PR from another contributor, attribute them with Co-authored-by: name <name@example.com>. See GitHub's multiple author guidance for details.
+    If your PR is co-authored or based on an earlier PR from another contributor, attribute them with `Co-authored-by: name <name@example.com>`. See GitHub's multiple author guidance for details.
 
     When adding new code, add tests covering it.
 
