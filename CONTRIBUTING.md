@@ -22,7 +22,7 @@ No issue is necessary for small PRs, such as those improving documentation or fi
     Signed-off-by: J. Random Bazeler <jrbazel@example.com>
     ```
 
-    You can sign off your match automatically using `git commit -s` or `git commit --signoff`. To automatically sign off commits in your local repository, run:
+    You can sign off your match automatically using `git commit -s` or `git commit --signoff`. To make this more convenient, run the commands below to add `git amend` and `git c` aliases that include this flag:
 
     ```bash
     git config --add alias.amend "commit --signoff --amend" && \
