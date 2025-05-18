@@ -1,2 +1,4 @@
 # gazelle:cc_indexfile first.ccindex
 # gazelle:cc_indexfile internal/second.ccIndex
+# gazelle:cc_indexfile priority.high.ccindex
+# gazelle:cc_indexfile priority.low.ccindex

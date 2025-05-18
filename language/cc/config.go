@@ -65,7 +65,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 			// New indexfiles replace inherited ones
 			if !definesIndexFiles {
 				definesIndexFiles = true
-				conf.dependencyIndexes = make(map[string]ccDependencyIndex)
+				conf.dependencyIndexes = []ccDependencyIndex{}
 			}
 			path := filepath.Join(config.WorkDir, d.Value)
 			if filepath.IsAbs(d.Value) {
@@ -77,7 +77,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				log.Printf("gazelle_cc: failed to load cc dependencies index: %v, it would be ignored. Reason: %v", path, err)
 				continue
 			}
-			conf.dependencyIndexes[path] = index
+			conf.dependencyIndexes = append(conf.dependencyIndexes, index)
 		}
 	}
 }
@@ -100,7 +100,7 @@ type cppConfig struct {
 	// Should rules with sources assigned to different targets be merged into single one if they define a cyclic dependency
 	groupsCycleHandlingMode groupsCycleHandlingMode
 	// User defined dependency indexes based on the filename
-	dependencyIndexes map[string]ccDependencyIndex
+	dependencyIndexes []ccDependencyIndex
 }
 
 func getCppConfig(c *config.Config) *cppConfig {
@@ -110,7 +110,7 @@ func newCppConfig() *cppConfig {
 	return &cppConfig{
 		groupingMode:            groupSourcesByDirectory,
 		groupsCycleHandlingMode: mergeOnGroupsCycle,
-		dependencyIndexes:       make(map[string]ccDependencyIndex),
+		dependencyIndexes:       []ccDependencyIndex{},
 	}
 }
 func (conf *cppConfig) clone() *cppConfig {
