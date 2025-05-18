@@ -72,9 +72,10 @@ generate these mappings in bulk with an index file.
 See [external dependenices section](#external-dependencies) for instructions on
 generating index files.
 
-Multiple `cc_indexfile` directives are allowed. It's recommended to use it only in top-level BUILD file.
+Multiple `cc_indexfile` directives can be used, and their values are inherited by subprojects.
+However, if a subproject explicitly defines its own `cc_indexfile`, it overrides all previously inherited index files for that project and any of its subprojects.
 
-The argument may be a repository-root relative or absolute path.
+The argument must be a repository-root relative path.
 
 ## Rules for target rule selection
 

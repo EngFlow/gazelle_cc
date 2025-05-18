@@ -38,9 +38,6 @@ type (
 		// Set of missing bazel_dep modules referenced in includes but not defined
 		// Used for deduplication of missing modul_dep warnings
 		notFoundBzlModDeps map[string]bool
-
-		// User defined dependency indexes based on the filename
-		dependencyIndexes map[string]ccDependencyIndex
 	}
 	ccInclude struct {
 		// Include path extracted from brackets or double quotes
@@ -66,7 +63,6 @@ func NewLanguage() language.Language {
 	return &ccLanguage{
 		bzlmodBuiltInIndex: loadBuiltInBzlModDependenciesIndex(),
 		notFoundBzlModDeps: make(map[string]bool),
-		dependencyIndexes:  make(map[string]ccDependencyIndex),
 	}
 }
 

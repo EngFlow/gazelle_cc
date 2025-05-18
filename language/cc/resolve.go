@@ -106,6 +106,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 }
 
 func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec) label.Label {
+	conf := getCppConfig(c)
 	// Resolve the gazele:resolve overrides if defined
 	if resolvedLabel, ok := resolve.FindRuleWithOverride(c, importSpec, languageName); ok {
 		return resolvedLabel
@@ -118,7 +119,7 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 		}
 	}
 
-	for _, index := range lang.dependencyIndexes {
+	for _, index := range conf.dependencyIndexes {
 		if label, exists := index[importSpec.Imp]; exists {
 			return label
 		}

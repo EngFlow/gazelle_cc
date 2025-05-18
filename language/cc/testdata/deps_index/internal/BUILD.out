@@ -6,9 +6,6 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 cc_library(
     name = "internal",
     srcs = ["lib.cpp"],
-    implementation_deps = [
-        "//second:lib",
-        "@external//first:lib",
-    ],
+    implementation_deps = ["//second:lib"],
     visibility = ["//visibility:public"],
 )
