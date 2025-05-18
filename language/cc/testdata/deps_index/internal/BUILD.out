@@ -7,8 +7,5 @@ cc_library(
     name = "internal",
     srcs = ["lib.cpp"],
     visibility = ["//visibility:public"],
-    deps = [
-        "//second:lib",
-        "@external//first:lib",
-    ],
+    deps = ["//second:lib"],
 )

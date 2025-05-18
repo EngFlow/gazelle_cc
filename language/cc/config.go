@@ -54,7 +54,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		return
 	}
 
-	warnedOnNonRootIndexFileDeclaration := false
+	definesIndexFiles := false
 	for _, d := range f.Directives {
 		switch d.Key {
 		case cc_group_directive:
@@ -62,9 +62,10 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		case cc_group_unit_cycles:
 			selectDirectiveChoice(&conf.groupsCycleHandlingMode, groupsCycleHandlingModes, d)
 		case cc_indexfile:
-			if rel != "" && !warnedOnNonRootIndexFileDeclaration {
-				log.Printf("gazelle_cc: directive %v should be used only in the top-level BUILD file, found usage in %v", cc_indexfile, f.Path)
-				warnedOnNonRootIndexFileDeclaration = true
+			// New indexfiles replace inherited ones
+			if !definesIndexFiles {
+				definesIndexFiles = true
+				conf.dependencyIndexes = make(map[string]ccDependencyIndex)
 			}
 			path := filepath.Join(config.WorkDir, d.Value)
 			if filepath.IsAbs(d.Value) {
@@ -76,7 +77,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				log.Printf("gazelle_cc: failed to load cc dependencies index: %v, it would be ignored. Reason: %v", path, err)
 				continue
 			}
-			c.dependencyIndexes[path] = index
+			conf.dependencyIndexes[path] = index
 		}
 	}
 }
@@ -98,6 +99,8 @@ type cppConfig struct {
 	groupingMode sourceGroupingMode
 	// Should rules with sources assigned to different targets be merged into single one if they define a cyclic dependency
 	groupsCycleHandlingMode groupsCycleHandlingMode
+	// User defined dependency indexes based on the filename
+	dependencyIndexes map[string]ccDependencyIndex
 }
 
 func getCppConfig(c *config.Config) *cppConfig {
@@ -107,11 +110,16 @@ func newCppConfig() *cppConfig {
 	return &cppConfig{
 		groupingMode:            groupSourcesByDirectory,
 		groupsCycleHandlingMode: mergeOnGroupsCycle,
+		dependencyIndexes:       make(map[string]ccDependencyIndex),
 	}
 }
 func (conf *cppConfig) clone() *cppConfig {
-	copy := *conf
-	return &copy
+	return &cppConfig{
+		groupingMode:            conf.groupingMode,
+		groupsCycleHandlingMode: conf.groupsCycleHandlingMode,
+		// No deep cloning of dependency indexes to reduce memory usage
+		dependencyIndexes: conf.dependencyIndexes,
+	}
 }
 
 type sourceGroupingMode string
