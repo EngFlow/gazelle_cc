@@ -39,7 +39,7 @@ jobs:
         test -f proto/BUILD.bazel
         
         bazel build //...
-        bazel test --test_output=errors //mylib:mylib_test //proto:mock_test
+        bazel test --test_output=errors //...
         bazel run //proto:example 
           
   license-headers:

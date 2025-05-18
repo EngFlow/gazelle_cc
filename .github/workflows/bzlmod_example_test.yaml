@@ -1,0 +1,37 @@
+name: Bzlmod Example Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-bzlmod-example:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Bazel
+        uses: bazelbuild/setup-bazelisk@v2
+      
+      - name: Test Bzlmod Example
+        working-directory: example/bzlmod
+        run: |
+          # Run gazelle to generate BUILD files
+          bazel run :gazelle
+          
+          # Verify that BUILD files were generated
+          test -f mylib/BUILD
+          test -f proto/BUILD
+          
+          # Build all targets
+          bazel build //...
+          
+          # Run tests
+          bazel test --test_output=errors //...
+          
+          # Run the example binary
+          bazel run //proto:example 

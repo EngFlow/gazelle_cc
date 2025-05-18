@@ -1,6 +1,5 @@
-#include <gtest/gtest.h>
-#include <string>
 #include "mylib.h"
+#include <gtest/gtest.h>
 
 TEST(AdditionTest, HandlesVariousInputs) {
     EXPECT_EQ(mylib::add(1, 2), 3);

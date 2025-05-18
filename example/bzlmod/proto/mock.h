@@ -4,7 +4,7 @@
 #include "mylib/mylib.h"
 #include "proto/sample.pb.h"
 
-#include "google/protobuf/util/time_util.h"
+#include <google/protobuf/util/time_util.h>
 #include <google/protobuf/json/json.h>
 
 int printMessage() {

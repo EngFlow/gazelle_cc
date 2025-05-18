@@ -15,6 +15,3 @@ gazelle(
 
 # gazelle:cc_group unit
 # gazelle:resolve cc gtest/gtest.h @googletest//:gtest_main
-
-# TODO Workaround to bug in proto gazelle
-# gazelle:map_kind cc_proto_library cc_proto_library @com_google_protobuf//bazel:cc_proto_library.bzl

@@ -11,4 +11,4 @@ It would create following targets:
 | //proto:sample_cc_proto | cc_proto_library |
 | //proto:example | cc_binary |
 
-These can be build using `bazel build //...`.
+These can be built using `bazel build //...`.

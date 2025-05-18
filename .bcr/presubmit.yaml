@@ -9,11 +9,9 @@ bcr_test_module:
       platform: ${{ platform }}
       bazel: ${{ bazel }}
       shell_commands:
-      # Generate the BUILD files for the test module using Gazelle
-      - bazel run //:gazelle
+        # Generate the BUILD files for the test module using Gazelle
+        - bazel run //:gazelle
       build_targets:
-        - //:gazelle
         - //...
       test_targets:
-        - //mylib:mylib_test
-        - //proto:mock_test
+        - //...
