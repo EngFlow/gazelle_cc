@@ -64,11 +64,17 @@ Controls how to handle cyclic dependencies between translation units:
 
 ### `# gazelle:cc_indexfile <path>`
 
-Adds index file, containing mapping between headers to rules providing their definitions and/or implementation.
-Index allow for automatic dependency resolution for targets not managed by the gazelle, eg. provided by integrated package manager or vendored inside repository.
-Multiple `cc_indexfile` are allowed. It's recommended to use it only in top-level BUILD file.
-Argument of the directive needs to be a repository-root relative or absolute path.
-Visit [external dependenices section](#external-dependencies) to learn how to obtain indexes.
+Loads an index file, containing a map from header include paths to Bazel labels.
+An index lets Gazelle resolve dependencies on targets outside the current project,
+for example, those provided by a Bazel module or separate package manager.
+Equivalently, you can use `# gazelle:resolve` directives, but you can more easily
+generate these mappings in bulk with an index file.
+See [external dependenices section](#external-dependencies) for instructions on
+generating index files.
+
+Multiple `cc_indexfile` directives are allowed. It's recommended to use it only in top-level BUILD file.
+
+The argument may be a repository-root relative or absolute path.
 
 ## Rules for target rule selection
 
