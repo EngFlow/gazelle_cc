@@ -17,7 +17,6 @@ package cc
 import (
 	_ "embed"
 	"encoding/json"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -172,7 +171,6 @@ func loadDependencyIndex(file string) (ccDependencyIndex, error) {
 func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {
 	var rawLabels map[string]string
 	if err := json.Unmarshal(data, &rawLabels); err != nil {
-		log.Printf("Failed to parsed Bazel modules dependencies index, resolving external dependenices would not work: %v", err)
 		return nil, err
 	}
 

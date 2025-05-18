@@ -41,14 +41,14 @@ func (c *ccLanguage) KnownDirectives() []string {
 	}
 }
 
-func (lang *ccLanguage) Configure(c *config.Config, rel string, f *rule.File) {
+func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) {
 	var conf *cppConfig
-	if parentConf, ok := c.Exts[languageName]; !ok {
+	if parentConf, ok := config.Exts[languageName]; !ok {
 		conf = newCppConfig()
 	} else {
 		conf = parentConf.(*cppConfig).clone()
 	}
-	c.Exts[languageName] = conf
+	config.Exts[languageName] = conf
 
 	if f == nil {
 		return
@@ -66,16 +66,17 @@ func (lang *ccLanguage) Configure(c *config.Config, rel string, f *rule.File) {
 				log.Printf("gazelle_cc: directive %v should be used only in the top-level BUILD file, found usage in %v", cc_indexfile, f.Path)
 				warnedOnNonRootIndexFileDeclaration = true
 			}
-			path := d.Value
-			if !filepath.IsAbs(path) {
-				path = filepath.Join(c.WorkDir, path)
+			path := filepath.Join(config.WorkDir, d.Value)
+			if filepath.IsAbs(d.Value) {
+				log.Printf("gazelle_cc: absolute paths for %v directive are not allowed, %v would be ignored", d.Key, d.Value)
+				continue
 			}
 			index, err := loadDependencyIndex(path)
-			if err == nil {
-				lang.dependencyIndexes[path] = index
-			} else {
+			if err != nil {
 				log.Printf("gazelle_cc: failed to load cc dependencies index: %v, it would be ignored. Reason: %v", path, err)
+				continue
 			}
+			c.dependencyIndexes[path] = index
 		}
 	}
 }
