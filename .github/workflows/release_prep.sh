@@ -4,8 +4,8 @@ set -o errexit -o nounset -o pipefail
 
 # Single tag arg is passed by https://github.com/bazel-contrib/.github/blob/master/.github/workflows/release_ruleset.yaml
 TAG="$1"
-# Assumes tag format vX.Y.Z, drops the leading 'v'
-VERSION="${TAG:1}"
+# Drops the leading 'v' from tag
+VERSION="${TAG#v}"
 PREFIX="gazelle_cc-${VERSION}"
 ARCHIVE="gazelle_cc-$TAG.tar.gz"
 git archive --format=tar.gz --prefix=${PREFIX}/ ${TAG} > $ARCHIVE
