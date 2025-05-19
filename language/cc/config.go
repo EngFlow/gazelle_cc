@@ -118,7 +118,7 @@ func (conf *cppConfig) clone() *cppConfig {
 		groupingMode:            conf.groupingMode,
 		groupsCycleHandlingMode: conf.groupsCycleHandlingMode,
 		// No deep cloning of dependency indexes to reduce memory usage
-		dependencyIndexes: conf.dependencyIndexes,
+		dependencyIndexes: conf.dependencyIndexes[:len(conf.dependencyIndexes):len(conf.dependencyIndexes)],
 	}
 }
 
