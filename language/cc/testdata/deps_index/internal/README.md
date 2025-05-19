@@ -1,1 +1,1 @@
-In subdirectory we redefine the `cc_indexfile`, the `first.ccIndex` is not included so headers defined in this index would not be resolved.
+In subdirectory we extend the list of `cc_indexfile`, the `first.ccIndex` is inherited, and we add `internal/second.ccIndex`
