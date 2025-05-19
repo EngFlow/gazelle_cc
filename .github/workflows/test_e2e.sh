@@ -3,11 +3,11 @@
 set -o errexit -o nounset -o pipefail
 
 scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-rootDir=$(realpath $scriptDir/../..)
+rootDir=$(realpath "$scriptDir/../..")
 
 function testExampleBzlMod() {
   echo "Test example/bzlmod"
-  cd $rootDir/example/bzlmod
+  cd "$rootDir/example/bzlmod"
   
   # Ensure previous BUILD files are removed
   rm -f mylib/BUILD.bazel proto/BUILD.bazel
