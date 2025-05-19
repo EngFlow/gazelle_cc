@@ -73,7 +73,7 @@ See [external dependenices section](#external-dependencies) for instructions on
 generating index files.
 
 Multiple `cc_indexfile` directives can be used, and their values are inherited by subprojects.
-However, if a subproject explicitly defines its own `cc_indexfile`, it overrides all previously inherited index files for that project and any of its subprojects.
+To clear inherited cc_indexfile values, provide an empty argument, e.g. `# gazelle:cc_indexfile`.
 When resolving dependencies, indexes are visited in the same order as the corresponding `cc_indexfile` definitions.
 
 The argument must be a repository-root relative path.

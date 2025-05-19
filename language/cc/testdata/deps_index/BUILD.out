@@ -1,7 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 # gazelle:cc_indexfile first.ccindex
-# gazelle:cc_indexfile internal/second.ccIndex
 # gazelle:cc_indexfile priority.high.ccindex
 # gazelle:cc_indexfile priority.low.ccindex
 
@@ -9,7 +8,6 @@ cc_library(
     name = "deps_index",
     srcs = ["app.cc"],
     implementation_deps = [
-        "//second:lib",
         "@external//first:lib",
         "@priority//high:example",
     ],

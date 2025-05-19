@@ -54,7 +54,6 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		return
 	}
 
-	definesIndexFiles := false
 	for _, d := range f.Directives {
 		switch d.Key {
 		case cc_group_directive:
@@ -63,9 +62,9 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 			selectDirectiveChoice(&conf.groupsCycleHandlingMode, groupsCycleHandlingModes, d)
 		case cc_indexfile:
 			// New indexfiles replace inherited ones
-			if !definesIndexFiles {
-				definesIndexFiles = true
+			if d.Value == "" {
 				conf.dependencyIndexes = []ccDependencyIndex{}
+				continue
 			}
 			path := filepath.Join(config.WorkDir, d.Value)
 			if filepath.IsAbs(d.Value) {
