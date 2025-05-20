@@ -1,0 +1,1 @@
+gazelle: gazelle_cc: failed to load cc dependencies index: %WORKSPACEPATH%/invalid.ccIndex, it would be ignored. Reason: open %WORKSPACEPATH%/invalid.ccIndex: no such file or directory

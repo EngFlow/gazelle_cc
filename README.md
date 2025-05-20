@@ -57,6 +57,22 @@ Controls how to handle cyclic dependencies between translation units:
 - `merge`: All groups forming a cycle will be merged into a single one **(default)**
 - `warn`: Don't modify rules forming a cycle, let user handle it manually
 
+### `# gazelle:cc_indexfile <path>`
+
+Loads an index file, containing a map from header include paths to Bazel labels.
+An index lets Gazelle resolve dependencies on targets outside the current project,
+for example, those provided by a Bazel module or separate package manager.
+Equivalently, you can use `# gazelle:resolve` directives, but you can more easily
+generate these mappings in bulk with an index file.
+See [external dependenices section](#external-dependencies) for instructions on
+generating index files.
+
+Multiple `cc_indexfile` directives can be used, and their values are inherited by subprojects.
+To clear inherited cc_indexfile values, provide an empty argument, e.g. `# gazelle:cc_indexfile`.
+When resolving dependencies, indexes are visited in the same order as the corresponding `cc_indexfile` definitions.
+
+The argument must be a repository-root relative path.
+
 ## Rules for target rule selection
 
 The extension automatically selects the appropriate rule type based on the following criteria:
