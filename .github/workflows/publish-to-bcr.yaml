@@ -12,7 +12,7 @@ on:
         required: true
         type: string
     secrets:
-      BCR_PUBLISH_TOKEN:
+      ENGFLOW_AUTOMATION_PUBLIC_PAT:
         required: true
 
   # In case of problems, enable manual dispatch from the GitHub UI.
@@ -37,4 +37,4 @@ jobs:
       id-token: write
     secrets:
       # Necessary to push to the BCR fork and open a pull request.
-      publish_token: ${{ secrets.BCR_PUBLISH_TOKEN }}
+      publish_token: ${{ secrets.ENGFLOW_AUTOMATION_PUBLIC_PAT }}

@@ -3,8 +3,6 @@
 [.github/workflows/publish-to-bcr.yml](../.github/workflows/publish-to-bcr.yaml) uses these files to configure the [Publish to BCR](https://github.com/bazel-contrib/publish-to-bcr) workflow for publishing to the
 [Bazel Central Registry (BCR)](https://registry.bazel.build/).
 
-Notice that the setup instructions suggest saving the Personal Access Token as `PUBLISH_TOKEN`. We save it as `BCR_PUBLISH_TOKEN` instead.
-
 - [Publish to BCR workflow setup](https://github.com/bazel-contrib/publish-to-bcr?tab=readme-ov-file#setup)
 - [.bcr/templates](https://github.com/bazel-contrib/publish-to-bcr/tree/main/templates)
 - [.github/workflows/publish.yaml reusable workflow](https://github.com/bazel-contrib/publish-to-bcr/blob/main/.github/workflows/publish.yaml)
