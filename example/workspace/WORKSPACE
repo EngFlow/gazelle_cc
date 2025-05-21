@@ -34,6 +34,9 @@ local_repository(
         "@gazelle":  "@bazel_gazelle",
     },
 )
+load("@gazelle_cc//:deps.bzl", "gazelle_cc_dependencies")
+gazelle_cc_dependencies()
+
 
 ## CC dependenices
 http_archive(

@@ -18,6 +18,11 @@ Example WORKSPACE-based setup can see found in [example/workspace](../example/wo
 
 See [Gazelle WORKSPACE setup guide](https://github.com/bazel-contrib/bazel-gazelle/?tab=readme-ov-file#workspace) for up to date instructions.
 
+`gazelle_cc` extension uses by default the new naming convention for external dependencies using bzlmod.
+You might be required to use `repo_mapping` to adjust dependenices installed using WORKSPACE under different naming convention.
+
+```bazel
+
 ```bazel
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -45,15 +50,6 @@ load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
 go_rules_dependencies()
 go_register_toolchains(version = "1.24.0")
 gazelle_dependencies(go_sdk = "go_sdk")
-```
-
-### gazelle_cc
-
-This Gazelle extensions uses by default the new naming convention for external dependencies using bzlmod.
-You might be required to use `repo_mapping` to adjust dependenices installed using WORKSPACE under different naming convention.
-
-```bazel
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "gazelle_cc",
@@ -65,4 +61,7 @@ http_archive(
         "@gazelle":  "@bazel_gazelle",
     },
 )
+
+load("@gazelle_cc//:deps.bzl", "gazelle_cc_dependencies")
+gazelle_cc_dependencies()
 ```
