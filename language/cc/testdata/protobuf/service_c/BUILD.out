@@ -5,6 +5,12 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 # gazelle:proto package
 
 proto_library(
+    name = "proto_interface",
+    srcs = ["model.proto"],
+    visibility = ["//visibility:public"],
+)
+
+proto_library(
     name = "service_c_proto",
     srcs = [
         "model.proto",

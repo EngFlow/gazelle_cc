@@ -5,7 +5,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 # gazelle:proto file
 
 proto_library(
-    name = "model_proto",
+    name = "proto_interface",
     srcs = ["model.proto"],
     visibility = ["//visibility:public"],
     deps = ["//:root_proto"],

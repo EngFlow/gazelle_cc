@@ -108,6 +108,7 @@ var ccRuleDefs = []string{
 	"cc_binary",
 	"cc_test",
 }
+var knownRuleKinds = append(ccRuleDefs, "cc_proto_library")
 
 func (c *ccLanguage) Loads() []rule.LoadInfo {
 	return []rule.LoadInfo{
