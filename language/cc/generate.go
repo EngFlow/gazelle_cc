@@ -33,7 +33,7 @@ import (
 func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	srcInfo := collectSourceInfos(args)
 	rulesInfo := extractRulesInfo(args)
-
+	
 	var result = language.GenerateResult{}
 	consumedProtoFiles := c.generateProtoLibraryRules(args, rulesInfo, &result)
 	c.generateLibraryRules(args, srcInfo, rulesInfo, consumedProtoFiles, &result)
@@ -42,8 +42,7 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 
 	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
 	// However we need to inspect for existing rules that are no longer matching any files
-	result.Empty = slices.Concat(result.Empty, c.findEmptyRules(args.File, srcInfo, rulesInfo, result.Gen))
-
+	result.Empty = slices.Concat(result.Empty, c.findEmptyRules(args, srcInfo, rulesInfo, result.Gen))
 	return result
 }
 
@@ -398,7 +397,8 @@ func (c *ccLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, 
 	}
 }
 
-func (c *ccLanguage) findEmptyRules(file *rule.File, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, generatedRules []*rule.Rule) []*rule.Rule {
+func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, generatedRules []*rule.Rule) []*rule.Rule {
+	file := args.File
 	if file == nil {
 		return nil
 	}
@@ -410,6 +410,12 @@ func (c *ccLanguage) findEmptyRules(file *rule.File, srcInfo ccSourceInfoSet, ru
 		}) {
 			continue
 		}
+		
+		if !slices.Contains(knownRuleKinds, resolveCCRuleKind(r.Kind(), args.Config)) {
+			// This rule is not managed by gazelle_cc
+			continue
+		}
+		
 		sourceFiles := slices.Collect(maps.Keys(rulesInfo.ccRuleSources[r.Name()]))
 		// Check whether at least 1 file mentioned in rule definition sources is buildable (exists)
 		srcsExist := slices.ContainsFunc(sourceFiles, func(src sourceFile) bool {
