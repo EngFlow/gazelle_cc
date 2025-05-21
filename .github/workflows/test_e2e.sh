@@ -24,6 +24,26 @@ function testExampleBzlMod() {
   bazel run //proto:example 
 }
 
+function testExampleWorkspace() {
+  echo "Test example/workspace"
+  cd "$rootDir/example/workspace"
+  
+  # Ensure previous BUILD files are removed
+  rm -f mylib/BUILD.bazel app/BUILD.bazel
+  
+  # Run gazelle to generate BUILD files
+  bazel run :gazelle
+  
+  # Verify that BUILD files were generated
+  test -f mylib/BUILD.bazel
+  test -f app/BUILD.bazel
+  
+  bazel build //...
+  bazel test --test_output=errors //...
+  bazel run //app:main 
+}
+
 testExampleBzlMod
+testExampleWorkspace
 
 cd $rootDir

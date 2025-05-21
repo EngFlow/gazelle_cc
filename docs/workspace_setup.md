@@ -12,6 +12,8 @@ For up to date versions of `gazelle_cc` dependencies see the [MODULE.bazel file]
   
 ## Installation
 
+Example WORKSPACE-based setup can see found in [example/workspace](../example/workspace/WORKSPACE) directory.
+
 ### Gazelle
 
 See [Gazelle WORKSPACE setup guide](https://github.com/bazel-contrib/bazel-gazelle/?tab=readme-ov-file#workspace) for up to date instructions.
@@ -43,8 +45,6 @@ load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
 go_rules_dependencies()
 go_register_toolchains(version = "1.24.0")
 gazelle_dependencies(go_sdk = "go_sdk")
-
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 ```
 
 ### gazelle_cc
@@ -52,17 +52,14 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 This Gazelle extensions uses by default the new naming convention for external dependencies using bzlmod.
 You might be required to use `repo_mapping` to adjust dependenices installed using WORKSPACE under different naming convention.
 
-<!-- TODO Replace with http_archive when first release is available -->
-
-`gazelle_cc` was not yet officially published, but you can refer to it using `git_repository` or other means.
-
 ```bazel
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-git_repository(
+http_archive(
     name = "gazelle_cc",
-    remote = "https://github.com/EngFlow/gazelle_cpp",
-    branch = "main", # Replace with tag or commit
+    sha256 = "8e990e454b06c529e383239e0692a1f17b003e3e7a5a0f967ee5f6aeb400105a",
+    strip_prefix = "gazelle_cc-0.1.0",
+    url = "https://github.com/engflow/gazelle_cc/releases/download/v0.1.0/gazelle_cc-v0.1.0.tar.gz",
     repo_mapping = {
         "@rules_go": "@io_bazel_rules_go",
         "@gazelle":  "@bazel_gazelle",

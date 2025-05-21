@@ -1,0 +1,61 @@
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+# Gazelle
+http_archive(
+    name = "io_bazel_rules_go",
+    sha256 = "f4a9314518ca6acfa16cc4ab43b0b8ce1e4ea64b81c38d8a3772883f153346b8",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.50.1/rules_go-v0.50.1.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.50.1/rules_go-v0.50.1.zip",
+    ],
+)
+http_archive(
+    name = "bazel_gazelle",
+    integrity = "sha256-fEC3Rjh80Mmk1bsLIDWr0TSz91EQFXEKXuXgdZEAjd4=",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.43.0/bazel-gazelle-v0.43.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.43.0/bazel-gazelle-v0.43.0.tar.gz",
+    ],
+)
+
+load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
+go_rules_dependencies()
+go_register_toolchains(version = "1.24.0")
+
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
+gazelle_dependencies(go_sdk = "go_sdk")
+
+# Gazelle CC - local override
+local_repository(
+    name = "gazelle_cc",
+    path = "../../",
+    repo_mapping = {
+        "@rules_go": "@io_bazel_rules_go",
+        "@gazelle":  "@bazel_gazelle",
+    },
+)
+
+## CC dependenices
+http_archive(
+    name = "googletest",
+    sha256 = "7315acb6bf10e99f332c8a43f00d5fbb1ee6ca48c52f6b936991b216c586aaad",
+    strip_prefix = "googletest-1.15.0",
+    urls = [
+        "https://github.com/google/googletest/releases/download/v1.15.0/googletest-1.15.0.tar.gz",
+    ],
+)
+
+load("@googletest//:googletest_deps.bzl", "googletest_deps")
+
+googletest_deps()
+
+http_archive(
+    name = "fmt",
+    url = "https://github.com/fmtlib/fmt/archive/refs/tags/11.2.0.tar.gz",
+    strip_prefix = "fmt-11.2.0",
+    patch_cmds = [
+        "mv support/bazel/.bazelversion .bazelversion",
+        "mv support/bazel/BUILD.bazel BUILD.bazel",
+        "mv support/bazel/WORKSPACE.bazel WORKSPACE.bazel",
+    ],
+)

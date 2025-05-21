@@ -40,7 +40,7 @@ gazelle(
 
 ### Using WORKSPACE
 
-The `gazelle_cc` is build and distributed using using Bazel modules. It is possible to use it using legacy WORKSPACE defintions, but it is neither tested nor encouraged.
+The `gazelle_cc` is built and distributed using Bazel modules. While it can still be used with legacy `WORKSPACE` definitions—especially for users on Bazel 8.x — this setup is not the primary focus and may not receive the same level of testing. Note that Bazel has announced plans to remove support for `WORKSPACE` in version 9.0, so users are encouraged to migrate to Bazel modules when possible.
 
 For instructions how to setup `gazelle_cc` using WORKSPACEs visit [this guide](./docs/workspace_setup.md)
 
