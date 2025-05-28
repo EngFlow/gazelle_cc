@@ -4,9 +4,9 @@ cc_library(
     name = "a",
     srcs = ["a.cc"],
     hdrs = ["a.h"],
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         "//:config",
         "//module_a/internal:lib",
     ],
+    visibility = ["//visibility:public"],
 )

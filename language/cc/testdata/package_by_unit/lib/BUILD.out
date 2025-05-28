@@ -32,18 +32,18 @@ cc_library(
 cc_library(
     name = "e",
     srcs = ["e.cc"],
+    implementation_deps = [":c"],
     visibility = ["//visibility:public"],
-    deps = [":c"],
 )
 
 cc_library(
     name = "multiple_unrelated_deps",
     srcs = ["multiple_unrelated_deps.cc"],
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":b",
         ":c",
     ],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -51,4 +51,3 @@ cc_library(
     srcs = ["no-deps.cc"],
     visibility = ["//visibility:public"],
 )
-

@@ -36,11 +36,9 @@ cc_library(
         "-g",
     ],
     defines = ["USE_FEATURE_A"],
+    implementation_deps = [":d"],
     visibility = ["//visibility:public"],
-    deps = [
-        ":b",
-        ":d",
-    ],
+    deps = [":b"],
 )
 
 cc_library(
@@ -52,9 +50,7 @@ cc_library(
         "-g",
     ],
     defines = ["USE_FEATURE_B"],
+    implementation_deps = [":c"],
     visibility = ["//visibility:public"],
-    deps = [
-        ":b",
-        ":c",
-    ],
+    deps = [":b"],
 )

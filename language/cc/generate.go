@@ -48,18 +48,27 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 }
 
 func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) cppImports {
-	includes := []cppInclude{}
+	imports := cppImports{}
+
 	for _, file := range files {
+		var includes *[]cppInclude
+		if file.isHeader() {
+			includes = &imports.hdrIncludes
+		} else {
+			includes = &imports.srcIncludes
+		}
+
 		sourceInfo := sourceInfos[file]
 		for _, include := range sourceInfo.Includes.DoubleQuote {
 			rawPath := path.Clean(include)
-			includes = append(includes, cppInclude{rawPath: rawPath, normalizedPath: path.Join(args.Rel, rawPath), isSystemInclude: false})
+			*includes = append(*includes, cppInclude{rawPath: rawPath, normalizedPath: path.Join(args.Rel, rawPath), isSystemInclude: false})
 		}
 		for _, include := range sourceInfo.Includes.Bracket {
-			includes = append(includes, cppInclude{rawPath: include, normalizedPath: include, isSystemInclude: true})
+			*includes = append(*includes, cppInclude{rawPath: include, normalizedPath: include, isSystemInclude: true})
 		}
 	}
-	return cppImports{includes: includes}
+
+	return imports
 }
 
 func splitSourcesIntoGroups(args language.GenerateArgs, srcs []sourceFile, srcInfo ccSourceInfoSet) sourceGroups {

@@ -47,7 +47,10 @@ type cppInclude struct {
 }
 
 type cppImports struct {
-	includes []cppInclude
+	// #include directives found in header files
+	hdrIncludes []cppInclude
+	// #include directives found in non-header files
+	srcIncludes []cppInclude
 	// TODO: module imports / exports
 }
 
@@ -84,10 +87,15 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 		switch commonDef {
 		case "cc_library":
 			kindInfo.NonEmptyAttrs = mergeMaps(kindInfo.NonEmptyAttrs, map[string]bool{
-				"hdrs": true,
+				"hdrs":                true,
+				"implementation_deps": true,
 			})
 			kindInfo.MergeableAttrs = mergeMaps(kindInfo.MergeableAttrs, map[string]bool{
-				"hdrs": true,
+				"hdrs":                true,
+				"implementation_deps": true,
+			})
+			kindInfo.ResolveAttrs = mergeMaps(kindInfo.ResolveAttrs, map[string]bool{
+				"implementation_deps": true,
 			})
 		}
 		kinds[commonDef] = kindInfo

@@ -58,32 +58,50 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 	return imports
 }
 
-func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports interface{}, from label.Label) {
+func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports any, from label.Label) {
 	if imports == nil {
 		return
 	}
-
 	cppImports := imports.(cppImports)
-	deps := make(map[label.Label]bool)
 
-	for _, include := range cppImports.includes {
-		resolvedLabel := lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
-		if resolvedLabel == label.NoLabel && !include.isSystemInclude {
-			// Retry to resolve is external dependency was defined using quotes instead of braces
-			resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.rawPath})
+	type labelsSet map[label.Label]struct{}
+	// Resolves given includes to rule labels and assigns them to given attribute.
+	// Excludes explicitly provided labels from being assigned
+	// Returns a set of successfully assigned labels, allowing to exclude them in following invocations
+	resolveIncludes := func(includes []cppInclude, attributeName string, excluded labelsSet) labelsSet {
+		deps := make(map[label.Label]struct{})
+		for _, include := range includes {
+			resolvedLabel := lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
+			if resolvedLabel == label.NoLabel && !include.isSystemInclude {
+				// Retry to resolve is external dependency was defined using quotes instead of braces
+				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.rawPath})
+			}
+			if resolvedLabel == label.NoLabel {
+				// We typically can get here is given file does not exists or if is assigned to the resolved rule
+				continue // failed to resolve
+			}
+			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
+			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
+				deps[resolvedLabel] = struct{}{}
+			}
 		}
-		if resolvedLabel == label.NoLabel {
-			// We typically can get here is given file does not exists or if is assigned to the resolved rule
-			continue // failed to resolve
+		if len(deps) > 0 {
+			r.SetAttr(attributeName, slices.SortedStableFunc(maps.Keys(deps), func(l, r label.Label) int {
+				return strings.Compare(l.String(), r.String())
+			}))
 		}
-		resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
-		deps[resolvedLabel] = true
+		return deps
 	}
 
-	if len(deps) > 0 {
-		r.SetAttr("deps", slices.SortedStableFunc(maps.Keys(deps), func(l, r label.Label) int {
-			return strings.Compare(l.String(), r.String())
-		}))
+	switch resolveCCRuleKind(r.Kind(), c) {
+	case "cc_library":
+		// Only cc_library has 'implementation_deps' attribute
+		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
+		publicDeps := resolveIncludes(cppImports.hdrIncludes, "deps", make(labelsSet))
+		resolveIncludes(cppImports.srcIncludes, "implementation_deps", publicDeps)
+	default:
+		includes := slices.Concat(cppImports.hdrIncludes, cppImports.srcIncludes)
+		resolveIncludes(includes, "deps", make(labelsSet))
 	}
 }
 

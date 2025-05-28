@@ -1,0 +1,24 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_group unit
+
+cc_library(
+    name = "dep",
+    hdrs = ["dep.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "impl_dep",
+    hdrs = ["impl_dep.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "lib",
+    srcs = ["lib.c"],
+    hdrs = ["lib.h"],
+    implementation_deps = [":impl_dep"],
+    visibility = ["//visibility:public"],
+    deps = [":dep"],
+)
