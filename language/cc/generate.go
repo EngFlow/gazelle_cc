@@ -33,7 +33,7 @@ import (
 func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	srcInfo := collectSourceInfos(args)
 	rulesInfo := extractRulesInfo(args)
-	
+
 	var result = language.GenerateResult{}
 	consumedProtoFiles := c.generateProtoLibraryRules(args, rulesInfo, &result)
 	c.generateLibraryRules(args, srcInfo, rulesInfo, consumedProtoFiles, &result)
@@ -410,12 +410,12 @@ func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, srcInfo ccSource
 		}) {
 			continue
 		}
-		
+
 		if !slices.Contains(knownRuleKinds, resolveCCRuleKind(r.Kind(), args.Config)) {
 			// This rule is not managed by gazelle_cc
 			continue
 		}
-		
+
 		sourceFiles := slices.Collect(maps.Keys(rulesInfo.ccRuleSources[r.Name()]))
 		// Check whether at least 1 file mentioned in rule definition sources is buildable (exists)
 		srcsExist := slices.ContainsFunc(sourceFiles, func(src sourceFile) bool {
