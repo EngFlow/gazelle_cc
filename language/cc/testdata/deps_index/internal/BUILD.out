@@ -1,0 +1,14 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_indexfile internal/second.ccIndex
+# gazelle:cc_indexfile ./invalid.ccIndex
+
+cc_library(
+    name = "internal",
+    srcs = ["lib.cpp"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//second:lib",
+        "@external//first:lib",
+    ],
+)

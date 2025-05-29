@@ -46,11 +46,10 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 	return result
 }
 
-func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) cppImports {
-	imports := cppImports{}
-
+func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) ccImports {
+	imports := ccImports{}
 	for _, file := range files {
-		var includes *[]cppInclude
+		var includes *[]ccInclude
 		if file.isHeader() {
 			includes = &imports.hdrIncludes
 		} else {
@@ -60,10 +59,10 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 		sourceInfo := sourceInfos[file]
 		for _, include := range sourceInfo.Includes.DoubleQuote {
 			rawPath := path.Clean(include)
-			*includes = append(*includes, cppInclude{rawPath: rawPath, normalizedPath: path.Join(args.Rel, rawPath), isSystemInclude: false})
+			*includes = append(*includes, ccInclude{rawPath: rawPath, normalizedPath: path.Join(args.Rel, rawPath), isSystemInclude: false})
 		}
 		for _, include := range sourceInfo.Includes.Bracket {
-			*includes = append(*includes, cppInclude{rawPath: include, normalizedPath: include, isSystemInclude: true})
+			*includes = append(*includes, ccInclude{rawPath: include, normalizedPath: include, isSystemInclude: true})
 		}
 	}
 
@@ -232,7 +231,7 @@ func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rules
 			}
 
 			result.Gen = append(result.Gen, newRule)
-			result.Imports = append(result.Imports, cppImports{})
+			result.Imports = append(result.Imports, ccImports{})
 		}
 	}
 	for _, r := range args.OtherEmpty {

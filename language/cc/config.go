@@ -17,6 +17,7 @@ package cc
 import (
 	"flag"
 	"log"
+	"path/filepath"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/rule"
@@ -29,16 +30,18 @@ func (*ccLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error         
 const (
 	cc_group_directive   = "cc_group"
 	cc_group_unit_cycles = "cc_group_unit_cycles"
+	cc_indexfile         = "cc_indexfile"
 )
 
 func (c *ccLanguage) KnownDirectives() []string {
 	return []string{
 		cc_group_directive,
 		cc_group_unit_cycles,
+		cc_indexfile,
 	}
 }
 
-func (*ccLanguage) Configure(c *config.Config, rel string, f *rule.File) {
+func (lang *ccLanguage) Configure(c *config.Config, rel string, f *rule.File) {
 	var conf *cppConfig
 	if parentConf, ok := c.Exts[languageName]; !ok {
 		conf = newCppConfig()
@@ -51,12 +54,28 @@ func (*ccLanguage) Configure(c *config.Config, rel string, f *rule.File) {
 		return
 	}
 
+	warnedOnNonRootIndexFileDeclaration := false
 	for _, d := range f.Directives {
 		switch d.Key {
 		case cc_group_directive:
 			selectDirectiveChoice(&conf.groupingMode, sourceGroupingModes, d)
 		case cc_group_unit_cycles:
 			selectDirectiveChoice(&conf.groupsCycleHandlingMode, groupsCycleHandlingModes, d)
+		case cc_indexfile:
+			if rel != "" && !warnedOnNonRootIndexFileDeclaration {
+				log.Printf("gazelle_cc: directive %v should be used only in the top-level BUILD file, found usage in %v", cc_indexfile, f.Path)
+				warnedOnNonRootIndexFileDeclaration = true
+			}
+			path := d.Value
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(c.WorkDir, path)
+			}
+			index, err := loadDependencyIndex(path)
+			if err == nil {
+				lang.dependencyIndexes[path] = index
+			} else {
+				log.Printf("gazelle_cc: failed to load cc dependencies index: %v, it would be ignored. Reason: %v", path, err)
+			}
 		}
 	}
 }

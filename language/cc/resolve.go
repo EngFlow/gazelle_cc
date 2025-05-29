@@ -62,13 +62,13 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	if imports == nil {
 		return
 	}
-	cppImports := imports.(cppImports)
+	ccImports := imports.(ccImports)
 
 	type labelsSet map[label.Label]struct{}
 	// Resolves given includes to rule labels and assigns them to given attribute.
 	// Excludes explicitly provided labels from being assigned
 	// Returns a set of successfully assigned labels, allowing to exclude them in following invocations
-	resolveIncludes := func(includes []cppInclude, attributeName string, excluded labelsSet) labelsSet {
+	resolveIncludes := func(includes []ccInclude, attributeName string, excluded labelsSet) labelsSet {
 		deps := make(map[label.Label]struct{})
 		for _, include := range includes {
 			resolvedLabel := lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
@@ -97,10 +97,10 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	case "cc_library":
 		// Only cc_library has 'implementation_deps' attribute
 		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
-		publicDeps := resolveIncludes(cppImports.hdrIncludes, "deps", make(labelsSet))
-		resolveIncludes(cppImports.srcIncludes, "implementation_deps", publicDeps)
+		publicDeps := resolveIncludes(ccImports.hdrIncludes, "deps", make(labelsSet))
+		resolveIncludes(ccImports.srcIncludes, "implementation_deps", publicDeps)
 	default:
-		includes := slices.Concat(cppImports.hdrIncludes, cppImports.srcIncludes)
+		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)
 		resolveIncludes(includes, "deps", make(labelsSet))
 	}
 }
@@ -118,7 +118,13 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 		}
 	}
 
-	if label, exists := lang.bzlmodDependenciesIndex[importSpec.Imp]; exists {
+	for _, index := range lang.dependencyIndexes {
+		if label, exists := index[importSpec.Imp]; exists {
+			return label
+		}
+	}
+
+	if label, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists {
 		apparantName := c.ModuleToApparentName(label.Repo)
 		// Empty apparentName means that there is no such a repository added by bazel_dep
 		if apparantName != "" {

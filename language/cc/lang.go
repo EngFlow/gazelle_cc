@@ -18,8 +18,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
+
+	"maps"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -29,37 +32,42 @@ import (
 
 const languageName = "cc"
 
-type ccLanguage struct {
-	// Index of header includes parsed from Bazel Central Registry
-	bzlmodDependenciesIndex map[string]label.Label
-	// Set of missing bazel_dep modules referenced in includes but not defined
-	// Used for deduplication of missing modul_dep warnings
-	notFoundBzlModDeps map[string]bool
-}
+type (
+	ccLanguage struct {
+		// Index of header includes parsed from Bazel Central Registry
+		bzlmodBuiltInIndex ccDependencyIndex
+		// Set of missing bazel_dep modules referenced in includes but not defined
+		// Used for deduplication of missing modul_dep warnings
+		notFoundBzlModDeps map[string]bool
 
-type cppInclude struct {
-	// Include path extracted from brackets or double quotes
-	rawPath string
-	// Repository root directory relative rawPath for quoted include, rawPath otherwise
-	normalizedPath string
-	// True when include defined using brackets
-	isSystemInclude bool
-}
-
-type cppImports struct {
-	// #include directives found in header files
-	hdrIncludes []cppInclude
-	// #include directives found in non-header files
-	srcIncludes []cppInclude
-	// TODO: module imports / exports
-}
+		// User defined dependency indexes based on the filename
+		dependencyIndexes map[string]ccDependencyIndex
+	}
+	ccInclude struct {
+		// Include path extracted from brackets or double quotes
+		rawPath string
+		// Repository root directory relative rawPath for quoted include, rawPath otherwise
+		normalizedPath string
+		// True when include defined using brackets
+		isSystemInclude bool
+	}
+	ccImports struct {
+		// #include directives found in header files
+		hdrIncludes []ccInclude
+		// #include directives found in non-header files
+		srcIncludes []ccInclude
+		// TODO: module imports / exports
+	}
+	ccDependencyIndex map[string]label.Label
+)
 
 const ccProtoLibraryFilesKey = "_protos"
 
 func NewLanguage() language.Language {
 	return &ccLanguage{
-		bzlmodDependenciesIndex: loadBzlModDependenciesIndex(),
-		notFoundBzlModDeps:      make(map[string]bool),
+		bzlmodBuiltInIndex: loadBuiltInBzlModDependenciesIndex(),
+		notFoundBzlModDeps: make(map[string]bool),
+		dependencyIndexes:  make(map[string]ccDependencyIndex),
 	}
 }
 
@@ -68,12 +76,8 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 	kinds := make(map[string]rule.KindInfo)
 	mergeMaps := func(m1, m2 map[string]bool) map[string]bool {
 		result := make(map[string]bool, len(m1)+len(m2))
-		for k, v := range m1 {
-			result[k] = v
-		}
-		for k, v := range m2 {
-			result[k] = v
-		}
+		maps.Copy(result, m1)
+		maps.Copy(result, m2)
 		return result
 	}
 
@@ -149,18 +153,34 @@ func hasMatchingExtension(filename string, extensions []string) bool {
 //go:embed bzldep-index.json
 var bzlDepHeadersIndex string
 
-func loadBzlModDependenciesIndex() map[string]label.Label {
-	var parsedLabels map[string]string
-	if err := json.Unmarshal([]byte(bzlDepHeadersIndex), &parsedLabels); err != nil {
+func loadBuiltInBzlModDependenciesIndex() ccDependencyIndex {
+	index, err := unmarshalDependencyIndex([]byte(bzlDepHeadersIndex))
+	if err != nil {
+		index = make(ccDependencyIndex)
+	}
+	return index
+}
+
+func loadDependencyIndex(file string) (ccDependencyIndex, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	return unmarshalDependencyIndex(data)
+}
+
+func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {
+	var rawLabels map[string]string
+	if err := json.Unmarshal(data, &rawLabels); err != nil {
 		log.Printf("Failed to parsed Bazel modules dependencies index, resolving external dependenices would not work: %v", err)
-		return make(map[string]label.Label)
+		return nil, err
 	}
 
-	index := make(map[string]label.Label, len(parsedLabels))
-	for hdr, target := range parsedLabels {
+	index := make(ccDependencyIndex, len(rawLabels))
+	for hdr, target := range rawLabels {
 		if decoded, err := label.Parse(target); err == nil {
 			index[hdr] = decoded
 		}
 	}
-	return index
+	return index, nil
 }
