@@ -31,11 +31,11 @@ http_archive(
     name = "gazelle_cc",
     sha256 = "${SHA}",
     strip_prefix = "${PREFIX}",
-    url = "https://github.com/engflow/gazelle_cc/releases/download/${TAG}/${ARCHIVE}",
+    url = "https://github.com/EngFlow/gazelle_cc/releases/download/${TAG}/${ARCHIVE}",
 )
 load("@gazelle_cc//:deps.bzl", "gazelle_cc_dependencies")
 gazelle_cc_dependencies()
 \`\`\`
 
-See https://github.com/engflow/gazelle_cc#installation for full setup instructions.
+See https://github.com/EngFlow/gazelle_cc#installation for full setup instructions.
 EOF

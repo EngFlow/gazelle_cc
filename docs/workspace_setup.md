@@ -55,7 +55,7 @@ http_archive(
     name = "gazelle_cc",
     sha256 = "8e990e454b06c529e383239e0692a1f17b003e3e7a5a0f967ee5f6aeb400105a",
     strip_prefix = "gazelle_cc-0.1.0",
-    url = "https://github.com/engflow/gazelle_cc/releases/download/v0.1.0/gazelle_cc-v0.1.0.tar.gz",
+    url = "https://github.com/EngFlow/gazelle_cc/releases/download/v0.1.0/gazelle_cc-v0.1.0.tar.gz",
     repo_mapping = {
         "@rules_go": "@io_bazel_rules_go",
         "@gazelle":  "@bazel_gazelle",
