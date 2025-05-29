@@ -22,6 +22,14 @@ jobs:
       - name: Test
         run: |
           bazel test --test_output=errors //...
+  
+  test-indexers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4  
+    - name: Execute manual integration tests
+      run: bazel test --test_output=errors //index:integration_tests
           
   test-e2e:
     runs-on: ubuntu-24.04

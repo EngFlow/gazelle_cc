@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "cli",
+    srcs = ["cli.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/indexer/cli",
+    visibility = ["//index:__subpackages__"],
+)

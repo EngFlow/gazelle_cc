@@ -1,0 +1,11 @@
+load("//index/internal/tests:indexer_integration_test.bzl", "indexer_integration_test")
+
+# gazelle:exclude testcases
+# gazelle:exclude integration_test.go
+
+indexer_integration_test(
+    name = "example_integration_test",
+    srcs = ["integration_test.go"],
+    gazelle_binary_path = "//:gazelle_cc",
+    indexer_binary_path = "//index/internal/tests/example_integration_test/indexer",
+)

@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "indexer_lib",
+    srcs = ["example.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/tests/example_integration_test/indexer",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//index/internal/indexer",
+        "//index/internal/indexer/cli",
+        "@gazelle//label",
+    ],
+)
+
+go_binary(
+    name = "indexer",
+    embed = [":indexer_lib"],
+    visibility = ["//index:__subpackages__"],
+)

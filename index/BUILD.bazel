@@ -1,0 +1,7 @@
+test_suite(
+    name = "integration_tests",
+    tags = ["manual"],
+    tests = [
+        "//index/internal/tests/example_integration_test",
+    ],
+)
