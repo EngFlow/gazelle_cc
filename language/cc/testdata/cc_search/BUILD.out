@@ -1,0 +1,4 @@
+# gazelle:cc_search "" stripped_prefix_abs
+# gazelle:cc_search "" stripped_prefix_rel
+# gazelle:cc_search extra ""
+# gazelle:cc_search extra/stripped_include_prefix_and_prefix/inc stripped_include_prefix_and_prefix

@@ -1,0 +1,13 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "use",
+    srcs = ["use.cc"],
+    implementation_deps = [
+        "//prefix",
+        "//self",
+        "//stripped_prefix_abs",
+        "//stripped_prefix_rel",
+    ],
+    visibility = ["//visibility:public"],
+)
