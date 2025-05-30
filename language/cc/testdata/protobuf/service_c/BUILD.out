@@ -46,4 +46,3 @@ cc_test(
         "//service_a:protobuf_service_a_cc_proto",
     ],
 )
-
