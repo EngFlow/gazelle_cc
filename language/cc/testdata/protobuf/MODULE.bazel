@@ -1,0 +1,2 @@
+# Use custom repo name to ensure ApprentLoads works as expected
+bazel_dep(name = "protobuf", version = "", repo_name = "google_protobuf")

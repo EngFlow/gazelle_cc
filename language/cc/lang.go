@@ -17,6 +17,7 @@ package cc
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -118,13 +119,25 @@ var ccRuleDefs = []string{
 var knownRuleKinds = append(ccRuleDefs, "cc_proto_library")
 
 func (c *ccLanguage) Loads() []rule.LoadInfo {
+	panic("ApparentLoads should be called instead")
+}
+
+func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
+	apparentOfDefaultName := func(moduleName, defaultName string) string {
+		if module := moduleToApparentName(moduleName); module != "" {
+			return module
+		} else {
+			return defaultName
+		}
+	}
+
 	return []rule.LoadInfo{
 		{
-			Name:    "@rules_cc//cc:defs.bzl",
+			Name:    fmt.Sprintf("@%s//cc:defs.bzl", apparentOfDefaultName("rules_cc", "rules_cc")),
 			Symbols: ccRuleDefs,
 		},
 		{
-			Name:    "@protobuf//bazel:cc_proto_library.bzl",
+			Name:    fmt.Sprintf("@%s//bazel:cc_proto_library.bzl", apparentOfDefaultName("protobuf", "com_google_protobuf")),
 			Symbols: []string{"cc_proto_library"},
 		},
 	}

@@ -1,4 +1,4 @@
-load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@google_protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_test")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 
@@ -25,6 +25,3 @@ cc_test(
         "//service_b:model_cc_proto",
     ],
 )
-
-
-
