@@ -1,0 +1,13 @@
+bazel_dep(name = "rules_cc", version = "0.1.1")
+bazel_dep(name = "rules_foreign_cc", version = "0.14.0")
+
+BUILD_ALL_CONTENT = """filegroup(name = "all_srcs", srcs = glob(["**"], exclude=[]), visibility = ["//visibility:public"])"""
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "fmt_sources",
+    url = "https://github.com/fmtlib/fmt/releases/download/11.1.4/fmt-11.1.4.zip",
+    build_file_content = BUILD_ALL_CONTENT,
+    strip_prefix = "fmt-11.1.4",
+    integrity = "sha256-SbA5YBGW4adl6BxcmgWmHtPTPyOzlhMj1zIuT+IT0+Y="
+)

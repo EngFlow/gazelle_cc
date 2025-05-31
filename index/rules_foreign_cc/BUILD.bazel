@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "rules_foreign_cc_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/index/rules_foreign_cc",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//index/internal/bazel",
+        "//index/internal/bazel/proto:build_go_proto",
+        "//index/internal/collections",
+        "//index/internal/indexer",
+        "//index/internal/indexer/cli",
+        "@gazelle//label",
+    ],
+)
+
+go_binary(
+    name = "rules_foreign_cc",
+    embed = [":rules_foreign_cc_lib"],
+    visibility = ["//visibility:public"],
+)

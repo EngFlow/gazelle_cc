@@ -127,7 +127,7 @@ In case of source-file relative includes the path is resolved based on the direc
 Rules/subdirectories that are not managed by the Gazelle do not populate the internal dependencies index and would not be automatically resolved. Gazelle can be instructed to use user defined resolution rules to work around this limitation
 
 ```bazel
-# gazelle:resolve c++ path/to/my_include.h //target/defining:library
+# gazelle:resolve cc path/to/my_include.h //target/defining:library
 ```
 
 would allow to resolve includes in your sources
@@ -165,7 +165,7 @@ bazel_dep(name = "fmt", version = "11.1.4", repo_name = "fmt_repo")
 
 #### `conan`
 
-Resolving external dependencies managed by [Conan](https://docs.conan.io/2/integrations/bazel.html) requires creation of index by the user using `@gazelle_cc//index/conan` binary. 
+Resolving external dependencies managed by [Conan](https://docs.conan.io/2/integrations/bazel.html) requires creation of index by the user using `@gazelle_cc//index/conan` binary.
 
 ```bash
 conan profile detect 
@@ -183,16 +183,37 @@ Additional options for `@gazelle_cc//index/conan`:
 
 | Flag | Default | Definition |
 | ---- | ------- | ---------- |
-| --output=\<path> | ./conan.ccidx | Output file for created index |
+| --output=\<path> | ./output.ccidx | Output file for created index |
 | --install | false | Should conan profile detection and installation be done automatically before indexing |
 | --conanDir=\<path> | ./conan | Controls the paths contains conan specific and external dependencies definitions. Typically created during `conan install .` invocation |
+| --verbose | false | Enable verbose logging and debug information |
+
+#### `rules_foreign_cc`
+
+Resolving external dependencies managed by [rules_foreign_cc](https://github.com/bazel-contrib/rules_foreign_cc) requires creation of index by the user using `@gazelle_cc//index/rules_foreign_cc` binary. It would use `bazel query` to find definitions of `rules_foreign_cc` rules, eg. `cmake` and would use their assigned sources and rules to create an index.
+
+```bash
+bazel run @gazelle_cc//index/rules_foreign_cc -- --output=foreign.ccindex
+```
+
+The resulting index needs to be added to Gazelle directive in top-level `BUILD` file.
+
+```bazel
+# gazelle:cc_indexfile foreign.ccindex
+```
+
+Additional options for `@gazelle_cc//index/rules_foreign_cc`:
+
+| Flag | Default | Definition |
+| ---- | ------- | ---------- |
+| --output=\<path> | ./output.ccidx | Output file for created index |
 | --verbose | false | Enable verbose logging and debug information |
 
 #### Other package managers
 
 Other package managers like [vcpkg](https://vcpkg.io/en/) are currently not yet supported. Please create an issue in this repository if you need additional integrations.
 
-Unsupported package managers can still be used by defining a manual mapping between header and defining rules using `# gazelle:resolve` directives
+These can still be used by defining a manual mapping between header and defining rules using `# gazelle:resolve` directives
 
 ## C++20 Modules support
 
@@ -216,8 +237,8 @@ Here's an example of how to use the extension in your C++ project:
 # gazelle:cc_group_unit_cycles warn
 
 ## Overwrite how some C/C++ includes should be resolved  
-# gazelle:resolve c++ gtest/gtest.h @googletest//:gtest_main
-# gazelle:resolve c++ fmt.h @googletest//:gtest_main
+# gazelle:resolve cc gtest/gtest.h @googletest//:gtest_main
+# gazelle:resolve cc fmt.h @googletest//:gtest_main
 ```
 
 2. Run Gazelle to generate BUILD files:

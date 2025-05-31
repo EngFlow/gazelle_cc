@@ -4,5 +4,6 @@ test_suite(
     tests = [
         "//index/internal/tests/example_integration_test",
         "//index/conan/integration_tests:integration_test",
+        "//index/rules_foreign_cc/integration_tests:integration_test",
     ],
 )
