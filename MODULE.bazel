@@ -4,7 +4,20 @@ module(
     name = "gazelle_cc",
 )
 
-bazel_dep(name = "gazelle", version = "0.43.0")
+# TODO(#61): switch back to a normal release after 0.44.0 is available.
+bazel_dep(name = "gazelle", version = "")
+
+# Clean copy of bazel-gazelle at master as of 2025-05-23.
+# This lets us test Go lazy indexing. Remove this override after v0.44.0.
+archive_override(
+    module_name = "gazelle",
+    sha256 = "65b8c86d548213ea10a0b3e10fa77face5c5d657ce89bff743ca3da027036e3c",
+    strip_prefix = "bazel-gazelle-a5f4995c8e43ca70a31cc81ff6d82c7e65146cdc",
+    urls = [
+        "https://storage.googleapis.com/engflow-tools-public/github.com/bazel-contrib/bazel-gazelle/archive/a5f4995c8e43ca70a31cc81ff6d82c7e65146cdc.zip",
+        "https://github.com/bazel-contrib/bazel-gazelle/archive/a5f4995c8e43ca70a31cc81ff6d82c7e65146cdc.zip",
+    ],
+)
 
 # The following deps are using the same versions as upstream gazelle
 bazel_dep(name = "rules_go", version = "0.50.1")

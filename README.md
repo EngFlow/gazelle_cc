@@ -78,6 +78,36 @@ When resolving dependencies, indexes are visited in the same order as the corres
 
 The argument must be a repository-root relative path.
 
+### `# gazelle:cc_search <strip_include_prefix> <include_prefix>`
+
+Lazy indexing may be enabled with the Gazelle arguments `-index=lazy` and `-r=false`. When enabled, Gazelle only indexes libraries for dependency resolution in specific directories, based on configuration directives and the included headers it sees. This dramatically speeds up Gazelle when run in specific directories, compared with indexing the whole repository.
+
+The `cc_search` directive configures Gazelle for C++ lazy indexing, adding a rule that translates header paths into directories to search.
+
+For example, suppose you have a library in the directory `third_party/foo/` with the label `//third_party/foo:foo`. It has a header file in `third_party/foo/inc/foo.h` that you include from your main source code as `foo/foo.h`. The library's `cc_library` target might be written as:
+
+```bzl
+cc_library(
+    name = "foo",
+    hdrs = ["inc/foo.h"],
+    strip_include_prefix = "third_party/foo/inc",
+    include_prefix = "foo",
+    visibility = ["//visibility:public"],
+)
+```
+
+You can tell Gazelle where to find this library using the directive:
+
+```
+# gazelle:cc_search foo third_party/foo
+```
+
+The `cc_search` directive accepts two arguments: a prefix to strip, and a prefix to add, analogous to `strip_include_prefix` and `include_prefix`. Both arguments must be clean slash-separated relative paths. Arguments may be quoted, so empty strings may be written as `''` or `""`.
+
+`gazelle_cc` first removes the prefix to strip, so `foo/foo.h` becomes `foo.h` in the example above. If the include path does not start with the prefix, the search rule is ignored. Then, `gazelle_cc` prepends the prefix to add, so `foo.h` becomes `third_party/foo/foo.h`. Finally, `gazelle_cc` trims the basename, to get the directory `third_party/foo`. Gazelle indexes all library rules in this directory, making them available for dependency resolution.
+
+You can specify `cc_search` directives multiple times. A directive applies to the directory where it's written and to subdirectories. An empty `cc_search` directive resets the list of translation rules for the current directory.
+
 ## Rules for target rule selection
 
 The extension automatically selects the appropriate rule type based on the following criteria:
