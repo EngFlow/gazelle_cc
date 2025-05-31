@@ -32,7 +32,7 @@ var (
 // Resolve working directory for indexer, uses either explicit --repository path, BUILD_WORKSPACE_DIRECTORY env variable or current working directory
 func ResolveWorkingDir() (string, error) {
 	if !flag.Parsed() {
-		log.Fatalln("Flags not parsed yet")
+		log.Panicln("Flags not parsed yet")
 	}
 	dir := *repositoryDir
 	if dir != "" {
@@ -53,7 +53,7 @@ func ResolveWorkingDir() (string, error) {
 
 func ResolveOutputFile() string {
 	if !flag.Parsed() {
-		log.Fatalln("Flags not parsed yet")
+		log.Panicln("Flags not parsed yet")
 	}
 	outputFile := *output
 	if !filepath.IsAbs(outputFile) {
