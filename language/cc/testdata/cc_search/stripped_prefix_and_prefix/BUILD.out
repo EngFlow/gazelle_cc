@@ -1,0 +1,9 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "stripped_prefix_and_prefix",
+    hdrs = ["inc/stripped_prefix_and_prefix.h"],
+    strip_include_prefix = "inc",
+    include_prefix = "extra",
+    visibility = ["//visibility:public"],
+)

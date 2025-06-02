@@ -3,7 +3,8 @@ module github.com/EngFlow/gazelle_cc
 go 1.23.2
 
 require (
-	github.com/bazelbuild/bazel-gazelle v0.43.0
+	// TODO(#61): switch back to a normal release after 0.44.0 is available.
+	github.com/bazelbuild/bazel-gazelle v0.43.1-0.20250525205641-4dde518211a0
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/protobuf v1.36.6
 )
