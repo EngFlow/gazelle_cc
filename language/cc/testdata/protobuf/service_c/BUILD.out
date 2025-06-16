@@ -11,7 +11,7 @@ proto_library(
 )
 
 proto_library(
-    name = "service_c_proto",
+    name = "protobuf_service_c_proto",
     srcs = [
         "model.proto",
         "service.proto",
@@ -27,9 +27,9 @@ proto_library(
 )
 
 cc_proto_library(
-    name = "service_c_cc_proto",
+    name = "protobuf_service_c_cc_proto",
     visibility = ["//visibility:public"],
-    deps = [":service_c_proto"],
+    deps = [":protobuf_service_c_proto"],
 )
 
 cc_proto_library(
@@ -42,7 +42,7 @@ cc_test(
     name = "test",
     srcs = ["test.cc"],
     deps = [
-        ":service_c_cc_proto",
+        ":protobuf_service_c_cc_proto",
         "//service_a:protobuf_service_a_cc_proto",
     ],
 )
