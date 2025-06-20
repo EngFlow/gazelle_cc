@@ -23,6 +23,7 @@ import (
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazelbuild/bazel-gazelle/pathtools"
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
@@ -49,13 +50,59 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 		}
 	default:
 		hdrs := r.AttrStrings("hdrs")
+		stripIncludePrefix := r.AttrString("strip_include_prefix")
+		if stripIncludePrefix != "" {
+			stripIncludePrefix = path.Clean(stripIncludePrefix)
+		}
+		includePrefix := r.AttrString("include_prefix")
+		if includePrefix != "" {
+			includePrefix = path.Clean(includePrefix)
+		}
 		imports = make([]resolve.ImportSpec, len(hdrs))
 		for i, hdr := range hdrs {
-			imports[i] = resolve.ImportSpec{Lang: languageName, Imp: path.Join(f.Pkg, hdr)}
+			hdrRel := path.Join(f.Pkg, hdr)
+			inc := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, hdrRel)
+			imports[i] = resolve.ImportSpec{Lang: languageName, Imp: inc}
 		}
 	}
 
 	return imports
+}
+
+// transformIncludePath converts a path to a header file into a string by which the
+// header file may be included, accounting for the library's
+// strip_include_prefix and include_prefix attributes.
+//
+// libRel is the slash-separated, repo-root-relative path to the directory
+// containing the target.
+//
+// stripIncludePrefix is the value of the target's strip_include_prefix
+// attribute. If it's "", this has no effect. If it's a relative path (including
+// "."), both libRel and stripIncludePrefix are stripped from rel. If it's an
+// absolute path, the leading '/' is removed, and only stripIncludePrefix is
+// removed from hdrRel.
+//
+// includePrefix is the value of the target's include_prefix attribute.
+// It's prepended to hdrRel after stripIncludePrefix is applied.
+//
+// Both includePrefix and stripIncludePrefix must be clean (with path.Clean)
+// if they are non-empty.
+//
+// hdrRel is the slash-separated, repo-root-relative path to the header file.
+func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel string) string {
+	// Strip the prefix.
+	var effectiveStripIncludePrefix string
+	if path.IsAbs(stripIncludePrefix) {
+		effectiveStripIncludePrefix = stripIncludePrefix[len("/"):]
+	} else if stripIncludePrefix != "" {
+		effectiveStripIncludePrefix = path.Join(libRel, stripIncludePrefix)
+	}
+	cleanRel := pathtools.TrimPrefix(hdrRel, effectiveStripIncludePrefix)
+
+	// Apply the new prefix.
+	cleanRel = path.Join(includePrefix, cleanRel)
+
+	return cleanRel
 }
 
 func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports any, from label.Label) {
@@ -106,7 +153,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 }
 
 func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec) label.Label {
-	conf := getCppConfig(c)
+	conf := getCcConfig(c)
 	// Resolve the gazele:resolve overrides if defined
 	if resolvedLabel, ok := resolve.FindRuleWithOverride(c, importSpec, languageName); ok {
 		return resolvedLabel

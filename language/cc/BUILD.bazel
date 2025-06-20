@@ -20,6 +20,7 @@ go_library(
         "@gazelle//label",
         "@gazelle//language",
         "@gazelle//language/proto",
+        "@gazelle//pathtools",
         "@gazelle//repo",
         "@gazelle//resolve",
         "@gazelle//rule",
@@ -29,7 +30,13 @@ go_library(
 # gazelle:exclude testdata
 go_test(
     name = "cc_test",
-    srcs = ["source_groups_test.go"],
+    srcs = [
+        "config_test.go",
+        "source_groups_test.go",
+    ],
     embed = [":cc"],
-    deps = ["//language/internal/cc/parser"],
+    deps = [
+        "//language/internal/cc/parser",
+        "@com_github_stretchr_testify//require",
+    ],
 )

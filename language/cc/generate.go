@@ -20,6 +20,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
@@ -43,6 +44,9 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
 	// However we need to inspect for existing rules that are no longer matching any files
 	result.Empty = slices.Concat(result.Empty, c.findEmptyRules(args, srcInfo, rulesInfo, result.Gen))
+
+	result.RelsToIndex = c.listRelsToIndex(args, srcInfo)
+
 	return result
 }
 
@@ -70,7 +74,7 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 }
 
 func splitSourcesIntoGroups(args language.GenerateArgs, srcs []sourceFile, srcInfo ccSourceInfoSet) sourceGroups {
-	conf := getCppConfig(args.Config)
+	conf := getCcConfig(args.Config)
 	var srcGroups sourceGroups
 	switch conf.groupingMode {
 	case groupSourcesByDirectory:
@@ -105,7 +109,7 @@ func newOrExistingRule(kind string, ruleName string, srcGroups sourceGroups, rul
 }
 
 func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, excludedSources sourceFileSet, result *language.GenerateResult) {
-	conf := getCppConfig(args.Config)
+	conf := getCcConfig(args.Config)
 	// Ignore files that might have been consumed by other rules
 	allSrcs := []sourceFile{}
 	for _, file := range slices.Concat(srcInfo.srcs, srcInfo.hdrs) {
@@ -165,7 +169,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 		return
 	}
 	// TODO: group tests by framework (unlikely but possible)
-	conf := getCppConfig(args.Config)
+	conf := getCcConfig(args.Config)
 	srcGroups := splitSourcesIntoGroups(args, srcInfo.testSrcs, srcInfo)
 	ambigiousRuleAssignments := srcGroups.adjustToExistingRules(rulesInfo)
 
@@ -344,7 +348,7 @@ func (srcGroups *sourceGroups) adjustToExistingRules(rulesInfo rulesInfo) (ambig
 // * if allowRulesMerge merges all rules refering to this group sources into a single rule
 // * otherwise warns user about cyclic deps and sets cyclic deps attributes to newRule and returns false
 // Returns true if successfully handled issues and it's possible to finalize creation of newRule
-func (c *ccLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, conf *cppConfig, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, newRule *rule.Rule, result *language.GenerateResult, group sourceGroup, ambigiousRuleAssignments []string) (handled bool) {
+func (c *ccLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, conf *ccConfig, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, newRule *rule.Rule, result *language.GenerateResult, group sourceGroup, ambigiousRuleAssignments []string) (handled bool) {
 	switch conf.groupsCycleHandlingMode {
 	case mergeOnGroupsCycle:
 		// Merge rules creating a cyclic dependency into a single rule and remove old ones
@@ -438,6 +442,32 @@ func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, srcInfo ccSource
 	}
 
 	return emptyRules
+}
+
+func (c *ccLanguage) listRelsToIndex(args language.GenerateArgs, srcInfo ccSourceInfoSet) []string {
+	relsToIndex := []string{}
+	relsToIndexSeen := make(map[string]struct{})
+	conf := getCcConfig(args.Config)
+	for _, si := range srcInfo.sourceInfos {
+		for _, incs := range [][]string{si.Includes.DoubleQuote, si.Includes.Bracket} {
+			for _, inc := range incs {
+				dir := path.Dir(path.Clean(inc))
+				if dir == "." {
+					dir = ""
+				}
+				for _, ccSearch := range conf.ccSearch {
+					relToIndex := transformIncludePath("", ccSearch.stripIncludePrefix, ccSearch.includePrefix, dir)
+					if _, ok := relsToIndexSeen[relToIndex]; ok {
+						continue
+					}
+					relsToIndexSeen[relToIndex] = struct{}{}
+					relsToIndex = append(relsToIndex, relToIndex)
+				}
+			}
+		}
+	}
+	sort.Strings(relsToIndex) // for determinism
+	return relsToIndex
 }
 
 type rulesInfo struct {
