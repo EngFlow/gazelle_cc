@@ -3,26 +3,30 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 # Gazelle
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "f4a9314518ca6acfa16cc4ab43b0b8ce1e4ea64b81c38d8a3772883f153346b8",
+    sha256 = "0936c9bc3c4321ee372cb8f66dd972d368cb940ed01a9ba9fd7debcf0093f09b",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.50.1/rules_go-v0.50.1.zip",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.50.1/rules_go-v0.50.1.zip",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.51.0/rules_go-v0.51.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.51.0/rules_go-v0.51.0.zip",
     ],
 )
+
 http_archive(
     name = "bazel_gazelle",
-    integrity = "sha256-fEC3Rjh80Mmk1bsLIDWr0TSz91EQFXEKXuXgdZEAjd4=",
+    sha256 = "49b14c691ceec841f445f8642d28336e99457d1db162092fd5082351ea302f1d",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.43.0/bazel-gazelle-v0.43.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.43.0/bazel-gazelle-v0.43.0.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.44.0/bazel-gazelle-v0.44.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.44.0/bazel-gazelle-v0.44.0.tar.gz",
     ],
 )
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
+
 go_rules_dependencies()
+
 go_register_toolchains(version = "1.24.0")
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
+
 gazelle_dependencies(go_sdk = "go_sdk")
 
 # Gazelle CC - local override
@@ -31,12 +35,13 @@ local_repository(
     path = "../../",
     repo_mapping = {
         "@rules_go": "@io_bazel_rules_go",
-        "@gazelle":  "@bazel_gazelle",
+        "@gazelle": "@bazel_gazelle",
     },
 )
-load("@gazelle_cc//:deps.bzl", "gazelle_cc_dependencies")
-gazelle_cc_dependencies()
 
+load("@gazelle_cc//:deps.bzl", "gazelle_cc_dependencies")
+
+gazelle_cc_dependencies()
 
 ## CC dependenices
 http_archive(
@@ -54,11 +59,11 @@ googletest_deps()
 
 http_archive(
     name = "fmt",
-    url = "https://github.com/fmtlib/fmt/archive/refs/tags/11.2.0.tar.gz",
-    strip_prefix = "fmt-11.2.0",
     patch_cmds = [
         "mv support/bazel/.bazelversion .bazelversion",
         "mv support/bazel/BUILD.bazel BUILD.bazel",
         "mv support/bazel/WORKSPACE.bazel WORKSPACE.bazel",
     ],
+    strip_prefix = "fmt-11.2.0",
+    url = "https://github.com/fmtlib/fmt/archive/refs/tags/11.2.0.tar.gz",
 )

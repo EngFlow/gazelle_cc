@@ -1,6 +1,6 @@
 module(name = "gazelle_cc_example")
 
-bazel_dep(name = "gazelle", version = "0.42.0")
+bazel_dep(name = "gazelle", version = "0.44.0")
 bazel_dep(name = "gazelle_cc", version = "")
 local_path_override(
     module_name = "gazelle_cc",
