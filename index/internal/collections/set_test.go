@@ -185,7 +185,7 @@ func TestSet_Diff(t *testing.T) {
 			name:     "some difference",
 			set1:     SetOf(1, 2),
 			set2:     SetOf(1, 3),
-			expected: SetOf(3),
+			expected: SetOf(2),
 		},
 	}
 
