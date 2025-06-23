@@ -17,6 +17,9 @@ package parser
 import (
 	"fmt"
 	"testing"
+
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseIncludes(t *testing.T) {
@@ -52,10 +55,324 @@ func TestParseIncludes(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := ParseSource(tc.input).Includes
-		if fmt.Sprintf("%v", result) != fmt.Sprintf("%v", tc.expected) {
-			t.Errorf("For input: %q, expected %+v, but got %+v", tc.input, tc.expected, result)
+		result, err := ParseSource(tc.input)
+		if err != nil {
+			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
+		includes := result.Includes
+		if fmt.Sprintf("%v", includes) != fmt.Sprintf("%v", tc.expected) {
+			t.Errorf("For input: %q, expected %+v, but got %+v", tc.input, tc.expected, includes)
+		}
+	}
+}
+
+func TestParseConditionalIncludes(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected SourceInfo
+	}{
+		// ifdef syntax
+		{
+			input: `
+#include "common.h"
+#ifdef _WIN32
+#include "windows.h"
+#elifdef \ 
+	__APPLE__
+#include "unistd.h"
+#elifndef __linux__
+#include "fcntl.h"
+#else
+#include "other.h"
+#endif
+#include "last.h"
+`,
+			expected: SourceInfo{
+				Includes: Includes{
+					DoubleQuote: []string{"common.h", "last.h"},
+				},
+				ConditionalIncludes: []ConditionalInclude{
+					ConditionalInclude{Path: "windows.h", Condition: Defined{Ident("_WIN32")}},
+					ConditionalInclude{Path: "unistd.h", Condition: And{
+						Defined{Ident("__APPLE__")},
+						Not{Defined{Ident("_WIN32")}},
+					}},
+					ConditionalInclude{Path: "fcntl.h", Condition: And{
+						Not{Defined{Ident("__linux__")}},
+						Not{Or{Defined{Ident("_WIN32")}, Defined{Ident("__APPLE__")}}},
+					}},
+					ConditionalInclude{Path: "other.h", Condition: Not{
+						Or{
+							Or{
+								Defined{Ident("_WIN32")},
+								Defined{Ident("__APPLE__")},
+							},
+							Not{Defined{Ident("__linux__")}},
+						}}},
+				},
+			},
+		},
+		// if defined syntax
+		{
+			input: `
+#if defined _WIN32
+#include "windows.h"
+#elif defined ( __APPLE__ )
+#include "unistd.h"
+#elif ! \
+	defined(\
+	__linux__)
+#include "fcntl.h"
+#else 
+#include "other.h"
+#endif
+`,
+			expected: SourceInfo{
+				ConditionalIncludes: []ConditionalInclude{
+					ConditionalInclude{Path: "windows.h", Condition: Defined{Ident("_WIN32")}},
+					ConditionalInclude{Path: "unistd.h", Condition: And{
+						Defined{Ident("__APPLE__")},
+						Not{Defined{Ident("_WIN32")}},
+					}},
+					ConditionalInclude{Path: "fcntl.h", Condition: And{
+						Not{Defined{Ident("__linux__")}},
+						Not{Or{Defined{Ident("_WIN32")}, Defined{Ident("__APPLE__")}}},
+					}},
+					ConditionalInclude{Path: "other.h", Condition: Not{
+						Or{
+							Or{
+								Defined{Ident("_WIN32")},
+								Defined{Ident("__APPLE__")},
+							},
+							Not{Defined{Ident("__linux__")}},
+						}}},
+				},
+			},
+		},
+		{
+			// complex boolean expression
+			input: `
+#if (defined(_WIN32) && defined(ENABLE_GUI)) || defined(__ANDROID__)
+#include "ui.h"
+#elif defined(_WIN32)
+#include "cli.h"
+#endif
+`,
+			expected: SourceInfo{
+				ConditionalIncludes: []ConditionalInclude{
+					ConditionalInclude{
+						Path: "ui.h",
+						Condition: Or{
+							And{
+								Defined{Name: "_WIN32"},
+								Defined{Name: "ENABLE_GUI"},
+							},
+							Defined{Name: "__ANDROID__"},
+						},
+					},
+					ConditionalInclude{
+						Path: "cli.h",
+						Condition: And{
+							Defined{Name: "_WIN32"},
+							Not{
+								Or{
+									And{
+										Defined{Name: "_WIN32"},
+										Defined{Name: "ENABLE_GUI"},
+									},
+									Defined{Name: "__ANDROID__"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// multiline directive with continuations
+			input: `
+#if defined(_WIN32) && \
+    !defined(DISABLE_FEATURE) || \
+    (defined(__APPLE__) && defined(ENABLE_COCOA))
+#include "feature.h"
+#else
+#include "nofeature.h"
+#endif
+`,
+			expected: SourceInfo{
+				ConditionalIncludes: []ConditionalInclude{
+					ConditionalInclude{
+						Path: "feature.h",
+						Condition: Or{
+							And{
+								Defined{Name: "_WIN32"},
+								Not{Defined{Name: "DISABLE_FEATURE"}},
+							},
+							And{
+								Defined{Name: "__APPLE__"},
+								Defined{Name: "ENABLE_COCOA"},
+							},
+						},
+					},
+					ConditionalInclude{
+						Path: "nofeature.h",
+						Condition: Not{
+							Or{
+								And{
+									Defined{Name: "_WIN32"},
+									Not{Defined{Name: "DISABLE_FEATURE"}},
+								},
+								And{
+									Defined{Name: "__APPLE__"},
+									Defined{Name: "ENABLE_COCOA"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// #if X as equivalent of X != 0
+			input: `
+#if TARGET_IOS
+  #include "ios_api.h"
+#elif !TARGET_WINDOWS 
+	#include "unix_api.h"
+#else
+	#include "windows_api.h"
+#endif
+`,
+			expected: SourceInfo{
+				ConditionalIncludes: []ConditionalInclude{
+					{
+						Path:      "ios_api.h",
+						Condition: Compare{Ident("TARGET_IOS"), "!=", Constant(0)},
+					},
+					{
+						Path: "unix_api.h",
+						Condition: And{
+							Not{Compare{Ident("TARGET_WINDOWS"), "!=", Constant(0)}},
+							Not{Compare{Ident("TARGET_IOS"), "!=", Constant(0)}},
+						},
+					},
+					{
+						Path: "windows_api.h",
+						Condition: Not{
+							Or{
+								Compare{Ident("TARGET_IOS"), "!=", Constant(0)},
+								Not{Compare{Ident("TARGET_WINDOWS"), "!=", Constant(0)}},
+							}},
+					},
+				},
+			},
+		},
+		{
+			// simple #if / #else with comparsion operator
+			input: `
+#if __WINT_WIDTH__ >= 32
+#include "wideint.h"
+#else
+#include "narrowint.h"
+#endif
+`,
+			expected: SourceInfo{
+				ConditionalIncludes: []ConditionalInclude{
+					{
+						Path:      "wideint.h",
+						Condition: Compare{Ident("__WINT_WIDTH__"), ">=", Constant(32)},
+					},
+					{
+						Path: "narrowint.h",
+						Condition: Not{
+							Compare{Ident("__WINT_WIDTH__"), ">=", Constant(32)},
+						},
+					},
+				},
+			},
+		},
+		{
+			// simple #if / #else with comparsion operator
+			input: `
+		#if 1 == __LITTLE_ENDIAN__
+		#include "a.h"
+		#elif 0 != TARGET_IOS
+		#include "b.h"
+		#elif 32 > POINTER_SIZE
+		#include "c.h"
+		#endif
+		`,
+			expected: SourceInfo{
+				ConditionalIncludes: []ConditionalInclude{
+					{
+						Path:      "a.h",
+						Condition: Compare{Constant(1), "==", Ident("__LITTLE_ENDIAN__")},
+					},
+					{
+						Path: "b.h",
+						Condition: And{
+							Compare{Constant(0), "!=", Ident("TARGET_IOS")},
+							Not{Compare{Constant(1), "==", Ident("__LITTLE_ENDIAN__")}},
+						},
+					},
+					{
+						Path: "c.h",
+						Condition: And{
+							Compare{Constant(32), ">", Ident("POINTER_SIZE")},
+							Not{Or{
+								Compare{Constant(1), "==", Ident("__LITTLE_ENDIAN__")},
+								Compare{Constant(0), "!=", Ident("TARGET_IOS")},
+							}}},
+					},
+				},
+			},
+		},
+		{
+			// ==, >, and the automatic negations created for #elif / #else
+			input: `
+#if __ARM_ARCH == 8
+#include "armv8.h"
+#elif __ARM_ARCH > 8
+#include "armv9.h"
+#else
+#include "armlegacy.h"
+#endif
+`,
+			expected: SourceInfo{
+				ConditionalIncludes: []ConditionalInclude{
+					{
+						Path:      "armv8.h",
+						Condition: Compare{Ident("__ARM_ARCH"), "==", Constant(8)},
+					},
+					{
+						Path: "armv9.h",
+						// parser rewrites #elif into A && !previous(A)
+						Condition: And{
+							Compare{Ident("__ARM_ARCH"), ">", Constant(8)},
+							Not{Compare{Ident("__ARM_ARCH"), "==", Constant(8)}},
+						},
+					},
+					{
+						Path: "armlegacy.h",
+						// final #else → !(A || B)
+						Condition: Not{
+							Or{
+								Compare{Ident("__ARM_ARCH"), "==", Constant(8)},
+								Compare{Ident("__ARM_ARCH"), ">", Constant(8)},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		result, err := ParseSource(tc.input)
+		if err != nil {
+			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
+		}
+		assert.Equal(t, tc.expected, result, "Input:%v", tc.input)
 	}
 }
 
@@ -77,7 +394,7 @@ func TestParseSourceHasMain(t *testing.T) {
 				void my_function() {  // Not main
 						int x = 5;
 				}
-		
+
 				int main() {
 						return 0;
 				}
@@ -140,9 +457,67 @@ func TestParseSourceHasMain(t *testing.T) {
 	}
 
 	for idx, tc := range testCases {
-		result := ParseSource(tc.input).HasMain
-		if fmt.Sprintf("%v", result) != fmt.Sprintf("%v", tc.expected) {
-			t.Errorf("For test case %d input: %q, expected %+v, but got %+v", idx, tc.input, tc.expected, result)
+		result, err := ParseSource(tc.input)
+		if err != nil {
+			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
+		}
+		hasMain := result.HasMain
+		if fmt.Sprintf("%v", hasMain) != fmt.Sprintf("%v", tc.expected) {
+			t.Errorf("For test case %d input: %q, expected %+v, but got %+v", idx, tc.input, tc.expected, hasMain)
+		}
+	}
+}
+
+func TestParseMacros(t *testing.T) {
+	type testCase struct {
+		defs     []string
+		expected platform.Macros
+	}
+
+	validTestCases := []testCase{
+		{
+			defs: []string{"FOO"},
+			expected: platform.Macros{
+				"FOO": 1,
+			},
+		},
+		{
+			defs: []string{"BAR=123", "BAZ=0x2AUL", "QUX=0755"},
+			expected: platform.Macros{
+				"BAR": 123,
+				"BAZ": 42,
+				"QUX": 493,
+			},
+		},
+		{
+			defs: []string{"-D__ANDROID__", "-D__ARM_ARCH=8"},
+			expected: platform.Macros{
+				"__ANDROID__": 1,
+				"__ARM_ARCH":  8,
+			},
+		},
+	}
+
+	for _, tc := range validTestCases {
+		got, err := ParseMacros(tc.defs)
+		if err != nil {
+			t.Fatalf("ParseMacros(%v) unexpected error: %v", tc.defs, err)
+		}
+		assert.Equal(t, tc.expected, got)
+	}
+
+	unparsableTestCases := [][]string{
+		{"FLT=3.14"},       // float
+		{"STR=\"abc\""},    // string literal
+		{"CHR='A'"},        // char literal
+		{"-DBAD-NAME=1"},   // invalid identifier
+		{"SUFFIX=123XYZ"},  // unknown suffix
+		{"HEXFLT=0x1.8p3"}, // hex-float
+	}
+
+	for _, defs := range unparsableTestCases {
+		if _, err := ParseMacros(defs); err == nil {
+			t.Errorf("ParseMacros(%v) expected error, got nil", defs)
 		}
 	}
 }

@@ -16,12 +16,12 @@ package cc
 
 import (
 	"log"
-	"maps"
 	"path"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/index/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
@@ -145,13 +145,32 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 		return
 	}
 	ccImports := imports.(ccImports)
+	ccConfig := getCcConfig(c)
 
-	type labelsSet map[label.Label]struct{}
 	// Resolves given includes to rule labels and assigns them to given attribute.
 	// Excludes explicitly provided labels from being assigned
 	// Returns a set of successfully assigned labels, allowing to exclude them in following invocations
-	resolveIncludes := func(includes []ccInclude, attributeName string, excluded labelsSet) labelsSet {
-		deps := make(map[label.Label]struct{})
+	resolveIncludes := func(includes []ccInclude, attributeName string, excluded collections.Set[label.Label]) collections.Set[label.Label] {
+		// Tracks all found dependencies, result of function call
+		allDeps := collections.Set[label.Label]{}
+		// Dependencies that are shared by all platforms
+		genericDeps := collections.Set[string]{}
+		addGeneric := func(label label.Label) {
+			allDeps.Add(label)
+			genericDeps.Add(label.String())
+		}
+		// Map of platform specific constraints and dependencies assigned to each of them
+		constrainedDeps := map[label.Label]collections.Set[string]{}
+		addConstrained := func(condition label.Label, label label.Label) {
+			allDeps.Add(label)
+			deps, exists := constrainedDeps[condition]
+			if !exists {
+				deps = collections.Set[string]{}
+				constrainedDeps[condition] = deps
+			}
+			deps.Add(label.String())
+		}
+
 		for _, include := range includes {
 			resolvedLabel := lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
 			if resolvedLabel == label.NoLabel && !include.isSystemInclude {
@@ -164,26 +183,42 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			}
 			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
 			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
-				deps[resolvedLabel] = struct{}{}
+				switch {
+				case include.platforms == nil:
+					addGeneric(resolvedLabel)
+				case len(include.platforms) == 0:
+					addConstrained(label.New("", "conditions", "default"), resolvedLabel)
+				default:
+					for _, platform := range include.platforms {
+						if platformConfig, exists := ccConfig.platforms[platform]; exists {
+							addConstrained(platformConfig.constraint, resolvedLabel)
+						}
+					}
+				}
 			}
 		}
-		if len(deps) > 0 {
-			r.SetAttr(attributeName, slices.SortedStableFunc(maps.Keys(deps), func(l, r label.Label) int {
-				return strings.Compare(l.String(), r.String())
-			}))
+
+		platformStrings := CcPlatformStrings{[]string{}, map[string][]string{}}
+		platformStrings.Generic = genericDeps.Values()
+		for constraintLabel, deps := range constrainedDeps {
+			platformStrings.Constrained[constraintLabel.String()] = deps.Values()
 		}
-		return deps
+
+		if len(platformStrings.Strings()) > 0 {
+			r.SetAttr(attributeName, platformStrings)
+		}
+		return allDeps
 	}
 
 	switch resolveCCRuleKind(r.Kind(), c) {
 	case "cc_library":
 		// Only cc_library has 'implementation_deps' attribute
 		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
-		publicDeps := resolveIncludes(ccImports.hdrIncludes, "deps", make(labelsSet))
+		publicDeps := resolveIncludes(ccImports.hdrIncludes, "deps", collections.Set[label.Label]{})
 		resolveIncludes(ccImports.srcIncludes, "implementation_deps", publicDeps)
 	default:
 		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)
-		resolveIncludes(includes, "deps", make(labelsSet))
+		resolveIncludes(includes, "deps", collections.Set[label.Label]{})
 	}
 }
 

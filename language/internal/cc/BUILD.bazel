@@ -1,0 +1,24 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "cc",
+    srcs = ["expr_eval.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc",
+    visibility = ["//language:__subpackages__"],
+    deps = [
+        "//index/internal/collections",
+        "//language/internal/cc/parser",
+        "//language/internal/cc/platform",
+    ],
+)
+
+go_test(
+    name = "cc_test",
+    srcs = ["expr_eval_test.go"],
+    embed = [":cc"],
+    deps = [
+        "//index/internal/collections",
+        "//language/internal/cc/parser",
+        "//language/internal/cc/platform",
+    ],
+)

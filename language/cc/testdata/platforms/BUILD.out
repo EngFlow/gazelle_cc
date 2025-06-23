@@ -1,0 +1,90 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_group unit
+# gazelle:cc_platform windows/x86_64 @platforms//os:windows OS_WINDOWS PTR_SIZE=64
+# gazelle:cc_platform osx/aarch64 //platforms/macos_arm PTR_SIZE=64
+# gazelle:cc_platform linux/i386 //platforms/linux_x86 OS_LINUX PTR_SIZE=32
+
+# Invalid
+# gazelle:cc_platform linux //platforms/linux_x86
+# gazelle:cc_platform x86_64 //platforms/linux_x86
+
+cc_library(
+    name = "test_if_compare",
+    hdrs = ["test_if_compare.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//shared:api",
+    ] + select({
+        "//platforms/linux_x86": [
+            "//select:32bits",
+        ],
+        "//platforms/macos_arm": [
+            "//select:64bits",
+            "//select:macos",
+            "//select:non_unix",
+        ],
+        "@platforms//os:windows": [
+            "//select:64bits",
+            "//select:non_unix",
+            "//select:win",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_library(
+    name = "test_ifdef",
+    hdrs = ["test_ifdef.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//shared:api",
+    ] + select({
+        "//platforms/linux_x86": [
+            "//select:unix",
+        ],
+        "//platforms/macos_arm": [
+            "//select:macos",
+        ],
+        "@platforms//os:windows": [
+            "//select:win",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_library(
+    name = "test_ifdefined",
+    hdrs = ["test_ifdefined.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//shared:api",
+    ] + select({
+        "//platforms/linux_x86": [
+            "//select:unix",
+        ],
+        "//platforms/macos_arm": [
+            "//select:macos",
+        ],
+        "@platforms//os:windows": [
+            "//select:win",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_library(
+    name = "test_unknown",
+    hdrs = ["test_unknown.h"],
+    visibility = ["//visibility:public"],
+    deps = select({
+        "//platforms/macos_arm": [
+            "//select:macos",
+        ],
+        "//conditions:default": [
+            "//select:unix",
+            "//select:win",
+            "//shared:api",
+        ],
+    }),
+)

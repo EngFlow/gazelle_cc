@@ -24,6 +24,7 @@ import (
 
 	"maps"
 
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -47,6 +48,8 @@ type (
 		normalizedPath string
 		// True when include defined using brackets
 		isSystemInclude bool
+		// List of platforms that matched the include #if condition. nil if include is not guarded by preprocessor definitions
+		platforms []platform.Platform
 	}
 	ccImports struct {
 		// #include directives found in header files

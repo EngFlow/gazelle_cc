@@ -108,6 +108,50 @@ The `cc_search` directive accepts two arguments: a prefix to strip, and a prefix
 
 You can specify `cc_search` directives multiple times. A directive applies to the directory where it's written and to subdirectories. An empty `cc_search` directive resets the list of translation rules for the current directory.
 
+### `# gazelle:cc_platform <os>/<arch> <constraint_label> [<macro>=<value> …]`
+
+Tells gazelle_cc to emit a platform-aware `select()` statement for header dependencies whose `#include` directives are wrapped in pre-processor conditions (`#if`, `#ifdef`, etc).
+
+| Parameter            | Description                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<os>/<arch>`        | Operating-system and CPU pair that identifies the platform (e.g. `linux/amd64`, `darwin/aarch64`).<br>This value is also used to setup default, well known platform specific macro definitions, e.g. `_WIN32`, `__APPLE__`, `__unix__` <br>Valid values follow the constraint settings in [`@platforms//os`](https://github.com/bazelbuild/platforms/blob/1.0.0/os/BUILD) and [`@platforms//cpu`](https://github.com/bazelbuild/platforms/blob/1.0.0/cpu/BUILD). |
+| `<constraint_label>` | A Bazel label that will be used inside the generated `select()` for this platform.                                                                                                               |
+| `[<macro>=<value>]`  | Optional compile-time macros that are **always** true on this platform.<br>Only integer literals are allowed. A bare identifier (e.g. `TARGET_OS_MAC`) is treated as `<macro>=1`.                |
+
+Example:
+
+```bazel
+# BUILD.bazel
+# gazelle:cc_platform windows/x86_64 @platforms//os:windows
+# gazelle:cc_platform osx/aarch64 //platforms/macos_arm USING_MAC USING_ARM64=1
+```
+
+```c
+// source.cc
+#include "shared.h"
+#if defined(_WIN32)
+   #include "win_impl.h"
+#elif USING_MAC
+   #include "mac_impl.h"
+#else
+   #include "unix_impl.h"
+#endif
+```
+
+Running the `gazelle_cc` would emit
+
+```bazel
+cc_library(
+   name = "source",
+   srcs = ["source.cc"],
+   implementation_deps = [":shared"] + select({
+      "@platforms//os:windows": [":win_impl"],
+      "//platforms:macos_arm":  [":mac_impl"],
+      "//conditions:default":   [":unix_impl"],
+   })
+)
+```
+
 ## Rules for target rule selection
 
 The extension automatically selects the appropriate rule type based on the following criteria:

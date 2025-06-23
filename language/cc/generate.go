@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -51,6 +52,8 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 }
 
 func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) ccImports {
+	ccConfig := getCcConfig(args.Config)
+	platformMacros := ccConfig.platformMacros()
 	imports := ccImports{}
 	for _, file := range files {
 		var includes *[]ccInclude
@@ -61,12 +64,17 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 		}
 
 		sourceInfo := sourceInfos[file]
+
+		for _, include := range sourceInfo.ConditionalIncludes {
+			rawPath := path.Clean(include.Path)
+			*includes = append(*includes, ccInclude{rawPath: rawPath, normalizedPath: path.Join(args.Rel, rawPath), isSystemInclude: false, platforms: cc.PlatformsForExpr(include.Condition, platformMacros)})
+		}
 		for _, include := range sourceInfo.Includes.DoubleQuote {
 			rawPath := path.Clean(include)
-			*includes = append(*includes, ccInclude{rawPath: rawPath, normalizedPath: path.Join(args.Rel, rawPath), isSystemInclude: false})
+			*includes = append(*includes, ccInclude{rawPath: rawPath, normalizedPath: path.Join(args.Rel, rawPath), isSystemInclude: false, platforms: nil})
 		}
 		for _, include := range sourceInfo.Includes.Bracket {
-			*includes = append(*includes, ccInclude{rawPath: include, normalizedPath: include, isSystemInclude: true})
+			*includes = append(*includes, ccInclude{rawPath: include, normalizedPath: include, isSystemInclude: true, platforms: nil})
 		}
 	}
 
