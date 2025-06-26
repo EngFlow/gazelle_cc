@@ -27,6 +27,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -149,30 +150,59 @@ func extractSourceInfo(input io.Reader) (SourceInfo, error) {
 	tr := newTokenReader(input)
 
 	var (
-		sourceInfo  SourceInfo
-		condStack   []Expr // active #if/#else nesting
-		alreadySeen []Expr // for #elif / #else handling inside current group
-		lastToken   string
+		sourceInfo      SourceInfo
+		conditionExprs  []Expr   // active #if/#else nesting
+		exprGroupsStack [][]Expr // stack of nested #if conditions that needs to be tracked, elements of the last stack might be different then `conditionExprs`
+		lastToken       string
 	)
 
-	push := func(expr Expr) { condStack = append(condStack, expr) }
-	pop := func() bool {
-		if len(condStack) > 0 {
-			condStack = condStack[:len(condStack)-1]
+	// Generates an expression based on the nested history of #if conditions
+	currentGuard := func() Expr {
+		if len(conditionExprs) == 0 {
+			return nil
+		}
+		// AND-conjunction of the stack
+		acc := conditionExprs[0]
+		for i := 1; i < len(conditionExprs); i++ {
+			acc = And{acc, conditionExprs[i]}
+		}
+		return acc
+	}
+	// Returns list of conditions for the most nested #if block
+	lastExprsGroup := func() []Expr {
+		if len(exprGroupsStack) == 0 {
+			return nil
+		}
+		return exprGroupsStack[len(exprGroupsStack)-1]
+	}
+	// Adds given `expr` to the current expression conditions
+	pushCondition := func(expr Expr) { conditionExprs = append(conditionExprs, expr) }
+	// Remvoes last Expr from the expression conditions
+	popCondition := func() bool {
+		if len(conditionExprs) > 0 {
+			conditionExprs = conditionExprs[:len(conditionExprs)-1]
 			return true
 		}
 		return false
 	}
-	currentGuard := func() Expr {
-		if len(condStack) == 0 {
-			return nil
+
+	// Create new nesting level for #if conditions
+	pushNewConditionsGroup := func(expr Expr) { exprGroupsStack = append(exprGroupsStack, []Expr{expr}) }
+	// Appends `expr` to the most nested condition group
+	pushToLastConditionsGroup := func(expr Expr) {
+		if len(exprGroupsStack) == 0 {
+			log.Panicf("no conditions group present")
 		}
-		// AND-conjunction of the stack
-		acc := condStack[0]
-		for i := 1; i < len(condStack); i++ {
-			acc = And{acc, condStack[i]}
+		lastGroup := &exprGroupsStack[len(exprGroupsStack)-1]
+		*lastGroup = append(*lastGroup, expr)
+	}
+	// Removes the most nested #if condition group
+	popLastExprsGroup := func() bool {
+		if len(exprGroupsStack) == 0 {
+			return false
 		}
-		return acc
+		exprGroupsStack = exprGroupsStack[:len(exprGroupsStack)-1]
+		return true
 	}
 
 	var nextIdent func() (Ident, error)
@@ -220,7 +250,7 @@ func extractSourceInfo(input io.Reader) (SourceInfo, error) {
 
 			}
 
-		// ifdef conditions
+		// if conditions
 		case "#ifdef", "#ifndef":
 			ident, err := nextIdent()
 			if err != nil {
@@ -230,60 +260,60 @@ func extractSourceInfo(input io.Reader) (SourceInfo, error) {
 			if token == "#ifndef" {
 				definition = Not{definition}
 			}
-			push(definition)
-			alreadySeen = append(alreadySeen, definition)
-
-		case "#else":
-			if !pop() {
-				break // malformed source code
-			}
-			negateAll := Not{orAll(alreadySeen...)}
-			push(negateAll)
-			alreadySeen = append(alreadySeen, negateAll)
-
-		case "#elifdef", "#elifndef": // C23 extension
-			if !pop() {
-				break // malformed source code
-			}
-			ident, err := nextIdent()
-			if err != nil {
-				return err
-			}
-			var newExpr Expr = Defined{Name: ident}
-			if token == "#elifndef" {
-				newExpr = Not{newExpr}
-			}
-			notPrev := Not{orAll(alreadySeen...)}
-			branchExpr := And{newExpr, notPrev}
-			push(branchExpr)
-			alreadySeen = append(alreadySeen, newExpr)
-
-		case "#endif":
-			if !pop() {
-				break // malformed source code
-			}
-			alreadySeen = nil // leave outer group’s memory intact
+			pushCondition(definition)
+			pushNewConditionsGroup(definition)
 
 		case "#if":
 			expr, err := parseExpr(tr)
 			if err != nil {
 				return err
 			}
-			push(expr)
-			alreadySeen = append(alreadySeen, expr)
+			pushCondition(expr)
+			pushNewConditionsGroup(expr)
 
-		case "#elif":
-			if !pop() {
+		case "#else":
+			curExprsGroup := lastExprsGroup()
+			if !popCondition() || curExprsGroup == nil { // malformed source code
+				break
+			}
+			negateAll := Not{orAll(curExprsGroup...)}
+			pushCondition(negateAll)
+			pushToLastConditionsGroup(negateAll)
+
+		case "#elif", "#elifdef", "#elifndef":
+			curExprsGroup := lastExprsGroup()
+			if !popCondition() || curExprsGroup == nil { // malformed source code
+				break
+			}
+
+			var newExpr Expr
+			switch token {
+			case "#elif":
+				var err error
+				newExpr, err = parseExpr(tr)
+				if err != nil {
+					return err
+				}
+			case "#elifdef", "#elifndef":
+				ident, err := nextIdent()
+				if err != nil {
+					return err
+				}
+				newExpr = Defined{Name: ident}
+				if token == "#elifndef" {
+					newExpr = Not{newExpr}
+				}
+			}
+
+			notPrev := Not{orAll(curExprsGroup...)}
+			branch := And{newExpr, notPrev}
+			pushCondition(branch)
+			pushToLastConditionsGroup(newExpr) // NOTE: append **newExpr**, not branch!
+
+		case "#endif":
+			if !popCondition() || !popLastExprsGroup() {
 				break // malformed source code
 			}
-			expr, err := parseExpr(tr)
-			if err != nil {
-				return err
-			}
-			notPrev := Not{orAll(alreadySeen...)}
-			branchExpr := And{expr, notPrev}
-			push(branchExpr)
-			alreadySeen = append(alreadySeen, expr)
 		}
 		return nil
 	}
@@ -498,6 +528,7 @@ func ParseMacros(defs []string) (platform.Macros, error) {
 
 func orAll(xs ...Expr) Expr {
 	if len(xs) == 0 {
+		log.Panicf("empty orAll")
 		return nil
 	}
 	acc := xs[0]

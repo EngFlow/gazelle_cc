@@ -365,6 +365,94 @@ func TestParseConditionalIncludes(t *testing.T) {
 				},
 			},
 		},
+		{
+			// nested #if / #else blocks – 3 levels deep
+			input: `
+				#if defined FOO
+					#include "foo.h"
+						#if defined(BAR)
+							#include "bar.h"
+							#ifdef BAZ
+								#include "baz.h"
+							#elifdef QUX
+								#include "qux.h"
+							#else
+								#include "nobaz.h"
+							#endif
+						#else
+							#include "nobar.h"
+						#endif
+				#else
+					#include "nofoo.h"
+				#endif
+				`,
+			expected: SourceInfo{
+				ConditionalIncludes: []ConditionalInclude{
+					{
+						Path:      "foo.h",
+						Condition: Defined{Ident("FOO")},
+					},
+					{
+						Path: "bar.h",
+						Condition: And{
+							Defined{Ident("FOO")},
+							Defined{Ident("BAR")},
+						},
+					},
+					{
+						Path: "baz.h",
+						Condition: And{
+							And{
+								Defined{Ident("FOO")},
+								Defined{Ident("BAR")},
+							},
+							Defined{Ident("BAZ")},
+						},
+					},
+					{
+						// QUX branch:  FOO && BAR && QUX && !BAZ
+						Path: "qux.h",
+						Condition: And{
+							And{ // FOO && BAR
+								Defined{Ident("FOO")},
+								Defined{Ident("BAR")},
+							},
+							And{ // QUX && !BAZ
+								Defined{Ident("QUX")},
+								Not{Defined{Ident("BAZ")}},
+							},
+						},
+					},
+					{
+						// nobaz branch: FOO && BAR && !(BAZ || QUX)
+						Path: "nobaz.h",
+						Condition: And{
+							And{ // FOO && BAR
+								Defined{Ident("FOO")},
+								Defined{Ident("BAR")},
+							},
+							Not{ // !(BAZ || QUX)
+								Or{
+									Defined{Ident("BAZ")},
+									Defined{Ident("QUX")},
+								},
+							},
+						},
+					},
+					{
+						Path: "nobar.h",
+						Condition: And{
+							Defined{Ident("FOO")},
+							Not{Defined{Ident("BAR")}},
+						},
+					},
+					{
+						Path:      "nofoo.h",
+						Condition: Not{Defined{Ident("FOO")}},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
