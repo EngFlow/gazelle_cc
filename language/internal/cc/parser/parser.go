@@ -58,8 +58,7 @@ type ConditionalInclude struct {
 
 // ParseSource runs the extractor on an in‑memory buffer.
 func ParseSource(input string) (SourceInfo, error) {
-	reader := strings.NewReader(input)
-	return extractSourceInfo(reader)
+	return parse(strings.NewReader(input))
 }
 
 // ParseSourceFile opens `filename“ and feeds its contents to the extractor.
@@ -70,7 +69,40 @@ func ParseSourceFile(filename string) (SourceInfo, error) {
 	}
 	defer file.Close()
 
-	return extractSourceInfo(file)
+	return parse(file)
+}
+
+// ParseMacros converts a slice of -D style macro definitions into a platform.Macros map,
+// validating that each value is an integerliteral understood by the conditional-expression evaluator.
+func ParseMacros(defs []string) (platform.Macros, error) {
+	out := platform.Macros{}
+	for _, d := range defs {
+		d = strings.TrimPrefix(d, "-D") // tolerate gcc/clang style
+		name, raw := d, ""              // default: bare macro
+
+		if eq := strings.IndexByte(d, '='); eq >= 0 {
+			name, raw = d[:eq], d[eq+1:]
+		}
+
+		if !macroIdentifierRegex.MatchString(name) {
+			return out, fmt.Errorf("invalid macro name %q", name)
+		}
+
+		if raw == "" { // FOO -> FOO=1
+			out[name] = 1
+			continue
+		}
+
+		if !parsableIntegerRegex.MatchString(raw) {
+			return nil, fmt.Errorf("macro %s=%v, only integer literal values are allowed", name, raw)
+		}
+		value, err := parseIntLiteral(raw)
+		if err != nil {
+			return out, fmt.Errorf("macro %s: %v", name, err)
+		}
+		out[name] = value
+	}
+	return out, nil
 }
 
 func isParanthesis(char rune) bool {
@@ -146,221 +178,238 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	return i, nil, nil
 }
 
-func extractSourceInfo(input io.Reader) (SourceInfo, error) {
-	tr := newTokenReader(input)
+type parser struct {
+	tr        *tokenReader
+	lastToken string
 
-	var (
-		sourceInfo      SourceInfo
-		conditionExprs  []Expr   // active #if/#else nesting
-		exprGroupsStack [][]Expr // stack of nested #if conditions that needs to be tracked, elements of the last stack might be different then `conditionExprs`
-		lastToken       string
-	)
+	// accumulated result
+	sourceInfo SourceInfo
 
-	// Generates an expression based on the nested history of #if conditions
-	currentGuard := func() Expr {
-		if len(conditionExprs) == 0 {
-			return nil
-		}
-		// AND-conjunction of the stack
-		acc := conditionExprs[0]
-		for i := 1; i < len(conditionExprs); i++ {
-			acc = And{acc, conditionExprs[i]}
-		}
-		return acc
-	}
-	// Returns list of conditions for the most nested #if block
-	lastExprsGroup := func() []Expr {
-		if len(exprGroupsStack) == 0 {
-			return nil
-		}
-		return exprGroupsStack[len(exprGroupsStack)-1]
-	}
-	// Adds given `expr` to the current expression conditions
-	pushCondition := func(expr Expr) { conditionExprs = append(conditionExprs, expr) }
-	// Remvoes last Expr from the expression conditions
-	popCondition := func() bool {
-		if len(conditionExprs) > 0 {
-			conditionExprs = conditionExprs[:len(conditionExprs)-1]
-			return true
-		}
-		return false
-	}
+	// active #if/#else nesting – conjunction of these is the current guard
+	conditionStack []Expr
+	// stack of "already‑seen" branch expressions for each #if group;
+	// used to build !previous when we see #else / #elif
+	exprGroupStack [][]Expr
+}
 
-	// Create new nesting level for #if conditions
-	pushNewConditionsGroup := func(expr Expr) { exprGroupsStack = append(exprGroupsStack, []Expr{expr}) }
-	// Appends `expr` to the most nested condition group
-	pushToLastConditionsGroup := func(expr Expr) {
-		if len(exprGroupsStack) == 0 {
-			log.Panicf("no conditions group present")
-		}
-		lastGroup := &exprGroupsStack[len(exprGroupsStack)-1]
-		*lastGroup = append(*lastGroup, expr)
-	}
-	// Removes the most nested #if condition group
-	popLastExprsGroup := func() bool {
-		if len(exprGroupsStack) == 0 {
-			return false
-		}
-		exprGroupsStack = exprGroupsStack[:len(exprGroupsStack)-1]
-		return true
-	}
-
-	var nextIdent func() (Ident, error)
-	nextIdent = func() (Ident, error) {
-		token, exists := tr.Next()
-		if !exists {
-			return "", fmt.Errorf("not found expected ident")
-		}
-		if token == "\\" {
-			return nextIdent()
-		}
-		return Ident(token), nil
-	}
-
-	parseDirective := func(token string) error {
-		switch token {
-		case "#include":
-			isBracketInclude := false
-			include, ok := tr.Next()
-			if !ok {
-				return fmt.Errorf("unexpected end of file")
-			}
-
-			if include == "<" {
-				include, ok = tr.Next()
-				if !ok {
-					return fmt.Errorf("unexpected end of file")
-				}
-				isBracketInclude = true
-			} else if !strings.Contains(include, "\"") {
-				// Malformed include, e.g. #include exception>
-				isBracketInclude = true
-			}
-
-			path := strings.Trim(include, "\"")
-			conditionExpr := currentGuard()
-			switch {
-			case conditionExpr != nil:
-				sourceInfo.ConditionalIncludes = append(sourceInfo.ConditionalIncludes,
-					ConditionalInclude{Path: path, Condition: conditionExpr})
-			case isBracketInclude:
-				sourceInfo.Includes.Bracket = append(sourceInfo.Includes.Bracket, path)
-			default:
-				sourceInfo.Includes.DoubleQuote = append(sourceInfo.Includes.DoubleQuote, path)
-
-			}
-
-		// if conditions
-		case "#ifdef", "#ifndef":
-			ident, err := nextIdent()
-			if err != nil {
-				return err
-			}
-			var definition Expr = Defined{Name: ident}
-			if token == "#ifndef" {
-				definition = Not{definition}
-			}
-			pushCondition(definition)
-			pushNewConditionsGroup(definition)
-
-		case "#if":
-			expr, err := parseExpr(tr)
-			if err != nil {
-				return err
-			}
-			pushCondition(expr)
-			pushNewConditionsGroup(expr)
-
-		case "#else":
-			curExprsGroup := lastExprsGroup()
-			if !popCondition() || curExprsGroup == nil { // malformed source code
-				break
-			}
-			negateAll := Not{orAll(curExprsGroup...)}
-			pushCondition(negateAll)
-			pushToLastConditionsGroup(negateAll)
-
-		case "#elif", "#elifdef", "#elifndef":
-			curExprsGroup := lastExprsGroup()
-			if !popCondition() || curExprsGroup == nil { // malformed source code
-				break
-			}
-
-			var newExpr Expr
-			switch token {
-			case "#elif":
-				var err error
-				newExpr, err = parseExpr(tr)
-				if err != nil {
-					return err
-				}
-			case "#elifdef", "#elifndef":
-				ident, err := nextIdent()
-				if err != nil {
-					return err
-				}
-				newExpr = Defined{Name: ident}
-				if token == "#elifndef" {
-					newExpr = Not{newExpr}
-				}
-			}
-
-			notPrev := Not{orAll(curExprsGroup...)}
-			branch := And{newExpr, notPrev}
-			pushCondition(branch)
-			pushToLastConditionsGroup(newExpr) // NOTE: append **newExpr**, not branch!
-
-		case "#endif":
-			if !popCondition() || !popLastExprsGroup() {
-				break // malformed source code
-			}
-		}
-		return nil
-	}
-
-	// Main parser loop
+// Reads the content of input and extract CC source informations
+func parse(input io.Reader) (SourceInfo, error) {
+	p := &parser{tr: newTokenReader(input)}
 	for {
-		token, ok := tr.Next()
+		tok, ok := p.tr.next()
 		if !ok {
-			// EOF or error. In case of EOF scanner.Err() return nil
-			return sourceInfo, tr.scanner.Err()
+			return p.sourceInfo, p.tr.scanner.Err()
 		}
-		prevToken := lastToken
-		lastToken = token
+		prev := p.lastToken
+		p.lastToken = tok
 
-		if strings.HasPrefix(token, "#") {
-			parseDirective(token)
+		if strings.HasPrefix(tok, "#") {
+			if err := p.parseDirective(tok); err != nil {
+				return p.sourceInfo, err
+			}
 			continue
 		}
-
-		if token == "main" {
-			// TOOD: better detection of main signature
-			// We should also check for return type aliases and check if input args
-			if tok, exists := tr.Next(); exists && tok == "(" {
-				if prevToken == "int" {
-					sourceInfo.HasMain = true
+		if tok == "main" {
+			if next, exists := p.tr.next(); exists && next == "(" {
+				if prev == "int" {
+					p.sourceInfo.HasMain = true
 				}
-				continue
 			}
 		}
 	}
 }
 
-func parseExpr(tr *tokenReader) (Expr, error) {
+// currentGuard returns the AND‑conjunction of every active #if expression.
+func (p *parser) currentGuard() Expr {
+	if len(p.conditionStack) == 0 {
+		return nil
+	}
+	acc := p.conditionStack[0]
+	for i := 1; i < len(p.conditionStack); i++ {
+		acc = And{acc, p.conditionStack[i]}
+	}
+	return acc
+}
+func (p *parser) pushCondition(expr Expr) { p.conditionStack = append(p.conditionStack, expr) }
+func (p *parser) popCondition() bool {
+	if len(p.conditionStack) == 0 {
+		return false
+	}
+	p.conditionStack = p.conditionStack[:len(p.conditionStack)-1]
+	return true
+}
+
+func (p *parser) currentGroup() []Expr {
+	if len(p.exprGroupStack) == 0 {
+		return nil
+	}
+	return p.exprGroupStack[len(p.exprGroupStack)-1]
+}
+func (p *parser) pushNewGroup(expr Expr) { p.exprGroupStack = append(p.exprGroupStack, []Expr{expr}) }
+func (p *parser) appendToCurrentGroup(expr Expr) {
+	if len(p.exprGroupStack) == 0 {
+		log.Panic("parser invariant violated: no expression group present")
+	}
+	last := &p.exprGroupStack[len(p.exprGroupStack)-1]
+	*last = append(*last, expr)
+}
+func (p *parser) popGroup() bool {
+	if len(p.exprGroupStack) == 0 {
+		return false
+	}
+	p.exprGroupStack = p.exprGroupStack[:len(p.exprGroupStack)-1]
+	return true
+}
+
+// Returns the next macro definition identifier
+func (p *parser) parseIdent() (Ident, error) {
+	token, ok := p.tr.next()
+	if !ok {
+		return "", fmt.Errorf("expected identifier, found EOF")
+	}
+	if token == "\\" { // line continuation – skip and recurse
+		return p.parseIdent()
+	}
+	return Ident(token), nil
+}
+
+func (p *parser) handleInclude() error {
+	isBracket := false
+	include, ok := p.tr.next()
+	if !ok {
+		return fmt.Errorf("unexpected EOF after #include")
+	}
+
+	// "<foo>" style – we saw the opening '<'
+	if include == "<" {
+		isBracket = true
+		include, ok = p.tr.next()
+		if !ok {
+			return fmt.Errorf("unexpected EOF in bracketed include")
+		}
+	} else if !strings.Contains(include, "\"") {
+		// Malformed input, e.g. `#include weird>`
+		isBracket = true
+	}
+
+	path := strings.Trim(include, "\"")
+	guard := p.currentGuard()
+
+	switch {
+	case guard != nil:
+		p.sourceInfo.ConditionalIncludes = append(p.sourceInfo.ConditionalIncludes,
+			ConditionalInclude{Path: path, Condition: guard})
+	case isBracket:
+		p.sourceInfo.Includes.Bracket = append(p.sourceInfo.Includes.Bracket, path)
+	default:
+		p.sourceInfo.Includes.DoubleQuote = append(p.sourceInfo.Includes.DoubleQuote, path)
+	}
+	return nil
+}
+
+func (p *parser) handleIfdef(kind string) error {
+	ident, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	var expr Expr = Defined{Name: ident}
+	if kind == "#ifndef" {
+		expr = Not{expr}
+	}
+	p.pushCondition(expr)
+	p.pushNewGroup(expr)
+	return nil
+}
+
+func (p *parser) handleIf() error {
+	expr, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	p.pushCondition(expr)
+	p.pushNewGroup(expr)
+	return nil
+}
+
+func (p *parser) handleElse() {
+	cur := p.currentGroup()
+	if !p.popCondition() || cur == nil {
+		return // malformed – silently ignore
+	}
+	neg := Not{orAll(cur...)}
+	p.pushCondition(neg)
+	p.appendToCurrentGroup(neg)
+}
+
+func (p *parser) handleElif(kind string) error {
+	cur := p.currentGroup()
+	if !p.popCondition() || cur == nil {
+		return nil // malformed – silently ignore
+	}
+
+	var expr Expr
+	switch kind {
+	case "#elif":
+		var err error
+		expr, err = p.parseExpr()
+		if err != nil {
+			return err
+		}
+	case "#elifdef", "#elifndef":
+		ident, err := p.parseIdent()
+		if err != nil {
+			return err
+		}
+		expr = Defined{Name: ident}
+		if kind == "#elifndef" {
+			expr = Not{expr}
+		}
+	}
+
+	notPrev := Not{orAll(cur...)}
+	branch := And{expr, notPrev}
+	p.pushCondition(branch)
+	p.appendToCurrentGroup(expr) // add only the raw expr for future !prev
+	return nil
+}
+
+// Dispatcher for directive handlers
+func (p *parser) parseDirective(tok string) error {
+	switch tok {
+	case "#include":
+		return p.handleInclude()
+	case "#ifdef", "#ifndef":
+		return p.handleIfdef(tok)
+	case "#if":
+		return p.handleIf()
+	case "#else":
+		p.handleElse()
+	case "#elif", "#elifdef", "#elifndef":
+		return p.handleElif(tok)
+	case "#endif":
+		p.popCondition()
+		p.popGroup()
+	}
+	return nil
+}
+
+// Reads the input until end of line or until end of multi-line macro expression and parses it into Expr
+func (p *parser) parseExpr() (Expr, error) {
 	// Collect all tokens until end of line for easier processing of directive
 	// Can collect more then 1 line if ending with '\' character
 	ts := tokensStream{}
+	tr := p.tr
 collect:
 	for {
-		token, ok := tr.nextInternal(true)
+		token, ok := p.tr.nextInternal(true)
 		if !ok {
 			return nil, fmt.Errorf("expected more tokens: %v", tr.scanner.Err())
 		}
 		switch token {
 		case "\\":
 			// Multiline expression, continue parsing next line
-			if next, ok := tr.peekInternal(false); ok && next == EOL {
-				_, _ = tr.Next() // consume EOL
+			if next, ok := tr.peek(); ok && next == EOL {
+				_, _ = tr.next() // consume EOL
 				continue
 			}
 		case EOL:
@@ -370,17 +419,25 @@ collect:
 			ts.tokens = append(ts.tokens, token)
 		}
 	}
-	return parseOr(&ts)
+	parser := exprParser{ts: &ts}
+	return parser.parseOr()
 }
 
-func parseOr(ts *tokensStream) (Expr, error) {
-	left, err := parseAnd(ts)
+// Parser for expressions working on already loaded and cleaned up list of tokens collected until end of possibly multine macro expression
+// Used to parse the #if <expr> conditions, handles binary (&&, ||) and unary negation (!) operators
+type exprParser struct {
+	ts *tokensStream
+}
+
+func (ep *exprParser) parseOr() (Expr, error) {
+	ts := ep.ts
+	left, err := ep.parseAnd()
 	if err != nil {
 		return nil, err
 	}
 	for ts.peek("||") {
 		_ = ts.consume("||")
-		right, err := parseAnd(ts)
+		right, err := ep.parseAnd()
 		if err != nil {
 			return nil, err
 		}
@@ -389,14 +446,15 @@ func parseOr(ts *tokensStream) (Expr, error) {
 	return left, nil
 }
 
-func parseAnd(ts *tokensStream) (Expr, error) {
-	left, err := parseUnary(ts)
+func (ep *exprParser) parseAnd() (Expr, error) {
+	ts := ep.ts
+	left, err := ep.parseUnary()
 	if err != nil {
 		return nil, err
 	}
 	for ts.peek("&&") {
 		_ = ts.consume("&&")
-		right, err := parseUnary(ts)
+		right, err := ep.parseUnary()
 		if err != nil {
 			return nil, err
 		}
@@ -405,11 +463,12 @@ func parseAnd(ts *tokensStream) (Expr, error) {
 	return left, nil
 }
 
-func parseUnary(ts *tokensStream) (Expr, error) {
+func (ep *exprParser) parseUnary() (Expr, error) {
+	ts := ep.ts
 	switch {
 	case ts.peek("!"):
 		_ = ts.consume("!")
-		expr, err := parseUnary(ts)
+		expr, err := ep.parseUnary()
 		if err != nil {
 			return nil, err
 		}
@@ -417,7 +476,7 @@ func parseUnary(ts *tokensStream) (Expr, error) {
 
 	case ts.peek("("):
 		_ = ts.consume("(")
-		expr, err := parseOr(ts)
+		expr, err := ep.parseOr()
 		if err != nil {
 			return nil, err
 		}
@@ -491,41 +550,6 @@ func parseIntLiteral(tok string) (int, error) {
 var macroIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 var parsableIntegerRegex = regexp.MustCompile(`^(?:0[xX][0-9a-fA-F]+|0[0-7]*|[1-9][0-9]*)(?:[uU](?:ll?|LL?)?|ll?[uU]?|LL?[uU]?)?$`)
 
-// ParseMacros converts a slice of -D style macro definitions into a platform.Macros map,
-// validating that each value is an integerliteral understood by the conditional-expression evaluator.
-func ParseMacros(defs []string) (platform.Macros, error) {
-
-	out := platform.Macros{}
-
-	for _, d := range defs {
-		d = strings.TrimPrefix(d, "-D") // tolerate gcc/clang style
-		name, raw := d, ""              // default: bare macro
-
-		if eq := strings.IndexByte(d, '='); eq >= 0 {
-			name, raw = d[:eq], d[eq+1:]
-		}
-
-		if !macroIdentifierRegex.MatchString(name) {
-			return nil, fmt.Errorf("invalid macro name %q", name)
-		}
-
-		if raw == "" { // FOO -> FOO=1
-			out[name] = 1
-			continue
-		}
-
-		if !parsableIntegerRegex.MatchString(raw) {
-			return nil, fmt.Errorf("macro %s=%v, only integer literal values are allowed", name, raw)
-		}
-		value, err := parseIntLiteral(raw)
-		if err != nil {
-			return nil, fmt.Errorf("macro %s: %v", name, err)
-		}
-		out[name] = value
-	}
-	return out, nil
-}
-
 func orAll(xs ...Expr) Expr {
 	if len(xs) == 0 {
 		log.Panicf("empty orAll")
@@ -545,15 +569,15 @@ type tokenReader struct {
 	buf     *string // one‑token look‑ahead; nil when empty
 }
 
-// Next returns the next token skipping <EOL> markers.
-func (tr *tokenReader) Next() (string, bool) { return tr.nextInternal(false) }
-func (tr *tokenReader) Peek() (string, bool) { return tr.peekInternal(false) }
-
 func newTokenReader(r io.Reader) *tokenReader {
 	sc := bufio.NewScanner(r)
 	sc.Split(tokenizer)
 	return &tokenReader{scanner: sc}
 }
+
+// next returns the next token skipping <EOL> markers.
+func (tr *tokenReader) next() (string, bool) { return tr.nextInternal(false) }
+func (tr *tokenReader) peek() (string, bool) { return tr.peekInternal(false) }
 
 // internal helper: fetches next raw token from scanner. The bool flag identicates if data was available
 func (tr *tokenReader) fetch() (string, bool) {
@@ -568,7 +592,7 @@ func (tr *tokenReader) fetch() (string, bool) {
 	return tr.scanner.Text(), true
 }
 
-// nextInternal returns the next token, optionally filtering out EOL markers. The bool flag identicates if data was available
+// returns the next token, optionally filtering out EOL markers. The bool flag identicates if data was available
 func (tr *tokenReader) nextInternal(keepEOL bool) (string, bool) {
 	for {
 		tok, ok := tr.fetch()
@@ -582,10 +606,11 @@ func (tr *tokenReader) nextInternal(keepEOL bool) (string, bool) {
 	}
 }
 
+// returns the next token but does not consume the input, optionally filtering out EOL markers. The bool flag identicates if data was available
 func (tr *tokenReader) peekInternal(keepEOL bool) (string, bool) {
 	if tr.buf != nil {
 		if !keepEOL && *tr.buf == EOL {
-			return tr.Next() // ensure skip semantics
+			return tr.next() // ensure skip semantics
 		}
 		return *tr.buf, true
 	}
@@ -619,7 +644,6 @@ func (ts *tokensStream) consume(s string) error {
 	ts.idx++
 	return nil
 }
-
 func (ts *tokensStream) next() string {
 	if ts.idx >= len(ts.tokens) {
 		panic("unexpected EOL in expression")
