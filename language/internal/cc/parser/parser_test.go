@@ -22,7 +22,7 @@ import (
 func TestParseIncludes(t *testing.T) {
 	testCases := []struct {
 		input    string
-		expected Includes
+		expected []Include
 	}{
 		// Parses valid source code
 		{
@@ -31,9 +31,10 @@ func TestParseIncludes(t *testing.T) {
 #include "myheader.h"
 #include <math.h>
 `,
-			expected: Includes{
-				Bracket:     []string{"stdio.h", "math.h"},
-				DoubleQuote: []string{"myheader.h"},
+			expected: []Include{
+				{Path: "stdio.h", IsSystemInclude: true},
+				{Path: "myheader.h"},
+				{Path: "math.h", IsSystemInclude: true},
 			},
 		},
 		{
@@ -44,9 +45,11 @@ func TestParseIncludes(t *testing.T) {
 #include <math.h
 #include exception>
 `,
-			expected: Includes{
-				Bracket:     []string{"math.h", "exception"},
-				DoubleQuote: []string{"stdio.h", "stdlib.h"},
+			expected: []Include{
+				{Path: "stdio.h"},
+				{Path: "stdlib.h"},
+				{Path: "math.h", IsSystemInclude: true},
+				{Path: "exception", IsSystemInclude: true},
 			},
 		},
 	}
@@ -77,7 +80,7 @@ func TestParseSourceHasMain(t *testing.T) {
 				void my_function() {  // Not main
 						int x = 5;
 				}
-		
+
 				int main() {
 						return 0;
 				}

@@ -42,9 +42,9 @@ type (
 	}
 	ccInclude struct {
 		// Include path extracted from brackets or double quotes
-		rawPath string
-		// Repository root directory relative rawPath for quoted include, rawPath otherwise
-		normalizedPath string
+		path string
+		// Directory from which include is resolved
+		fromDirectory string
 		// True when include defined using brackets
 		isSystemInclude bool
 	}

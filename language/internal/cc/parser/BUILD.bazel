@@ -2,13 +2,19 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "parser",
-    srcs = ["parser.go"],
+    srcs = [
+        "expr.go",
+        "parser.go",
+    ],
     importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc/parser",
-    visibility = ["//language/cc:__pkg__"],
+    visibility = ["//language:__subpackages__"],
 )
 
 go_test(
     name = "parser_test",
     srcs = ["parser_test.go"],
     embed = [":parser"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+    ],
 )

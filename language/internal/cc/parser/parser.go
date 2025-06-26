@@ -24,13 +24,16 @@ import (
 )
 
 type SourceInfo struct {
-	Includes Includes
+	Includes []Include
 	HasMain  bool
 }
 
-type Includes struct {
-	DoubleQuote []string
-	Bracket     []string
+type Include struct {
+	Path string
+	// Wheter include is included using '<path>' syntax
+	IsSystemInclude bool
+	// '#if' condition guarding the expression, used to detect platform specific dependencies
+	Condition Expr // nil -> unconditional
 }
 
 func ParseSource(input string) SourceInfo {
@@ -128,12 +131,10 @@ func extractSourceInfo(input io.Reader) SourceInfo {
 
 		if token == "#include" && scanner.Scan() {
 			include := scanner.Text()
-			if strings.ContainsAny(include, "<>") {
-				sourceInfo.Includes.Bracket = append(sourceInfo.Includes.Bracket, strings.Trim(include, "<>"))
-			} else if strings.Contains(include, "\"") {
-				sourceInfo.Includes.DoubleQuote = append(sourceInfo.Includes.DoubleQuote, strings.Trim(include, "\""))
-			}
-			continue
+			sourceInfo.Includes = append(sourceInfo.Includes, Include{
+				Path:            strings.Trim(include, "<>\""),
+				IsSystemInclude: strings.ContainsAny(include, "<>"),
+			})
 		}
 
 		if token == "main" && scanner.Scan() {
