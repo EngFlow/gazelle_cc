@@ -25,7 +25,7 @@ import (
 func TestParseIncludes(t *testing.T) {
 	testCases := []struct {
 		input    string
-		expected Includes
+		expected []Include
 	}{
 		// Parses valid source code
 		{
@@ -34,9 +34,10 @@ func TestParseIncludes(t *testing.T) {
 #include "myheader.h"
 #include <math.h>
 `,
-			expected: Includes{
-				Bracket:     []string{"stdio.h", "math.h"},
-				DoubleQuote: []string{"myheader.h"},
+			expected: []Include{
+				{Path: "stdio.h", IsSystemInclude: true},
+				{Path: "myheader.h"},
+				{Path: "math.h", IsSystemInclude: true},
 			},
 		},
 		{
@@ -47,9 +48,11 @@ func TestParseIncludes(t *testing.T) {
 #include <math.h
 #include exception>
 `,
-			expected: Includes{
-				Bracket:     []string{"math.h", "exception"},
-				DoubleQuote: []string{"stdio.h", "stdlib.h"},
+			expected: []Include{
+				{Path: "stdio.h"},
+				{Path: "stdlib.h"},
+				{Path: "math.h", IsSystemInclude: true},
+				{Path: "exception", IsSystemInclude: true},
 			},
 		},
 	}
@@ -76,32 +79,30 @@ func TestParseConditionalIncludes(t *testing.T) {
 			input: `
 #include "common.h"
 #ifdef _WIN32
-#include "windows.h"
+#include <windows.h>
 #elifdef \ 
 	__APPLE__
-#include "unistd.h"
+#include <unistd.h>
 #elifndef __linux__
-#include "fcntl.h"
+#include <fcntl.h>
 #else
 #include "other.h"
 #endif
 #include "last.h"
 `,
 			expected: SourceInfo{
-				Includes: Includes{
-					DoubleQuote: []string{"common.h", "last.h"},
-				},
-				ConditionalIncludes: []ConditionalInclude{
-					ConditionalInclude{Path: "windows.h", Condition: Defined{Ident("_WIN32")}},
-					ConditionalInclude{Path: "unistd.h", Condition: And{
+				Includes: []Include{
+					{Path: "common.h"},
+					{Path: "windows.h", IsSystemInclude: true, Condition: Defined{Ident("_WIN32")}},
+					{Path: "unistd.h", IsSystemInclude: true, Condition: And{
 						Defined{Ident("__APPLE__")},
 						Not{Defined{Ident("_WIN32")}},
 					}},
-					ConditionalInclude{Path: "fcntl.h", Condition: And{
+					{Path: "fcntl.h", IsSystemInclude: true, Condition: And{
 						Not{Defined{Ident("__linux__")}},
 						Not{Or{Defined{Ident("_WIN32")}, Defined{Ident("__APPLE__")}}},
 					}},
-					ConditionalInclude{Path: "other.h", Condition: Not{
+					{Path: "other.h", Condition: Not{
 						Or{
 							Or{
 								Defined{Ident("_WIN32")},
@@ -109,6 +110,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 							},
 							Not{Defined{Ident("__linux__")}},
 						}}},
+					{Path: "last.h"},
 				},
 			},
 		},
@@ -128,17 +130,17 @@ func TestParseConditionalIncludes(t *testing.T) {
 #endif
 `,
 			expected: SourceInfo{
-				ConditionalIncludes: []ConditionalInclude{
-					ConditionalInclude{Path: "windows.h", Condition: Defined{Ident("_WIN32")}},
-					ConditionalInclude{Path: "unistd.h", Condition: And{
+				Includes: []Include{
+					{Path: "windows.h", Condition: Defined{Ident("_WIN32")}},
+					{Path: "unistd.h", Condition: And{
 						Defined{Ident("__APPLE__")},
 						Not{Defined{Ident("_WIN32")}},
 					}},
-					ConditionalInclude{Path: "fcntl.h", Condition: And{
+					{Path: "fcntl.h", Condition: And{
 						Not{Defined{Ident("__linux__")}},
 						Not{Or{Defined{Ident("_WIN32")}, Defined{Ident("__APPLE__")}}},
 					}},
-					ConditionalInclude{Path: "other.h", Condition: Not{
+					{Path: "other.h", Condition: Not{
 						Or{
 							Or{
 								Defined{Ident("_WIN32")},
@@ -159,8 +161,8 @@ func TestParseConditionalIncludes(t *testing.T) {
 #endif
 `,
 			expected: SourceInfo{
-				ConditionalIncludes: []ConditionalInclude{
-					ConditionalInclude{
+				Includes: []Include{
+					{
 						Path: "ui.h",
 						Condition: Or{
 							And{
@@ -170,7 +172,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 							Defined{Name: "__ANDROID__"},
 						},
 					},
-					ConditionalInclude{
+					{
 						Path: "cli.h",
 						Condition: And{
 							Defined{Name: "_WIN32"},
@@ -200,8 +202,8 @@ func TestParseConditionalIncludes(t *testing.T) {
 #endif
 `,
 			expected: SourceInfo{
-				ConditionalIncludes: []ConditionalInclude{
-					ConditionalInclude{
+				Includes: []Include{
+					{
 						Path: "feature.h",
 						Condition: Or{
 							And{
@@ -214,7 +216,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 							},
 						},
 					},
-					ConditionalInclude{
+					{
 						Path: "nofeature.h",
 						Condition: Not{
 							Or{
@@ -244,7 +246,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 #endif
 `,
 			expected: SourceInfo{
-				ConditionalIncludes: []ConditionalInclude{
+				Includes: []Include{
 					{
 						Path:      "ios_api.h",
 						Condition: Compare{Ident("TARGET_IOS"), "!=", Constant(0)},
@@ -277,7 +279,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 #endif
 `,
 			expected: SourceInfo{
-				ConditionalIncludes: []ConditionalInclude{
+				Includes: []Include{
 					{
 						Path:      "wideint.h",
 						Condition: Compare{Ident("__WINT_WIDTH__"), ">=", Constant(32)},
@@ -303,7 +305,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 		#endif
 		`,
 			expected: SourceInfo{
-				ConditionalIncludes: []ConditionalInclude{
+				Includes: []Include{
 					{
 						Path:      "a.h",
 						Condition: Compare{Constant(1), "==", Ident("__LITTLE_ENDIAN__")},
@@ -339,7 +341,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 #endif
 `,
 			expected: SourceInfo{
-				ConditionalIncludes: []ConditionalInclude{
+				Includes: []Include{
 					{
 						Path:      "armv8.h",
 						Condition: Compare{Ident("__ARM_ARCH"), "==", Constant(8)},
@@ -387,7 +389,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 				#endif
 				`,
 			expected: SourceInfo{
-				ConditionalIncludes: []ConditionalInclude{
+				Includes: []Include{
 					{
 						Path:      "foo.h",
 						Condition: Defined{Ident("FOO")},

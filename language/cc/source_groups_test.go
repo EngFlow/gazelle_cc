@@ -42,8 +42,8 @@ func TestSourceGroups(t *testing.T) {
 			clue: "Each header should form its own group even if it includes another",
 			input: sourceInfos{
 				"a.h": {},
-				"b.h": {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
-				"c.h": {Includes: parser.Includes{DoubleQuote: []string{"b.h"}}},
+				"b.h": {Includes: []parser.Include{{Path: "a.h"}}},
+				"c.h": {Includes: []parser.Include{{Path: "b.h"}}},
 			},
 			expected: sourceGroups{
 				"a": {sources: []sourceFile{"a.h"}},
@@ -67,11 +67,11 @@ func TestSourceGroups(t *testing.T) {
 		{
 			clue: "Merge cyclic dependency sources",
 			input: sourceInfos{
-				"a.h":  {Includes: parser.Includes{DoubleQuote: []string{"b.h"}}},
-				"a.c":  {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
-				"b.h":  {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
-				"b.cc": {Includes: parser.Includes{DoubleQuote: []string{"b.h"}}},
-				"c.h":  {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
+				"a.h":  {Includes: []parser.Include{{Path: "b.h"}}},
+				"a.c":  {Includes: []parser.Include{{Path: "a.h"}}},
+				"b.h":  {Includes: []parser.Include{{Path: "a.h"}}},
+				"b.cc": {Includes: []parser.Include{{Path: "b.h"}}},
+				"c.h":  {Includes: []parser.Include{{Path: "a.h"}}},
 			},
 			expected: sourceGroups{
 				"a": {sources: []sourceFile{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
@@ -82,9 +82,9 @@ func TestSourceGroups(t *testing.T) {
 			clue: "Detect implementation based cycle",
 			input: sourceInfos{
 				"a.h":  {},
-				"a.c":  {Includes: parser.Includes{DoubleQuote: []string{"b.h"}}},
+				"a.c":  {Includes: []parser.Include{{Path: "b.h"}}},
 				"b.h":  {},
-				"b.cc": {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
+				"b.cc": {Includes: []parser.Include{{Path: "a.h"}}},
 			},
 			expected: sourceGroups{
 				"a": {sources: []sourceFile{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
@@ -93,9 +93,9 @@ func TestSourceGroups(t *testing.T) {
 		{
 			clue: "Handle cyclic dependencies among headers correctly",
 			input: sourceInfos{
-				"p.h": {Includes: parser.Includes{DoubleQuote: []string{"q.h"}}},
-				"q.h": {Includes: parser.Includes{DoubleQuote: []string{"r.h"}}},
-				"r.h": {Includes: parser.Includes{DoubleQuote: []string{"p.h"}}},
+				"p.h": {Includes: []parser.Include{{Path: "q.h"}}},
+				"q.h": {Includes: []parser.Include{{Path: "r.h"}}},
+				"r.h": {Includes: []parser.Include{{Path: "p.h"}}},
 			},
 			expected: sourceGroups{
 				"p": {sources: []sourceFile{"p.h", "q.h", "r.h"}, subGroups: []groupId{"p", "q", "r"}},
@@ -107,7 +107,7 @@ func TestSourceGroups(t *testing.T) {
 				"m.h":      {},
 				"n.h":      {},
 				"o.h":      {},
-				"file.cpp": {Includes: parser.Includes{DoubleQuote: []string{"m.h", "n.h", "o.h"}}},
+				"file.cpp": {Includes: []parser.Include{{Path: "m.h"}, {Path: "n.h"}, {Path: "o.h"}}},
 			},
 			expected: sourceGroups{
 				"m":    {sources: []sourceFile{"m.h"}},
@@ -121,16 +121,16 @@ func TestSourceGroups(t *testing.T) {
 			clue: "Correctly group mixed dependencies",
 			input: sourceInfos{
 				"a.h":  {},
-				"b.h":  {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
+				"b.h":  {Includes: []parser.Include{{Path: "a.h"}}},
 				"c.h":  {},
-				"d.h":  {Includes: parser.Includes{DoubleQuote: []string{"c.h"}}},
-				"e.h":  {Includes: parser.Includes{DoubleQuote: []string{"d.h", "f1.h", "f2.h"}}},
-				"f1.h": {Includes: parser.Includes{DoubleQuote: []string{"e.h"}}},
-				"f2.h": {Includes: parser.Includes{DoubleQuote: []string{"e.h"}}},
-				"g.h":  {Includes: parser.Includes{DoubleQuote: []string{"b.h", "d.h"}}},
-				"h.h":  {Includes: parser.Includes{DoubleQuote: []string{"g.h"}}},
-				"i.h":  {Includes: parser.Includes{DoubleQuote: []string{"g.h"}}},
-				"j.h":  {Includes: parser.Includes{DoubleQuote: []string{"h.h", "i.h"}}},
+				"d.h":  {Includes: []parser.Include{{Path: "c.h"}}},
+				"e.h":  {Includes: []parser.Include{{Path: "d.h"}, {Path: "f1.h"}, {Path: "f2.h"}}},
+				"f1.h": {Includes: []parser.Include{{Path: "e.h"}}},
+				"f2.h": {Includes: []parser.Include{{Path: "e.h"}}},
+				"g.h":  {Includes: []parser.Include{{Path: "b.h"}, {Path: "d.h"}}},
+				"h.h":  {Includes: []parser.Include{{Path: "g.h"}}},
+				"i.h":  {Includes: []parser.Include{{Path: "g.h"}}},
+				"j.h":  {Includes: []parser.Include{{Path: "h.h"}, {Path: "i.h"}}},
 			},
 			expected: sourceGroups{
 				"a": {sources: []sourceFile{"a.h"}},
@@ -147,9 +147,9 @@ func TestSourceGroups(t *testing.T) {
 		{
 			clue: "Header including an external include file should still form a group",
 			input: sourceInfos{
-				"lib.h":   {Includes: parser.Includes{Bracket: []string{"system.h"}}},
-				"lib.cc":  {Includes: parser.Includes{DoubleQuote: []string{"lib.h"}}},
-				"app.cpp": {Includes: parser.Includes{Bracket: []string{"system.h"}}},
+				"lib.h":   {Includes: []parser.Include{{Path: "system.h", IsSystemInclude: true}}},
+				"lib.cc":  {Includes: []parser.Include{{Path: "lib.h"}}},
+				"app.cpp": {Includes: []parser.Include{{Path: "system.h", IsSystemInclude: true}}},
 			},
 			expected: sourceGroups{
 				"lib": {sources: []sourceFile{"lib.cc", "lib.h"}},
@@ -161,8 +161,8 @@ func TestSourceGroups(t *testing.T) {
 			input: sourceInfos{
 				"a.h":  {},
 				"b.h":  {},
-				"a.cc": {Includes: parser.Includes{DoubleQuote: []string{"b.h"}}},
-				"b.cc": {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
+				"a.cc": {Includes: []parser.Include{{Path: "b.h"}}},
+				"b.cc": {Includes: []parser.Include{{Path: "a.h"}}},
 			},
 			expected: sourceGroups{
 				"a": {sources: []sourceFile{"a.cc", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
@@ -174,7 +174,7 @@ func TestSourceGroups(t *testing.T) {
 				"a.h":  {},
 				"a.cc": {},
 				"b.h":  {},
-				"b.cc": {Includes: parser.Includes{DoubleQuote: []string{"a.h"}}},
+				"b.cc": {Includes: []parser.Include{{Path: "a.h"}}},
 			},
 			expected: sourceGroups{
 				"a": {sources: []sourceFile{"a.cc", "a.h"}},

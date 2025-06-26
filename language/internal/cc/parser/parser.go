@@ -38,22 +38,16 @@ import (
 )
 
 type SourceInfo struct {
-	Includes            Includes
-	ConditionalIncludes []ConditionalInclude
-	HasMain             bool
+	Includes []Include
+	HasMain  bool
 }
 
-// Includes separates unconditional include paths by their quoting delimiter.
-type Includes struct {
-	DoubleQuote []string
-	Bracket     []string
-}
-
-// ConditionalInclude holds a single #include together with the Expr that must be satisfied for it to become active.
-// A nil Condition means the include is unconditional and could actually have been stored in Includes – callers may merge the two forms if desired.
-type ConditionalInclude struct {
-	Path      string
-	Condition Expr // nil → unconditional
+type Include struct {
+	Path string
+	// Wheter include is included using '<path>' syntax
+	IsSystemInclude bool
+	// '#if' condition guarding the expression, used to detect platform specific dependencies
+	Condition Expr // nil -> unconditional
 }
 
 // ParseSource runs the extractor on an in‑memory buffer.
@@ -292,18 +286,11 @@ func (p *parser) handleInclude() error {
 		isBracket = true
 	}
 
-	path := strings.Trim(include, "\"")
-	guard := p.currentGuard()
-
-	switch {
-	case guard != nil:
-		p.sourceInfo.ConditionalIncludes = append(p.sourceInfo.ConditionalIncludes,
-			ConditionalInclude{Path: path, Condition: guard})
-	case isBracket:
-		p.sourceInfo.Includes.Bracket = append(p.sourceInfo.Includes.Bracket, path)
-	default:
-		p.sourceInfo.Includes.DoubleQuote = append(p.sourceInfo.Includes.DoubleQuote, path)
-	}
+	p.sourceInfo.Includes = append(p.sourceInfo.Includes, Include{
+		Path:            strings.Trim(include, "\""),
+		IsSystemInclude: isBracket,
+		Condition:       p.currentGuard(),
+	})
 	return nil
 }
 
