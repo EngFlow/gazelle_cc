@@ -7,7 +7,10 @@ go_library(
         "set.go",
     ],
     importpath = "github.com/EngFlow/gazelle_cc/index/internal/collections",
-    visibility = ["//index:__subpackages__"],
+    visibility = [
+        "//index:__subpackages__",
+        "//language:__subpackages__",
+    ],
 )
 
 go_test(
