@@ -18,6 +18,7 @@ import (
 	"log"
 	"maps"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -118,10 +119,16 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	resolveIncludes := func(includes []ccInclude, attributeName string, excluded labelsSet) labelsSet {
 		deps := make(map[label.Label]struct{})
 		for _, include := range includes {
-			resolvedLabel := lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
-			if resolvedLabel == label.NoLabel && !include.isSystemInclude {
+			var resolvedLabel = label.NoLabel
+			// 1. Try resolve using fully qualified path (repository-root relative)
+			if !include.isSystemInclude {
+				relPath := filepath.Join(include.fromDirectory, include.path)
+				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: relPath})
+			}
+			// 2. Try resolve using exact path - using the exact include directive
+			if resolvedLabel == label.NoLabel {
 				// Retry to resolve is external dependency was defined using quotes instead of braces
-				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.rawPath})
+				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path})
 			}
 			if resolvedLabel == label.NoLabel {
 				// We typically can get here is given file does not exists or if is assigned to the resolved rule
