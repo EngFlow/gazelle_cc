@@ -47,18 +47,18 @@ func ToSet[T comparable](slice []T) Set[T] {
 	return set
 }
 
-// Diff returns a new Set containing elements that are in `other` but not in the current Set.
+// Diff returns a new Set containing elements that are defined in current Set but not in the other set.
 //
 // Example:
 //
 //	a := SetOf(1, 2, 3)
 //	b := SetOf(2, 3, 4)
 //	diff := a.Diff(b)
-//	=> Set[int]{4}
+//	=> Set[int]{1}
 func (s Set[T]) Diff(other Set[T]) Set[T] {
 	diff := make(Set[T])
-	for elem := range other {
-		if _, exists := s[elem]; !exists {
+	for elem := range s {
+		if _, exists := other[elem]; !exists {
 			diff.Add(elem)
 		}
 	}
