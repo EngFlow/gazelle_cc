@@ -4,13 +4,14 @@ go 1.23.2
 
 require (
 	github.com/bazelbuild/bazel-gazelle v0.44.0
+	github.com/bazelbuild/buildtools v0.0.0-20240918101019-be1c24cc9a44
 	github.com/bazelbuild/rules_go v0.51.0
+	github.com/bmatcuk/doublestar/v4 v4.7.1
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/protobuf v1.36.6
 )
 
 require (
-	github.com/bazelbuild/buildtools v0.0.0-20240918101019-be1c24cc9a44 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/mod v0.20.0 // indirect
