@@ -148,16 +148,17 @@ func toDNF(e parser.Expr) dnf {
 func toNegationNormalForm(e parser.Expr) parser.Expr {
 	switch n := e.(type) {
 	case parser.Not:
-		inner := n.X
-		switch v := inner.(type) {
+		switch v := n.X.(type) {
 		case parser.Not:
 			return toNegationNormalForm(v.X) // !!A → A
 		case parser.And:
 			return parser.Or{L: toNegationNormalForm(parser.Not{X: v.L}), R: toNegationNormalForm(parser.Not{X: v.R})} // !(A&&B) → !A||!B
 		case parser.Or:
 			return parser.And{L: toNegationNormalForm(parser.Not{X: v.L}), R: toNegationNormalForm(parser.Not{X: v.R})} // !(A||B) → !A&&!B
+		case parser.Compare:
+			return v.Negate()
 		default: // Defined or bare ident
-			return parser.Not{X: toNegationNormalForm(inner)}
+			return parser.Not{X: toNegationNormalForm(n.X)}
 		}
 	case parser.And:
 		return parser.And{L: toNegationNormalForm(n.L), R: toNegationNormalForm(n.R)}
@@ -194,12 +195,12 @@ func exprToDnf(e parser.Expr) dnf {
 		return append(d, exprToDnf(n.R)...)
 
 	case parser.Not:
-		name, _ := extractMacro(n.X) // guaranteed literal after nnf
 		switch x := n.X.(type) {
 		case parser.Compare:
 			negated := x.Negate()
 			return dnf{{{Comparsion: &negated}}}
 		default:
+			name, _ := extractMacro(n.X) // guaranteed literal after nnf
 			return dnf{{{Macro: name, Negated: true}}}
 		}
 
