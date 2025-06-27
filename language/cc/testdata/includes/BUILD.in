@@ -1,0 +1,20 @@
+# gazelle:exclude include
+# gazelle:cc_group unit
+
+#keep
+cc_library(
+  name = "library",
+  hdrs = [
+    "include/lib.h",
+  ],
+  includes = ["include", "other"],
+)
+
+#keep
+cc_library(
+  name = "library_ext",
+  hdrs = [
+    "include/contrib/lib-ext.h",
+  ],
+  includes = ["include", "include/contrib", "other"],
+)

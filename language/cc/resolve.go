@@ -18,6 +18,7 @@ import (
 	"log"
 	"maps"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -58,11 +59,22 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 		if includePrefix != "" {
 			includePrefix = path.Clean(includePrefix)
 		}
-		imports = make([]resolve.ImportSpec, len(hdrs))
-		for i, hdr := range hdrs {
+		includes := r.AttrStrings("includes")
+		for i, includeDir := range includes {
+			includes[i] = filepath.FromSlash(path.Clean(includeDir))
+		}
+		imports = make([]resolve.ImportSpec, 0, len(hdrs)*(1+len(includes)))
+		for _, hdr := range hdrs {
 			hdrRel := path.Join(f.Pkg, hdr)
 			inc := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, hdrRel)
-			imports[i] = resolve.ImportSpec{Lang: languageName, Imp: inc}
+			// Index path directly as it is
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: inc})
+			// Index each matching relative include paths
+			for _, include := range includes {
+				if relInclude, err := filepath.Rel(include, inc); err == nil {
+					imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relInclude})
+				}
+			}
 		}
 	}
 
