@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "platform",
+    srcs = ["platforms.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc/platform",
+    visibility = ["//language:__subpackages__"],
+    deps = ["//index/internal/collections"],
+)

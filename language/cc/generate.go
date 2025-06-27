@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -51,6 +52,8 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 }
 
 func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) ccImports {
+	ccConfig := getCcConfig(args.Config)
+	platformMacros := ccConfig.platformMacros()
 	imports := ccImports{}
 	for _, file := range files {
 		var includes *[]ccInclude
@@ -61,12 +64,13 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 		}
 
 		sourceInfo := sourceInfos[file]
-		for _, include := range sourceInfo.Includes.DoubleQuote {
-			rawPath := path.Clean(include)
-			*includes = append(*includes, ccInclude{rawPath: rawPath, normalizedPath: path.Join(args.Rel, rawPath), isSystemInclude: false})
-		}
-		for _, include := range sourceInfo.Includes.Bracket {
-			*includes = append(*includes, ccInclude{rawPath: include, normalizedPath: include, isSystemInclude: true})
+		for _, include := range sourceInfo.Includes {
+			*includes = append(*includes, ccInclude{
+				path:            path.Clean(include.Path),
+				fromDirectory:   args.Rel,
+				isSystemInclude: include.IsSystemInclude,
+				platforms:       cc.PlatformsForExpr(include.Condition, platformMacros),
+			})
 		}
 	}
 
@@ -449,20 +453,18 @@ func (c *ccLanguage) listRelsToIndex(args language.GenerateArgs, srcInfo ccSourc
 	relsToIndexSeen := make(map[string]struct{})
 	conf := getCcConfig(args.Config)
 	for _, si := range srcInfo.sourceInfos {
-		for _, incs := range [][]string{si.Includes.DoubleQuote, si.Includes.Bracket} {
-			for _, inc := range incs {
-				dir := path.Dir(path.Clean(inc))
-				if dir == "." {
-					dir = ""
+		for _, inc := range si.Includes {
+			dir := path.Dir(path.Clean(inc.Path))
+			if dir == "." {
+				dir = ""
+			}
+			for _, ccSearch := range conf.ccSearch {
+				relToIndex := transformIncludePath("", ccSearch.stripIncludePrefix, ccSearch.includePrefix, dir)
+				if _, ok := relsToIndexSeen[relToIndex]; ok {
+					continue
 				}
-				for _, ccSearch := range conf.ccSearch {
-					relToIndex := transformIncludePath("", ccSearch.stripIncludePrefix, ccSearch.includePrefix, dir)
-					if _, ok := relsToIndexSeen[relToIndex]; ok {
-						continue
-					}
-					relsToIndexSeen[relToIndex] = struct{}{}
-					relsToIndex = append(relsToIndex, relToIndex)
-				}
+				relsToIndexSeen[relToIndex] = struct{}{}
+				relsToIndex = append(relsToIndex, relToIndex)
 			}
 		}
 	}
