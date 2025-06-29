@@ -12,8 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Provides gazelle_cc dependenices
-"""
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+"""Provides gazelle_cc dependenices for `WORKSPACE` mode."""
+
 def gazelle_cc_dependencies():
-  return
+    http_archive(
+        name = "package_metadata",
+        sha256 = "4bca4db6350daec6e30900001993e276669770e7e820b2538ecd61b56b5f08e4",
+        strip_prefix = "supply-chain-0.0.4.rc8/metadata",
+        urls = [
+            "https://github.com/bazel-contrib/supply-chain/releases/download/v0.0.4.rc8/supply-chain-v0.0.4.rc8.tar.gz",
+        ],
+    )
