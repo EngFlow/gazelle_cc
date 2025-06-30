@@ -83,10 +83,20 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 			// - foo.h - relative to the `include/ext/` directory (2nd 'includes' entry)
 			// We index the an alterantive variants here if they are matching the includes directory.
 			for _, includeDir := range includes {
-				if relativePath, err := filepath.Rel(includeDir, canonicalPath); err == nil {
-					imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
+				relativeTo := path.Join(f.Pkg, includeDir)
+				if includeDir == "." {
+					// Include '.' is special: it makes the path resolvable based from directory defining BUILD file instead of repository root
+					relativeTo = f.Pkg
 				}
-				// If the include directory is not relative to canonical form it's would be simply ignored.
+				// Ensure the prefix ends with path separator to distinguish include=foo hdrs=[foo.h, foo/bar.h]
+				// It was already cleaned so there won't be duplicate path seperators here
+				relativeTo = relativeTo + string(filepath.Separator)
+				relativePath, matching := strings.CutPrefix(canonicalPath, relativeTo)
+				if !matching {
+					// If the include directory is not relative to canonical form it's would be simply ignored.
+					continue
+				}
+				imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
 			}
 		}
 	}
