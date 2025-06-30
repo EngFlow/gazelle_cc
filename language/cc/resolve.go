@@ -41,6 +41,9 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 		if !slices.Contains(r.PrivateAttrKeys(), ccProtoLibraryFilesKey) {
 			break
 		}
+
+		// For each .proto in the target, index the compiler-generated header (foo.proto -> foo.pb.h).
+		// This lets other rules resolve #include "pkg/foo.pb.h" even though the header does not appear in hdrs/outs.
 		protos := r.PrivateAttr(ccProtoLibraryFilesKey).([]string)
 		imports = make([]resolve.ImportSpec, len(protos))
 		for i, protoFile := range protos {
@@ -61,19 +64,29 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 		}
 		includes := r.AttrStrings("includes")
 		for i, includeDir := range includes {
-			includes[i] = filepath.FromSlash(path.Clean(includeDir))
+			includes[i] = path.Clean(includeDir)
 		}
+
+		// Maximum possible slice: each header is indexed once for its fully-qualified path and at most once for every matching declared -I include directory.
 		imports = make([]resolve.ImportSpec, 0, len(hdrs)*(1+len(includes)))
 		for _, hdr := range hdrs {
-			hdrRel := path.Join(f.Pkg, hdr)
-			inc := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, hdrRel)
-			// Index path directly as it is
-			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: inc})
-			// Index each matching relative include paths
-			for _, include := range includes {
-				if relInclude, err := filepath.Rel(include, inc); err == nil {
-					imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relInclude})
+			// Index the canonicalPath form exactly as it will appear in source
+			// Transform the path based on the rule attributes
+			canonicalPath := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, path.Join(f.Pkg, hdr))
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: canonicalPath})
+
+			// Index shorter includes paths made valid by each -I <includeDir>
+			// Bazel adds every entry in the `includes` attribute to the compiler’s search path.
+			// With `includes=[include, include/ext]` header `include/ext/foo.h` can be referenced in 3 different ways:
+			// - include/ext/foo.h - the fully qualified (canonical) form
+			// - ext/foo.h - relative to the `include/` directory (1st 'includes' entry)
+			// - foo.h - relative to the `include/ext/` directory (2nd 'includes' entry)
+			// We index the an alterantive variants here if they are matching the includes directory.
+			for _, includeDir := range includes {
+				if relativePath, err := filepath.Rel(includeDir, canonicalPath); err == nil {
+					imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
 				}
+				// If the include directory is not relative to canonical form it's would be simply ignored.
 			}
 		}
 	}
