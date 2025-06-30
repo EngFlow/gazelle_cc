@@ -40,18 +40,19 @@ func TestParseIncludes(t *testing.T) {
 			},
 		},
 		{
-			// Accept malformed include
+			// Ignore malformed include
 			input: `
+#include "valid.h"
 #include "stdio.h
 #include stdlib.h"
 #include <math.h
 #include exception>
+#include "multiple"quotes.h"
+#include <other_valid>
 `,
 			expected: []Include{
-				{Path: "stdio.h"},
-				{Path: "stdlib.h"},
-				{Path: "math.h", IsSystemInclude: true},
-				{Path: "exception", IsSystemInclude: true},
+				{Path: "valid.h"},
+				{Path: "other_valid", IsSystemInclude: true},
 			},
 		},
 	}

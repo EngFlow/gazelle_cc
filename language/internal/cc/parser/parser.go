@@ -239,19 +239,31 @@ func (p *parser) handleInclude() error {
 	}
 
 	// "<foo>" style – we saw the opening '<'
-	if include == "<" {
+	switch include {
+	case "<":
 		isBracket = true
 		include, ok = p.tr.next()
 		if !ok {
 			return fmt.Errorf("unexpected EOF in bracketed include")
 		}
-	} else if !strings.Contains(include, "\"") {
-		// Malformed input, e.g. `#include weird>`
-		isBracket = true
+		if token, ok := p.tr.next(); !ok || token != ">" {
+			// Malformed input, e.g. `#include weird>`, ignore
+			return nil
+		}
+
+	default:
+		if !strings.HasPrefix(include, "\"") || !strings.HasSuffix(include, "\"") {
+			return nil // malformed include, e.g. `#include foo.h"`, ignore
+		}
+		unquoted := strings.Trim(include, "\"")
+		if strings.Contains(unquoted, "\"") {
+			return nil // malformed include, e.g. `#include "foo"bar.h"`, ignore
+		}
+		include = unquoted
 	}
 
 	p.sourceInfo.Includes = append(p.sourceInfo.Includes, Include{
-		Path:            strings.Trim(include, "\""),
+		Path:            include,
 		IsSystemInclude: isBracket,
 		Condition:       p.currentGuard(),
 	})
