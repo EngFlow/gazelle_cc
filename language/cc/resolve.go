@@ -15,18 +15,24 @@
 package cc
 
 import (
+	"fmt"
 	"log"
 	"maps"
+	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/index/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
+	bzl "github.com/bazelbuild/buildtools/build"
+	doublestar "github.com/bmatcuk/doublestar/v4"
 )
 
 // resolve.Resolver methods
@@ -49,7 +55,11 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 			}
 		}
 	default:
-		hdrs := r.AttrStrings("hdrs")
+		hdrs, err := collectStringsAttr(r, filepath.Dir(f.Path), "hdrs")
+		if err != nil {
+			log.Printf("gazelle_cc: failed to collect 'hdrs' attribute of %v defined in %v:%v, these would not be indexed: %v", r.Kind(), f.Pkg, r.Name(), err)
+			break
+		}
 		stripIncludePrefix := r.AttrString("strip_include_prefix")
 		if stripIncludePrefix != "" {
 			stripIncludePrefix = path.Clean(stripIncludePrefix)
@@ -187,4 +197,99 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	}
 
 	return label.NoLabel
+}
+
+func collectStringsAttr(r *rule.Rule, pkgDir, name string) ([]string, error) {
+	// Fast path: plain list of strings in the BUILD file.
+	if ss := r.AttrStrings(name); ss != nil {
+		return ss, nil
+	}
+
+	expr := r.Attr(name) // nil if the attribute is not present
+	if expr == nil {
+		return nil, nil
+	}
+
+	switch e := expr.(type) {
+	case *bzl.ListExpr:
+		return bzl.Strings(e), nil
+
+	case *bzl.CallExpr:
+		id, ok := e.X.(*bzl.Ident)
+		if !ok {
+			break
+		}
+		switch id.Name {
+		case "glob":
+			patterns, excludes := parseGlobCall(e)
+			return expandGlob(pkgDir, patterns, excludes)
+		}
+	}
+	return nil, nil
+}
+
+func parseGlobCall(call *bzl.CallExpr) (patterns, excludes []string) {
+	if len(call.List) > 0 {
+		if lst, ok := call.List[0].(*bzl.ListExpr); ok {
+			patterns = bzl.Strings(lst)
+		}
+	}
+	for idx, arg := range call.List {
+		switch v := arg.(type) {
+		// named argument
+		case *bzl.AssignExpr:
+			lhs, ok := v.LHS.(*bzl.Ident)
+			if !ok {
+				continue
+			}
+			rhs := bzl.Strings(v.RHS)
+			switch lhs.Name {
+			case "include":
+				patterns = rhs
+			case "exclude":
+				excludes = rhs
+			}
+		// positional argument
+		case *bzl.ListExpr:
+			strings := bzl.Strings(arg)
+			switch idx {
+			case 0:
+				patterns = strings
+			case 1:
+				excludes = strings
+			}
+		}
+	}
+	return
+}
+
+func expandGlob(pkgDir string, patterns, excludes []string) ([]string, error) {
+	fsys := os.DirFS(pkgDir)
+	globOpts := []doublestar.GlobOption{doublestar.WithFilesOnly(), doublestar.WithNoFollow()}
+
+	// First, resolve all exclude patterns.
+	excludeSet := collections.SetOf[string]()
+	for _, p := range excludes {
+		files, err := doublestar.Glob(fsys, p, globOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("exclude glob %q: %w", p, err)
+		}
+		excludeSet.Join(collections.ToSet(files))
+	}
+
+	// Then, resolve the main patterns.
+	resolved := collections.SetOf[string]()
+	for _, pattern := range patterns {
+		matched, err := doublestar.Glob(fsys, pattern, globOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("glob %q: %w", pattern, err)
+		}
+		for _, matchedPath := range matched {
+			if excludeSet.Contains(matchedPath) {
+				continue
+			}
+			resolved.Add(matchedPath)
+		}
+	}
+	return resolved.Values(), nil
 }
