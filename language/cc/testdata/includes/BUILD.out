@@ -11,7 +11,7 @@ cc_library(
     ],
     includes = [
         "include",
-        "other",
+        "other",  # Not matching any header, added only to confirm no unexpected side effects happen
     ],
 )
 
@@ -22,9 +22,9 @@ cc_library(
         "include/contrib/lib-ext.h",
     ],
     includes = [
-        "include",
-        "include/contrib",
-        "other",
+        "include",  # Adds contrib/lib-ext.h variant
+        "include/contrib",  # Adds lib-ext.h variant
+        "other",  # Not matching any header, added only to confirm no unexpected side effects happen
     ],
 )
 

@@ -3,18 +3,25 @@
 
 #keep
 cc_library(
-  name = "library",
-  hdrs = [
-    "include/lib.h",
-  ],
-  includes = ["include", "other"],
+    name = "library",
+    hdrs = [
+        "include/lib.h",
+    ],
+    includes = [
+        "include",
+        "other",  # Not matching any header, added only to confirm no unexpected side effects happen
+    ],
 )
 
 #keep
 cc_library(
-  name = "library_ext",
-  hdrs = [
-    "include/contrib/lib-ext.h",
-  ],
-  includes = ["include", "include/contrib", "other"],
+    name = "library_ext",
+    hdrs = [
+        "include/contrib/lib-ext.h",
+    ],
+    includes = [
+        "include",  # Adds contrib/lib-ext.h variant
+        "include/contrib",  # Adds lib-ext.h variant
+        "other",  # Not matching any header, added only to confirm no unexpected side effects happen
+    ],
 )
