@@ -27,7 +27,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -207,7 +206,7 @@ func (p *parser) currentGroup() []Expr {
 func (p *parser) pushNewGroup(expr Expr) { p.exprGroupStack = append(p.exprGroupStack, []Expr{expr}) }
 func (p *parser) appendToCurrentGroup(expr Expr) {
 	if len(p.exprGroupStack) == 0 {
-		log.Panic("parser invariant violated: no expression group present")
+		panic("parser invariant violated: no expression group present")
 	}
 	last := &p.exprGroupStack[len(p.exprGroupStack)-1]
 	*last = append(*last, expr)
@@ -350,18 +349,17 @@ func (p *parser) parseExpr() (Expr, error) {
 	// Collect all tokens until end of line for easier processing of directive
 	// Can collect more then 1 line if ending with '\' character
 	ts := tokensStream{}
-	tr := p.tr
 collect:
 	for {
 		token, ok := p.tr.nextInternal(true)
 		if !ok {
-			return nil, fmt.Errorf("expected more tokens: %v", tr.scanner.Err())
+			return nil, fmt.Errorf("expected more tokens: %v", p.tr.scanner.Err())
 		}
 		switch token {
 		case "\\":
 			// Multiline expression, continue parsing next line
-			if next, ok := tr.peek(); ok && next == EOL {
-				_, _ = tr.next() // consume EOL
+			if next, ok := p.tr.peek(); ok && next == EOL {
+				_, _ = p.tr.next() // consume EOL
 				continue
 			}
 		case EOL:
@@ -453,12 +451,12 @@ func (ep *exprParser) parseUnary() (Expr, error) {
 	token := ts.next()
 	if ts.idx < len(ts.tokens) && isBinaryCompareOperator(ts.tokens[ts.idx]) {
 		op := ts.next() // ==, !=, <, ...
-		lValue, err := interpretValue(token)
+		lValue, err := parseValue(token)
 		if err != nil {
 			return nil, err
 		}
 		rightToken := ts.next()
-		rValue, err := interpretValue(rightToken)
+		rValue, err := parseValue(rightToken)
 		if err != nil {
 			return nil, err
 		}
@@ -467,8 +465,8 @@ func (ep *exprParser) parseUnary() (Expr, error) {
 	return Compare{Left: Ident(token), Op: "!=", Right: Constant(0)}, nil
 }
 
-// interpretValue converts a token into either Ident or Constant.
-func interpretValue(token string) (Value, error) {
+// parseValue converts a token into either Ident or Constant.
+func parseValue(token string) (Value, error) {
 	if macroIdentifierRegex.MatchString(token) {
 		return Ident(token), nil
 	}
@@ -500,12 +498,10 @@ func parseIntLiteral(tok string) (int, error) {
 // * First character must be ‘_’ or a letter.
 // * Subsequent characters may be ‘_’, letters, or decimal digits.
 var macroIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-var parsableIntegerRegex = regexp.MustCompile(`^(?:0[xX][0-9a-fA-F]+|0[0-7]*|[1-9][0-9]*)(?:[uU](?:ll?|LL?)?|ll?[uU]?|LL?[uU]?)?$`)
 
 func orAll(xs ...Expr) Expr {
 	if len(xs) == 0 {
-		log.Panicf("empty orAll")
-		return nil
+		panic("empty orAll")
 	}
 	acc := xs[0]
 	for i := 1; i < len(xs); i++ {

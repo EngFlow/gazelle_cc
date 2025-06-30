@@ -16,13 +16,12 @@ package parser
 
 import (
 	"fmt"
-	"log"
 )
 
 type (
 	// Represents AST for #if conditions allowing for their analysis and evaluation
 	Expr interface {
-		String() string
+		fmt.Stringer
 	}
 	Defined struct{ Name Ident } // defined(x)
 	Not     struct{ X Expr }
@@ -38,7 +37,7 @@ type (
 type (
 	// Represents a values that can be part of #if expressions
 	Value interface {
-		String() string
+		fmt.Stringer
 	}
 	// Macro definition literal, e.g. _WIN32
 	Ident string
@@ -47,7 +46,7 @@ type (
 )
 
 func (expr Defined) String() string   { return fmt.Sprintf("defined(%s)", expr.Name) }
-func (expr Compare) String() string   { return fmt.Sprintf("%s %s %d", expr.Left, expr.Op, expr.Right) }
+func (expr Compare) String() string   { return fmt.Sprintf("%s %s %s", expr.Left, expr.Op, expr.Right) }
 func (expr Not) String() string       { return "!(" + expr.X.String() + ")" }
 func (expr And) String() string       { return expr.L.String() + " && " + expr.R.String() }
 func (expr Or) String() string        { return expr.L.String() + " || " + expr.R.String() }
@@ -71,7 +70,7 @@ func (expr Compare) Negate() Compare {
 	case ">=":
 		newOperator = "<"
 	default:
-		log.Panicf("Unknown compare operation type: %v", expr)
+		panic("unknown compare operation type")
 	}
 	return Compare{Left: expr.Left, Op: newOperator, Right: expr.Right}
 }
