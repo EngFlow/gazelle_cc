@@ -1,0 +1,59 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:exclude include
+# gazelle:cc_group unit
+
+#keep
+cc_library(
+    name = "library",
+    hdrs = [
+        "include/lib.h",
+    ],
+    includes = [
+        "include",
+        "other",  # Not matching any header, added only to confirm no unexpected side effects happen
+    ],
+)
+
+#keep
+cc_library(
+    name = "library_ext",
+    hdrs = [
+        "include/contrib/lib-ext.h",
+    ],
+    includes = [
+        "include",  # Adds contrib/lib-ext.h variant
+        "include/contrib",  # Adds lib-ext.h variant
+        "other",  # Not matching any header, added only to confirm no unexpected side effects happen
+    ],
+)
+
+cc_library(
+    name = "usage_direct",
+    srcs = ["usage_direct.cc"],
+    implementation_deps = [
+        ":library",
+        ":library_ext",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "usage_included_1",
+    srcs = ["usage_included_1.cc"],
+    implementation_deps = [
+        ":library",
+        ":library_ext",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "usage_included_2",
+    srcs = ["usage_included_2.cc"],
+    implementation_deps = [
+        ":library",
+        ":library_ext",
+    ],
+    visibility = ["//visibility:public"],
+)

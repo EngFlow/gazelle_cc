@@ -18,6 +18,7 @@ import (
 	"log"
 	"maps"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -40,6 +41,9 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 		if !slices.Contains(r.PrivateAttrKeys(), ccProtoLibraryFilesKey) {
 			break
 		}
+
+		// For each .proto in the target, index the compiler-generated header (foo.proto -> foo.pb.h).
+		// This lets other rules resolve #include "pkg/foo.pb.h" even though the header does not appear in hdrs/outs.
 		protos := r.PrivateAttr(ccProtoLibraryFilesKey).([]string)
 		imports = make([]resolve.ImportSpec, len(protos))
 		for i, protoFile := range protos {
@@ -58,11 +62,42 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 		if includePrefix != "" {
 			includePrefix = path.Clean(includePrefix)
 		}
-		imports = make([]resolve.ImportSpec, len(hdrs))
-		for i, hdr := range hdrs {
-			hdrRel := path.Join(f.Pkg, hdr)
-			inc := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, hdrRel)
-			imports[i] = resolve.ImportSpec{Lang: languageName, Imp: inc}
+		includes := r.AttrStrings("includes")
+		for i, includeDir := range includes {
+			includes[i] = path.Clean(includeDir)
+		}
+
+		// Maximum possible slice: each header is indexed once for its fully-qualified path and at most once for every matching declared -I include directory.
+		imports = make([]resolve.ImportSpec, 0, len(hdrs)*(1+len(includes)))
+		for _, hdr := range hdrs {
+			// Index the canonicalPath form exactly as it will appear in source
+			// Transform the path based on the rule attributes
+			canonicalPath := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, path.Join(f.Pkg, hdr))
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: canonicalPath})
+
+			// Index shorter includes paths made valid by each -I <includeDir>
+			// Bazel adds every entry in the `includes` attribute to the compiler’s search path.
+			// With `includes=[include, include/ext]` header `include/ext/foo.h` can be referenced in 3 different ways:
+			// - include/ext/foo.h - the fully qualified (canonical) form
+			// - ext/foo.h - relative to the `include/` directory (1st 'includes' entry)
+			// - foo.h - relative to the `include/ext/` directory (2nd 'includes' entry)
+			// We index the an alterantive variants here if they are matching the includes directory.
+			for _, includeDir := range includes {
+				relativeTo := path.Join(f.Pkg, includeDir)
+				if includeDir == "." {
+					// Include '.' is special: it makes the path resolvable based from directory defining BUILD file instead of repository root
+					relativeTo = f.Pkg
+				}
+				// Ensure the prefix ends with path separator to distinguish include=foo hdrs=[foo.h, foo/bar.h]
+				// It was already cleaned so there won't be duplicate path seperators here
+				relativeTo = relativeTo + string(filepath.Separator)
+				relativePath, matching := strings.CutPrefix(canonicalPath, relativeTo)
+				if !matching {
+					// If the include directory is not relative to canonical form it's would be simply ignored.
+					continue
+				}
+				imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
+			}
 		}
 	}
 
