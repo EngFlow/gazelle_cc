@@ -74,6 +74,26 @@ cc_library(
 )
 
 cc_library(
+    name = "test_include_guard",
+    hdrs = ["test_include_guard.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//shared:api",
+    ] + select({
+        "//platforms/linux_x86": [
+            "//select:unix",
+        ],
+        "//platforms/macos_arm": [
+            "//select:macos",
+        ],
+        "@platforms//os:windows": [
+            "//select:win",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_library(
     name = "test_unknown",
     hdrs = ["test_unknown.h"],
     visibility = ["//visibility:public"],

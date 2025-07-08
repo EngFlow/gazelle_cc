@@ -7,12 +7,9 @@ cc_library(
     hdrs = ["foo.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//select:macos",
+        "//select:unix",
+        "//select:win",
         "//shared:api",
-    ] + select({
-        "//conditions:default": [
-            "//select:macos",
-            "//select:unix",
-            "//select:win",
-        ],
-    }),
+    ],
 )

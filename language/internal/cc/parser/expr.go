@@ -22,52 +22,86 @@ import (
 )
 
 type (
-	// Represents AST for #if conditions allowing for their analysis and evaluation
+	// Expr represents an abstract syntax tree (AST) node for a C/C++ preprocessor #if condition.
+	// Each Expr node implements fmt.Stringer for debugging and round-tripping.
 	Expr interface {
 		// Eval reports whether the expression evaluates to true for a given macro set
 		Eval(macros platform.Macros) bool
 		String() string
 	}
-	Defined struct{ Name Ident } // defined(x)
-	Not     struct{ X Expr }
-	And     struct{ L, R Expr } //  a && b
-	Or      struct{ L, R Expr } //  a || b
-	Compare struct {            // A 'op' B
-		Left  Value
-		Op    string // "==", "!=", "<", "<=", ">", ">="
-		Right Value
+
+	// Defined represents the defined(X) operator in #if expressions,
+	// checking if a macro identifier is defined.
+	Defined struct {
+		Name Ident
+	}
+
+	// Not represents logical negation of a condition: !X
+	Not struct {
+		X Expr
+	}
+
+	// And represents a logical AND (X && Y) in #if expressions.
+	And struct {
+		L, R Expr
+	}
+
+	// Or represents a logical OR (X || Y) in #if expressions.
+	Or struct {
+		L, R Expr
+	}
+
+	// Compare represents a comparison between two values, e.g. A == B, A < B.
+	Compare struct {
+		Left  Expr   // Left-hand side of the comparison
+		Op    string // Comparison operator: "==", "!=", "<", "<=", ">", ">="
+		Right Expr   // Right-hand side of the comparison
 	}
 )
 
 type (
-	// Represents a values that can be part of #if expressions
+	// Value is a sub-interface of Expr, representing a literal value in a #if expression.
 	Value interface {
+		Expr
 		// Evaluates given Value to integer value. The bool flag identifies if given macro is defined an can was successfully evaluated
 		// Result of resolving a macro that is not defined in `macros` is implicitlly 0
 		Resolve(macros platform.Macros) (int, bool) // bool==false -> “undefined”
-		String() string
 	}
-	// Macro definition literal, e.g. _WIN32
+	// Ident is a macro identifier, such as _WIN32.
 	Ident string
-	// Integer value literal, e.g. 42
-	Constant int
+	// ConstantInt is an integer constant literal (e.g., 42).
+	ConstantInt int
 )
 
-func (expr Defined) String() string   { return fmt.Sprintf("defined(%s)", expr.Name) }
-func (expr Compare) String() string   { return fmt.Sprintf("%s %s %d", expr.Left, expr.Op, expr.Right) }
-func (expr Not) String() string       { return "!(" + expr.X.String() + ")" }
-func (expr And) String() string       { return expr.L.String() + " && " + expr.R.String() }
-func (expr Or) String() string        { return expr.L.String() + " || " + expr.R.String() }
-func (value Ident) String() string    { return string(value) }
-func (value Constant) String() string { return fmt.Sprintf("%d", value) }
+func (expr Defined) String() string     { return fmt.Sprintf("defined(%s)", expr.Name) }
+func (expr Compare) String() string     { return fmt.Sprintf("%s %s %d", expr.Left, expr.Op, expr.Right) }
+func (expr Not) String() string         { return "!(" + expr.X.String() + ")" }
+func (expr And) String() string         { return expr.L.String() + " && " + expr.R.String() }
+func (expr Or) String() string          { return expr.L.String() + " || " + expr.R.String() }
+func (expr Ident) String() string       { return string(expr) }
+func (expr ConstantInt) String() string { return fmt.Sprintf("%d", expr) }
 
 func (expr Defined) Eval(macros platform.Macros) bool {
 	_, exists := macros[string(expr.Name)]
 	return exists
 }
 func (expr Compare) Eval(macros platform.Macros) bool {
-	lv, _ := expr.Left.Resolve(macros)  // undefined -> 0
-	rv, _ := expr.Right.Resolve(macros) // undefined -> 0
+	// Evaluate expression and convert boolean to int value or resolve values based on provided macros set environment.
+	resolveExpr := func(expr Expr) int {
+		switch v := expr.(type) {
+		case Value:
+			if intValue, defined := v.Resolve(macros); defined {
+				return intValue
+			}
+		default:
+			if v.Eval(macros) {
+				return 1
+			}
+		}
+		return 0
+	}
+	lv := resolveExpr(expr.Left)
+	rv := resolveExpr(expr.Right)
 	switch expr.Op {
 	case "==":
 		return lv == rv
@@ -89,16 +123,24 @@ func (expr Compare) Eval(macros platform.Macros) bool {
 func (expr Not) Eval(macros platform.Macros) bool { return !expr.X.Eval(macros) }
 func (expr And) Eval(macros platform.Macros) bool { return expr.L.Eval(macros) && expr.R.Eval(macros) }
 func (expr Or) Eval(macros platform.Macros) bool  { return expr.L.Eval(macros) || expr.R.Eval(macros) }
+func (expr Ident) Eval(macros platform.Macros) bool {
+	value, _ := expr.Resolve(macros)
+	return value != 0
+}
+func (expr ConstantInt) Eval(macros platform.Macros) bool {
+	return expr != 0
+}
 
-func (value Ident) Resolve(macros platform.Macros) (int, bool) {
-	v, defined := macros[string(value)]
+func (expr Ident) Resolve(macros platform.Macros) (int, bool) {
+	v, defined := macros[string(expr)]
 	return v, defined
 }
-func (value Constant) Resolve(macros platform.Macros) (int, bool) {
+func (value ConstantInt) Resolve(macros platform.Macros) (int, bool) {
 	return int(value), true
 }
 
-// Negates the comparsion expresson by switching the operation to opposite kind, eg. == -> !=
+// Negate returns a new Compare expression with the comparison operator logically negated.
+// For example, == becomes !=, < becomes >=, and so on. Panics on unknown operator.
 func (expr Compare) Negate() Compare {
 	var newOperator string
 	switch expr.Op {

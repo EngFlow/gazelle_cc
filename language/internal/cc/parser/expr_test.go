@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package parser
 
 import (
-	"slices"
 	"testing"
 
-	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -40,118 +39,114 @@ func freshPlatformMacros() map[platform.Platform]platform.Macros {
 	}
 }
 
-func TestPlatformsForMacro(t *testing.T) {
-	platform.KnownPlatformMacros = freshPlatformMacros()
-
-	tests := []struct {
-		name     string
-		macro    string
-		expected []platform.Platform
-	}{
-		{"known macro", "LINUX", []platform.Platform{linuxAMD64}},
-		{"common macro", "SHARED_FLAG", []platform.Platform{linuxAMD64, windowsAMD64}},
-		{"unknown macro", "NOT_DEFINED", []platform.Platform{}},
-	}
-
-	for _, tc := range tests {
-		got := platformsForMacro(tc.macro, platform.KnownPlatformMacros).Values()
-		slices.SortFunc(got, platform.ComparePlatform)
-		if !slices.Equal(got, tc.expected) {
-			t.Errorf("%s: platformsForMacro(%q) = %v, want %v", tc.name, tc.macro, got, tc.expected)
-		}
-	}
-}
-
-func TestPlatformsForExpr(t *testing.T) {
-	platform.KnownPlatformMacros = freshPlatformMacros()
-
+// Test evaluation of expressions by testing against predefined platform macros.
+// Checks if given expression evaluates to true using given macros set
+func TestExprEvaluation(t *testing.T) {
 	cases := []struct {
 		name     string
-		expr     parser.Expr
+		expr     Expr
 		expected []platform.Platform
 	}{
 		{
 			"simple presence",
-			parser.Defined{Name: "LINUX"},
+			Defined{Name: "LINUX"},
 			[]platform.Platform{linuxAMD64},
 		},
 		{
 			"unknown macro",
-			parser.Defined{Name: "OTHER"},
+			Defined{Name: "OTHER"},
 			[]platform.Platform{},
 		},
 		{
 			"negated presence",
-			parser.Not{X: parser.Defined{Name: "LINUX"}},
+			Not{X: Defined{Name: "LINUX"}},
 			[]platform.Platform{windowsAMD64},
 		},
 		{
 			"negated unknown macro",
-			parser.Not{X: parser.Defined{Name: "OTHER"}},
+			Not{X: Defined{Name: "OTHER"}},
 			[]platform.Platform{linuxAMD64, windowsAMD64},
 		},
 		{
 			"compare != 0", // #if SHARED_FLAG
-			parser.Compare{Left: parser.Ident("SHARED_FLAG"), Op: "!=", Right: parser.Constant(0)},
+			Compare{Left: Ident("SHARED_FLAG"), Op: "!=", Right: ConstantInt(0)},
 			[]platform.Platform{linuxAMD64},
 		},
 		{
 			"compare == 0", // #if ! SHARED_FLAG
-			parser.Compare{Left: parser.Ident("SHARED_FLAG"), Op: "==", Right: parser.Constant(0)},
+			Compare{Left: Ident("SHARED_FLAG"), Op: "==", Right: ConstantInt(0)},
 			[]platform.Platform{windowsAMD64},
 		},
 		{
 			"compare >= 0",
-			parser.Compare{Left: parser.Ident("SHARED_FLAG"), Op: ">=", Right: parser.Constant(0)},
+			Compare{Left: Ident("SHARED_FLAG"), Op: ">=", Right: ConstantInt(0)},
 			[]platform.Platform{linuxAMD64, windowsAMD64},
 		},
 		{
 			"compare > 0",
-			parser.Compare{Left: parser.Ident("SHARED_FLAG"), Op: ">", Right: parser.Constant(0)},
+			Compare{Left: Ident("SHARED_FLAG"), Op: ">", Right: ConstantInt(0)},
 			[]platform.Platform{linuxAMD64},
 		},
 		{
 			"compare const == const -> true",
-			parser.Compare{Left: parser.Constant(0), Op: "==", Right: parser.Constant(0)},
+			Compare{Left: ConstantInt(0), Op: "==", Right: ConstantInt(0)},
 			[]platform.Platform{linuxAMD64, windowsAMD64},
 		},
 		{
 			"compare const != const -> true",
-			parser.Compare{Left: parser.Constant(0), Op: "!=", Right: parser.Constant(0)},
+			Compare{Left: ConstantInt(0), Op: "!=", Right: ConstantInt(0)},
 			[]platform.Platform{},
 		},
 		{
 			"compare $ident == $ident -> true",
-			parser.Compare{Left: parser.Ident("VER"), Op: "==", Right: parser.Ident("VER")},
+			Compare{Left: Ident("VER"), Op: "==", Right: Ident("VER")},
 			[]platform.Platform{linuxAMD64, windowsAMD64},
 		},
 		{
 			"compare $unknownIdent == 0 -> true",
-			parser.Compare{Left: parser.Ident("OTHER"), Op: "==", Right: parser.Constant(0)},
+			Compare{Left: Ident("OTHER"), Op: "==", Right: ConstantInt(0)},
 			[]platform.Platform{linuxAMD64, windowsAMD64},
 		},
 		{
 			"compare 0 != $unknownIdent -> false",
-			parser.Compare{Left: parser.Constant(0), Op: "!=", Right: parser.Ident("OTHER")},
+			Compare{Left: ConstantInt(0), Op: "!=", Right: Ident("OTHER")},
 			[]platform.Platform{},
 		},
 		{
 			"AND / OR combo", // #if (defined(LINUX) && SHARED_FLAG) || defined(WIN32)
-			parser.Or{
-				L: parser.And{
-					L: parser.Defined{Name: "LINUX"},
-					R: parser.Compare{Left: parser.Ident("SHARED_FLAG"), Op: "!=", Right: parser.Constant(0)},
+			Or{
+				L: And{
+					L: Defined{Name: "LINUX"},
+					R: Compare{Left: Ident("SHARED_FLAG"), Op: "!=", Right: ConstantInt(0)},
 				},
-				R: parser.Defined{Name: "WIN32"},
+				R: Defined{Name: "WIN32"},
 			},
+			[]platform.Platform{linuxAMD64, windowsAMD64},
+		},
+		{
+			"eval ident",
+			Ident("LINUX"),
+			[]platform.Platform{linuxAMD64},
+		},
+		{
+			"eval constant zero",
+			ConstantInt(0),
+			[]platform.Platform{},
+		},
+		{
+			"eval constant non zero",
+			ConstantInt(1),
 			[]platform.Platform{linuxAMD64, windowsAMD64},
 		},
 	}
 
 	for _, tc := range cases {
-		got := PlatformsForExpr(tc.expr, platform.KnownPlatformMacros)
-		if !slices.Equal(got, tc.expected) {
-			t.Errorf("%s: PlatformsForExpr(%v) = %v, want %v", tc.name, tc.expr, got, tc.expected)
+		availableOnPlatform := []platform.Platform{}
+		for platform, macros := range freshPlatformMacros() {
+			if tc.expr.Eval(macros) {
+				availableOnPlatform = append(availableOnPlatform, platform)
+			}
 		}
+		assert.ElementsMatch(t, tc.expected, availableOnPlatform, tc.name)
 	}
 }

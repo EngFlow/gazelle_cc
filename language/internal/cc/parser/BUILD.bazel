@@ -3,6 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "parser",
     srcs = [
+        "directive.go",
         "expr.go",
         "parser.go",
     ],
@@ -13,7 +14,10 @@ go_library(
 
 go_test(
     name = "parser_test",
-    srcs = ["parser_test.go"],
+    srcs = [
+        "expr_test.go",
+        "parser_test.go",
+    ],
     embed = [":parser"],
     deps = [
         "//language/internal/cc/platform",

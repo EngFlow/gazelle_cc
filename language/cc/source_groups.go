@@ -135,8 +135,8 @@ func buildDependencyGraph(sourceFiles []sourceFile, sourceInfos map[sourceFile]p
 		info := sourceInfos[file]
 		node := file.toGroupId()
 		graph[node].sources[file] = true
-		for _, include := range info.Includes {
-			if include.IsSystemInclude {
+		for _, include := range info.CollectIncludes() {
+			if include.IsSystem {
 				continue
 			}
 			// Exclude non local headers, these are handled independently as target dependency
