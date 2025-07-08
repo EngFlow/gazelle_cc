@@ -19,41 +19,62 @@ import (
 )
 
 type (
-	// Represents AST for #if conditions allowing for their analysis and evaluation
+	// Expr represents an abstract syntax tree (AST) node for a C/C++ preprocessor #if condition.
+	// Each Expr node implements fmt.Stringer for debugging and round-tripping.
 	Expr interface {
 		fmt.Stringer
 	}
-	Defined struct{ Name Ident } // defined(x)
-	Not     struct{ X Expr }
-	And     struct{ L, R Expr } //  a && b
-	Or      struct{ L, R Expr } //  a || b
-	Compare struct {            // A 'op' B
-		Left  Value
-		Op    string // "==", "!=", "<", "<=", ">", ">="
-		Right Value
+
+	// Defined represents the defined(X) operator in #if expressions,
+	// checking if a macro identifier is defined.
+	Defined struct {
+		Name Ident
+	}
+
+	// Not represents logical negation of a condition: !X
+	Not struct {
+		X Expr
+	}
+
+	// And represents a logical AND (X && Y) in #if expressions.
+	And struct {
+		L, R Expr
+	}
+
+	// Or represents a logical OR (X || Y) in #if expressions.
+	Or struct {
+		L, R Expr
+	}
+
+	// Compare represents a comparison between two values, e.g. A == B, A < B.
+	Compare struct {
+		Left  Expr   // Left-hand side of the comparison
+		Op    string // Comparison operator: "==", "!=", "<", "<=", ">", ">="
+		Right Expr   // Right-hand side of the comparison
 	}
 )
 
 type (
-	// Represents a values that can be part of #if expressions
+	// Value is a sub-interface of Expr, representing a literal value in a #if expression.
 	Value interface {
-		fmt.Stringer
+		Expr
 	}
-	// Macro definition literal, e.g. _WIN32
+	// Ident is a macro identifier, such as _WIN32.
 	Ident string
-	// Integer value literal, e.g. 42
-	Constant int
+	// ConstantInt is an integer constant literal (e.g., 42).
+	ConstantInt int
 )
 
-func (expr Defined) String() string   { return fmt.Sprintf("defined(%s)", expr.Name) }
-func (expr Compare) String() string   { return fmt.Sprintf("%s %s %s", expr.Left, expr.Op, expr.Right) }
-func (expr Not) String() string       { return "!(" + expr.X.String() + ")" }
-func (expr And) String() string       { return expr.L.String() + " && " + expr.R.String() }
-func (expr Or) String() string        { return expr.L.String() + " || " + expr.R.String() }
-func (value Ident) String() string    { return string(value) }
-func (value Constant) String() string { return fmt.Sprintf("%d", value) }
+func (expr Defined) String() string     { return fmt.Sprintf("defined(%s)", expr.Name) }
+func (expr Compare) String() string     { return fmt.Sprintf("%s %s %s", expr.Left, expr.Op, expr.Right) }
+func (expr Not) String() string         { return "!(" + expr.X.String() + ")" }
+func (expr And) String() string         { return expr.L.String() + " && " + expr.R.String() }
+func (expr Or) String() string          { return expr.L.String() + " || " + expr.R.String() }
+func (expr Ident) String() string       { return string(expr) }
+func (expr ConstantInt) String() string { return fmt.Sprintf("%d", expr) }
 
-// Negates the comparsion expresson by switching the operation to opposite kind, eg. == -> !=
+// Negate returns a new Compare expression with the comparison operator logically negated.
+// For example, == becomes !=, < becomes >=, and so on. Panics on unknown operator.
 func (expr Compare) Negate() Compare {
 	var newOperator string
 	switch expr.Op {
@@ -70,7 +91,7 @@ func (expr Compare) Negate() Compare {
 	case ">=":
 		newOperator = "<"
 	default:
-		panic("unknown compare operation type")
+		panic(fmt.Sprintf("unknown compare operation type: %s", expr.Op))
 	}
 	return Compare{Left: expr.Left, Op: newOperator, Right: expr.Right}
 }

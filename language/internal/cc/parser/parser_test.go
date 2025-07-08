@@ -15,7 +15,6 @@
 package parser
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,7 +23,7 @@ import (
 func TestParseIncludes(t *testing.T) {
 	testCases := []struct {
 		input    string
-		expected []Include
+		expected []Directive
 	}{
 		// Parses valid source code
 		{
@@ -33,10 +32,10 @@ func TestParseIncludes(t *testing.T) {
 #include "myheader.h"
 #include <math.h>
 `,
-			expected: []Include{
-				{Path: "stdio.h", IsSystemInclude: true},
-				{Path: "myheader.h"},
-				{Path: "math.h", IsSystemInclude: true},
+			expected: []Directive{
+				IncludeDirective{Path: "stdio.h", IsSystem: true},
+				IncludeDirective{Path: "myheader.h"},
+				IncludeDirective{Path: "math.h", IsSystem: true},
 			},
 		},
 		{
@@ -50,9 +49,9 @@ func TestParseIncludes(t *testing.T) {
 #include "multiple"quotes.h"
 #include <other_valid>
 `,
-			expected: []Include{
-				{Path: "valid.h"},
-				{Path: "other_valid", IsSystemInclude: true},
+			expected: []Directive{
+				IncludeDirective{Path: "valid.h"},
+				IncludeDirective{Path: "other_valid", IsSystem: true},
 			},
 		},
 	}
@@ -62,10 +61,7 @@ func TestParseIncludes(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
-		includes := result.Includes
-		if fmt.Sprintf("%v", includes) != fmt.Sprintf("%v", tc.expected) {
-			t.Errorf("For input: %q, expected %+v, but got %+v", tc.input, tc.expected, includes)
-		}
+		assert.Equal(t, tc.expected, result.Directives, "Input:%v", tc.input)
 	}
 }
 
@@ -91,367 +87,401 @@ func TestParseConditionalIncludes(t *testing.T) {
 #include "last.h"
 `,
 			expected: SourceInfo{
-				Includes: []Include{
-					{Path: "common.h"},
-					{Path: "windows.h", IsSystemInclude: true, Condition: Defined{Ident("_WIN32")}},
-					{Path: "unistd.h", IsSystemInclude: true, Condition: And{
-						Defined{Ident("__APPLE__")},
-						Not{Defined{Ident("_WIN32")}},
-					}},
-					{Path: "fcntl.h", IsSystemInclude: true, Condition: And{
-						Not{Defined{Ident("__linux__")}},
-						Not{Or{Defined{Ident("_WIN32")}, Defined{Ident("__APPLE__")}}},
-					}},
-					{Path: "other.h", Condition: Not{
-						Or{
-							Or{
-								Defined{Ident("_WIN32")},
-								Defined{Ident("__APPLE__")},
+				Directives: []Directive{
+					IncludeDirective{Path: "common.h"},
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Defined{Ident("_WIN32")},
+							Body: []Directive{
+								IncludeDirective{Path: "windows.h", IsSystem: true},
 							},
-							Not{Defined{Ident("__linux__")}},
-						}}},
-					{Path: "last.h"},
+						}, {
+							Kind:      ElifBranch,
+							Condition: Defined{Ident("__APPLE__")},
+							Body:      []Directive{IncludeDirective{Path: "unistd.h", IsSystem: true}},
+						}, {
+							Kind:      ElifBranch,
+							Condition: Not{Defined{Ident("__linux__")}},
+							Body: []Directive{
+								IncludeDirective{Path: "fcntl.h", IsSystem: true},
+							},
+						}, {
+							Kind: ElseBranch,
+							Body: []Directive{
+								IncludeDirective{Path: "other.h"},
+							},
+						},
+					}},
+					IncludeDirective{Path: "last.h"},
 				},
 			},
 		},
 		// if defined syntax
 		{
 			input: `
-#if defined _WIN32
-#include "windows.h"
-#elif defined ( __APPLE__ )
-#include "unistd.h"
-#elif ! \
-	defined(\
-	__linux__)
-#include "fcntl.h"
-#else 
-#include "other.h"
-#endif
-`,
+		#if defined _WIN32
+		#include "windows.h"
+		#elif defined ( __APPLE__ )
+		#include "unistd.h"
+		#elif ! \
+			defined(\
+			__linux__)
+		#include "fcntl.h"
+		#else
+		#include "other.h"
+		#endif
+		`,
 			expected: SourceInfo{
-				Includes: []Include{
-					{Path: "windows.h", Condition: Defined{Ident("_WIN32")}},
-					{Path: "unistd.h", Condition: And{
-						Defined{Ident("__APPLE__")},
-						Not{Defined{Ident("_WIN32")}},
-					}},
-					{Path: "fcntl.h", Condition: And{
-						Not{Defined{Ident("__linux__")}},
-						Not{Or{Defined{Ident("_WIN32")}, Defined{Ident("__APPLE__")}}},
-					}},
-					{Path: "other.h", Condition: Not{
-						Or{
-							Or{
-								Defined{Ident("_WIN32")},
-								Defined{Ident("__APPLE__")},
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Defined{Ident("_WIN32")},
+							Body: []Directive{
+								IncludeDirective{Path: "windows.h"},
 							},
-							Not{Defined{Ident("__linux__")}},
-						}}},
+						}, {
+							Kind:      ElifBranch,
+							Condition: Defined{Ident("__APPLE__")},
+							Body:      []Directive{IncludeDirective{Path: "unistd.h"}},
+						}, {
+							Kind:      ElifBranch,
+							Condition: Not{Defined{Ident("__linux__")}},
+							Body: []Directive{
+								IncludeDirective{Path: "fcntl.h"},
+							},
+						}, {
+							Kind: ElseBranch,
+							Body: []Directive{
+								IncludeDirective{Path: "other.h"},
+							},
+						},
+					}},
 				},
 			},
 		},
 		{
 			// complex boolean expression
 			input: `
-#if (defined(_WIN32) && defined(ENABLE_GUI)) || defined(__ANDROID__)
-#include "ui.h"
-#elif defined(_WIN32)
-#include "cli.h"
-#endif
-`,
+		#if (defined(_WIN32) && defined(ENABLE_GUI)) || defined(__ANDROID__)
+		#include "ui.h"
+		#elif defined(_WIN32)
+		#include "cli.h"
+		#endif
+		`,
 			expected: SourceInfo{
-				Includes: []Include{
-					{
-						Path: "ui.h",
-						Condition: Or{
-							And{
-								Defined{Name: "_WIN32"},
-								Defined{Name: "ENABLE_GUI"},
-							},
-							Defined{Name: "__ANDROID__"},
-						},
-					},
-					{
-						Path: "cli.h",
-						Condition: And{
-							Defined{Name: "_WIN32"},
-							Not{
-								Or{
-									And{
-										Defined{Name: "_WIN32"},
-										Defined{Name: "ENABLE_GUI"},
-									},
-									Defined{Name: "__ANDROID__"},
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind: IfBranch,
+							Condition: Or{
+								And{
+									Defined{Ident("_WIN32")},
+									Defined{Ident("ENABLE_GUI")},
 								},
+								Defined{Ident("__ANDROID__")},
+							},
+							Body: []Directive{
+								IncludeDirective{Path: "ui.h"},
 							},
 						},
-					},
+						{
+							Kind:      ElifBranch,
+							Condition: Defined{Ident("_WIN32")},
+							Body: []Directive{
+								IncludeDirective{Path: "cli.h"},
+							},
+						},
+					}},
 				},
 			},
 		},
 		{
 			// multiline directive with continuations
 			input: `
-#if defined(_WIN32) && \
-    !defined(DISABLE_FEATURE) || \
-    (defined(__APPLE__) && defined(ENABLE_COCOA))
-#include "feature.h"
-#else
-#include "nofeature.h"
-#endif
-`,
+		#if defined(_WIN32) && \
+		    !defined(DISABLE_FEATURE) || \
+		    (defined(__APPLE__) && defined(ENABLE_COCOA))
+		#include "feature.h"
+		#else
+		#include "nofeature.h"
+		#endif
+		`,
 			expected: SourceInfo{
-				Includes: []Include{
-					{
-						Path: "feature.h",
-						Condition: Or{
-							And{
-								Defined{Name: "_WIN32"},
-								Not{Defined{Name: "DISABLE_FEATURE"}},
-							},
-							And{
-								Defined{Name: "__APPLE__"},
-								Defined{Name: "ENABLE_COCOA"},
-							},
-						},
-					},
-					{
-						Path: "nofeature.h",
-						Condition: Not{
-							Or{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind: IfBranch,
+							Condition: Or{
 								And{
-									Defined{Name: "_WIN32"},
-									Not{Defined{Name: "DISABLE_FEATURE"}},
+									Defined{Ident("_WIN32")},
+									Not{Defined{Ident("DISABLE_FEATURE")}},
 								},
 								And{
-									Defined{Name: "__APPLE__"},
-									Defined{Name: "ENABLE_COCOA"},
+									Defined{Ident("__APPLE__")},
+									Defined{Ident("ENABLE_COCOA")},
 								},
 							},
+							Body: []Directive{
+								IncludeDirective{Path: "feature.h"},
+							},
 						},
-					},
+						{
+							Kind: ElseBranch,
+							Body: []Directive{
+								IncludeDirective{Path: "nofeature.h"},
+							},
+						},
+					}},
 				},
 			},
 		},
 		{
 			// #if X as equivalent of X != 0
 			input: `
-#if TARGET_IOS
-  #include "ios_api.h"
-#elif !TARGET_WINDOWS 
-	#include "unix_api.h"
-#else
-	#include "windows_api.h"
-#endif
-`,
-			expected: SourceInfo{
-				Includes: []Include{
-					{
-						Path:      "ios_api.h",
-						Condition: Compare{Ident("TARGET_IOS"), "!=", Constant(0)},
-					},
-					{
-						Path: "unix_api.h",
-						Condition: And{
-							Not{Compare{Ident("TARGET_WINDOWS"), "!=", Constant(0)}},
-							Not{Compare{Ident("TARGET_IOS"), "!=", Constant(0)}},
-						},
-					},
-					{
-						Path: "windows_api.h",
-						Condition: Not{
-							Or{
-								Compare{Ident("TARGET_IOS"), "!=", Constant(0)},
-								Not{Compare{Ident("TARGET_WINDOWS"), "!=", Constant(0)}},
-							}},
-					},
-				},
-			},
-		},
-		{
-			// simple #if / #else with comparsion operator
-			input: `
-#if __WINT_WIDTH__ >= 32
-#include "wideint.h"
-#else
-#include "narrowint.h"
-#endif
-`,
-			expected: SourceInfo{
-				Includes: []Include{
-					{
-						Path:      "wideint.h",
-						Condition: Compare{Ident("__WINT_WIDTH__"), ">=", Constant(32)},
-					},
-					{
-						Path: "narrowint.h",
-						Condition: Not{
-							Compare{Ident("__WINT_WIDTH__"), ">=", Constant(32)},
-						},
-					},
-				},
-			},
-		},
-		{
-			// simple #if / #else with comparsion operator
-			input: `
-		#if 1 == __LITTLE_ENDIAN__
-		#include "a.h"
-		#elif 0 != TARGET_IOS
-		#include "b.h"
-		#elif 32 > POINTER_SIZE
-		#include "c.h"
+		#if TARGET_IOS
+		  #include "ios_api.h"
+		#elif !TARGET_WINDOWS
+			#include "unix_api.h"
+		#else
+			#include "windows_api.h"
 		#endif
 		`,
 			expected: SourceInfo{
-				Includes: []Include{
-					{
-						Path:      "a.h",
-						Condition: Compare{Constant(1), "==", Ident("__LITTLE_ENDIAN__")},
-					},
-					{
-						Path: "b.h",
-						Condition: And{
-							Compare{Constant(0), "!=", Ident("TARGET_IOS")},
-							Not{Compare{Constant(1), "==", Ident("__LITTLE_ENDIAN__")}},
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Ident("TARGET_IOS"),
+							Body: []Directive{
+								IncludeDirective{Path: "ios_api.h"},
+							},
 						},
-					},
-					{
-						Path: "c.h",
-						Condition: And{
-							Compare{Constant(32), ">", Ident("POINTER_SIZE")},
-							Not{Or{
-								Compare{Constant(1), "==", Ident("__LITTLE_ENDIAN__")},
-								Compare{Constant(0), "!=", Ident("TARGET_IOS")},
-							}}},
-					},
+						{
+							Kind:      ElifBranch,
+							Condition: Not{Ident("TARGET_WINDOWS")},
+							Body: []Directive{
+								IncludeDirective{Path: "unix_api.h"},
+							},
+						},
+						{
+							Kind: ElseBranch,
+							Body: []Directive{
+								IncludeDirective{Path: "windows_api.h"},
+							},
+						},
+					}},
+				},
+			},
+		},
+		{
+			// simple #if / #else with comparsion operator
+			input: `
+		#if __WINT_WIDTH__ >= 32
+		#include "wideint.h"
+		#else
+		#include "narrowint.h"
+		#endif
+		`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Compare{Left: Ident("__WINT_WIDTH__"), Op: ">=", Right: ConstantInt(32)},
+							Body: []Directive{
+								IncludeDirective{Path: "wideint.h"},
+							},
+						},
+						{
+							Kind: ElseBranch,
+							Body: []Directive{
+								IncludeDirective{Path: "narrowint.h"},
+							},
+						},
+					}},
+				},
+			},
+		},
+		{
+			// simple #if / #else with comparsion operator
+			input: `
+				#if 1 == __LITTLE_ENDIAN__
+				#include "a.h"
+				#elif 0 != TARGET_IOS
+				#include "b.h"
+				#elif 32 > POINTER_SIZE
+				#include "c.h"
+				#endif
+				`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Compare{Left: ConstantInt(1), Op: "==", Right: Ident("__LITTLE_ENDIAN__")},
+							Body: []Directive{
+								IncludeDirective{Path: "a.h"},
+							},
+						},
+						{
+							Kind:      ElifBranch,
+							Condition: Compare{ConstantInt(0), "!=", Ident("TARGET_IOS")},
+							Body: []Directive{
+								IncludeDirective{Path: "b.h"},
+							},
+						},
+						{
+							Kind:      ElifBranch,
+							Condition: Compare{Left: ConstantInt(32), Op: ">", Right: Ident("POINTER_SIZE")},
+							Body: []Directive{
+								IncludeDirective{Path: "c.h"},
+							},
+						},
+					}},
 				},
 			},
 		},
 		{
 			// ==, >, and the automatic negations created for #elif / #else
 			input: `
-#if __ARM_ARCH == 8
-#include "armv8.h"
-#elif __ARM_ARCH > 8
-#include "armv9.h"
-#else
-#include "armlegacy.h"
-#endif
-`,
+		#if __ARM_ARCH == 8
+		#include "armv8.h"
+		#elif __ARM_ARCH > 8
+		#include "armv9.h"
+		#else
+		#include "armlegacy.h"
+		#endif
+		`,
 			expected: SourceInfo{
-				Includes: []Include{
-					{
-						Path:      "armv8.h",
-						Condition: Compare{Ident("__ARM_ARCH"), "==", Constant(8)},
-					},
-					{
-						Path: "armv9.h",
-						// parser rewrites #elif into A && !previous(A)
-						Condition: And{
-							Compare{Ident("__ARM_ARCH"), ">", Constant(8)},
-							Not{Compare{Ident("__ARM_ARCH"), "==", Constant(8)}},
-						},
-					},
-					{
-						Path: "armlegacy.h",
-						// final #else → !(A || B)
-						Condition: Not{
-							Or{
-								Compare{Ident("__ARM_ARCH"), "==", Constant(8)},
-								Compare{Ident("__ARM_ARCH"), ">", Constant(8)},
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Compare{Left: Ident("__ARM_ARCH"), Op: "==", Right: ConstantInt(8)},
+							Body: []Directive{
+								IncludeDirective{Path: "armv8.h"},
 							},
 						},
-					},
+						{
+							Kind:      ElifBranch,
+							Condition: Compare{Left: Ident("__ARM_ARCH"), Op: ">", Right: ConstantInt(8)},
+							Body: []Directive{
+								IncludeDirective{Path: "armv9.h"},
+							},
+						},
+						{
+							Kind: ElseBranch,
+							Body: []Directive{
+								IncludeDirective{Path: "armlegacy.h"},
+							},
+						},
+					}},
 				},
 			},
 		},
 		{
 			// nested #if / #else blocks – 3 levels deep
 			input: `
-				#if defined FOO
-					#include "foo.h"
-						#if defined(BAR)
-							#include "bar.h"
-							#ifdef BAZ
-								#include "baz.h"
-							#elifdef QUX
-								#include "qux.h"
-							#else
-								#include "nobaz.h"
-							#endif
+						#if defined FOO
+							#include "foo.h"
+								#if defined(BAR)
+									#include "bar.h"
+									#ifdef BAZ
+										#include "baz.h"
+									#elifdef QUX
+										#include "qux.h"
+									#else
+										#include "nobaz.h"
+									#endif
+								#else
+									#include "nobar.h"
+								#endif
 						#else
-							#include "nobar.h"
+							#include "nofoo.h"
 						#endif
-				#else
-					#include "nofoo.h"
-				#endif
-				`,
+						`,
 			expected: SourceInfo{
-				Includes: []Include{
-					{
-						Path:      "foo.h",
-						Condition: Defined{Ident("FOO")},
-					},
-					{
-						Path: "bar.h",
-						Condition: And{
-							Defined{Ident("FOO")},
-							Defined{Ident("BAR")},
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Defined{Ident("FOO")},
+							Body: []Directive{
+								IncludeDirective{Path: "foo.h"},
+								IfBlock{Branches: []ConditionalBranch{
+									{
+										Kind:      IfBranch,
+										Condition: Defined{Ident("BAR")},
+										Body: []Directive{
+											IncludeDirective{Path: "bar.h"},
+											IfBlock{Branches: []ConditionalBranch{
+												{
+													Kind:      IfBranch,
+													Condition: Defined{Ident("BAZ")},
+													Body:      []Directive{IncludeDirective{Path: "baz.h"}},
+												},
+												{
+													Kind:      ElifBranch,
+													Condition: Defined{Ident("QUX")},
+													Body:      []Directive{IncludeDirective{Path: "qux.h"}},
+												},
+												{
+													Kind: ElseBranch,
+													Body: []Directive{IncludeDirective{Path: "nobaz.h"}},
+												},
+											}},
+										}}, {
+										Kind: ElseBranch,
+										Body: []Directive{IncludeDirective{Path: "nobar.h"}},
+									}}}}},
+						{
+							Kind: ElseBranch,
+							Body: []Directive{IncludeDirective{Path: "nofoo.h"}},
 						},
 					},
-					{
-						Path: "baz.h",
-						Condition: And{
-							And{
-								Defined{Ident("FOO")},
-								Defined{Ident("BAR")},
-							},
-							Defined{Ident("BAZ")},
+					},
+				},
+			},
+		},
+		{
+			input: `
+				#if !A == B
+					#include <unistd.h>
+				#endif`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Compare{Left: Not{Ident("A")}, Op: "==", Right: Ident("B")},
+							Body:      []Directive{IncludeDirective{Path: "unistd.h", IsSystem: true}},
 						},
-					},
-					{
-						// QUX branch:  FOO && BAR && QUX && !BAZ
-						Path: "qux.h",
-						Condition: And{
-							And{ // FOO && BAR
-								Defined{Ident("FOO")},
-								Defined{Ident("BAR")},
-							},
-							And{ // QUX && !BAZ
-								Defined{Ident("QUX")},
-								Not{Defined{Ident("BAZ")}},
-							},
-						},
-					},
-					{
-						// nobaz branch: FOO && BAR && !(BAZ || QUX)
-						Path: "nobaz.h",
-						Condition: And{
-							And{ // FOO && BAR
-								Defined{Ident("FOO")},
-								Defined{Ident("BAR")},
-							},
-							Not{ // !(BAZ || QUX)
-								Or{
-									Defined{Ident("BAZ")},
-									Defined{Ident("QUX")},
-								},
+					}},
+				},
+			},
+		},
+		{
+			input: `
+				#ifndef FOO_H
+					#define FOO_H
+					#include "bar.h"
+					#undef FOO_H
+				#endif`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Not{Defined{Ident("FOO_H")}},
+							Body: []Directive{
+								DefineDirective{Name: "FOO_H", Tokens: []string{}},
+								IncludeDirective{Path: "bar.h"},
+								UndefineDirective{Name: "FOO_H"},
 							},
 						},
-					},
-					{
-						Path: "nobar.h",
-						Condition: And{
-							Defined{Ident("FOO")},
-							Not{Defined{Ident("BAR")}},
-						},
-					},
-					{
-						Path:      "nofoo.h",
-						Condition: Not{Defined{Ident("FOO")}},
-					},
+					}},
 				},
 			},
 		},
@@ -551,9 +581,6 @@ func TestParseSourceHasMain(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
-		hasMain := result.HasMain
-		if fmt.Sprintf("%v", hasMain) != fmt.Sprintf("%v", tc.expected) {
-			t.Errorf("For test case %d input: %q, expected %+v, but got %+v", idx, tc.input, tc.expected, hasMain)
-		}
+		assert.Equal(t, tc.expected, result.HasMain, "Test case %d, Input: %v", idx, tc.input)
 	}
 }

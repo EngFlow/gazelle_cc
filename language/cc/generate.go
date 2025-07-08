@@ -61,11 +61,11 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 		}
 
 		sourceInfo := sourceInfos[file]
-		for _, include := range sourceInfo.Includes {
+		for _, include := range sourceInfo.CollectIncludes() {
 			*includes = append(*includes, ccInclude{
 				path:            path.Clean(include.Path),
 				fromDirectory:   args.Rel,
-				isSystemInclude: include.IsSystemInclude,
+				isSystemInclude: include.IsSystem,
 			})
 		}
 	}
@@ -449,7 +449,7 @@ func (c *ccLanguage) listRelsToIndex(args language.GenerateArgs, srcInfo ccSourc
 	relsToIndexSeen := make(map[string]struct{})
 	conf := getCcConfig(args.Config)
 	for _, si := range srcInfo.sourceInfos {
-		for _, inc := range si.Includes {
+		for _, inc := range si.CollectIncludes() {
 			dir := path.Dir(path.Clean(inc.Path))
 			if dir == "." {
 				dir = ""
