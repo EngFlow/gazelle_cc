@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -119,6 +120,10 @@ func init() {
 		"<=":      {precedence: precedenceCompare, infixParser: parseBinaryCompareOperator},
 	}
 }
+
+// switch to enable logging of errors found when parsing sources
+// used only for development purpuses, we don't log log errors in normal mode
+const debug = false
 
 // getPrefixParseFn returns a prefix parser for a token, or a default parser for identifiers/literals.
 func getPrefixParseFn(token string) prefixParseFn {
@@ -373,7 +378,10 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token string) bool) ([]Dir
 				// `# directive` syntax, read and merge with next token
 				directiveKind, err := p.nextToken()
 				if err != nil {
-					p.skipLine() // skip remaining part of directive
+					skipped, _ := p.skipLine() // skip remaining part of directive
+					if debug {
+						log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token, err, skipped)
+					}
 					break
 				}
 				// parseDirective assumes full directive name including '#' prefix
@@ -381,8 +389,10 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token string) bool) ([]Dir
 			}
 			directive, err := p.parseDirective(token)
 			if err != nil {
-				p.skipLine()
-				// log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token, err, skipped)
+				skipped, _ := p.skipLine() // skip remaining part of directive
+				if debug {
+					log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token, err, skipped)
+				}
 				break
 			}
 			directives = append(directives, directive)
