@@ -118,6 +118,14 @@ func extractSourceInfo(input io.Reader) SourceInfo {
 		token := scanner.Text()
 		lastToken = token
 
+		// merge "# include" as "#include"
+		if token == "#" && scanner.Scan() {
+			token = scanner.Text()
+			if token == "include" {
+				token = "#include"
+			}
+		}
+
 		if token == "#include" && scanner.Scan() {
 			include := scanner.Text()
 			if strings.ContainsAny(include, "<>") {
