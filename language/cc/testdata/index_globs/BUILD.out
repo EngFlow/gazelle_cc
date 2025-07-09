@@ -1,0 +1,49 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:exclude include
+# gazelle:cc_group unit
+
+#keep
+cc_library(
+    name = "library",
+    hdrs = glob(
+        ["include/**/*.h"],
+        ["include/private/*.h"],
+    ),
+)
+
+#keep
+cc_library(
+    name = "library_private",
+    hdrs = glob(
+        include = ["include/private/*.h"],
+        exclude = ["include/**/excluded_*.h"],
+    ),
+)
+
+cc_library(
+    name = "usage_excluded",
+    srcs = ["usage_excluded.cc"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "usage_lib",
+    srcs = ["usage_lib.cc"],
+    implementation_deps = [":library"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "usage_lib-ext",
+    srcs = ["usage_lib-ext.cc"],
+    implementation_deps = [":library"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "usage_private",
+    srcs = ["usage_private.cc"],
+    implementation_deps = [":library_private"],
+    visibility = ["//visibility:public"],
+)
