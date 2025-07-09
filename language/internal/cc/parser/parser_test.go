@@ -30,7 +30,7 @@ func TestParseIncludes(t *testing.T) {
 			input: `
 #include <stdio.h>
 #include "myheader.h"
-#include <math.h>
+# include <math.h>
 `,
 			expected: []Directive{
 				IncludeDirective{Path: "stdio.h", IsSystem: true},
@@ -48,6 +48,8 @@ func TestParseIncludes(t *testing.T) {
 #include exception>
 #include "multiple"quotes.h"
 #include <other_valid>
+# 
+# unknown_directive
 `,
 			expected: []Directive{
 				IncludeDirective{Path: "valid.h"},

@@ -369,6 +369,16 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token string) bool) ([]Dir
 
 		switch {
 		case strings.HasPrefix(token, "#"):
+			if token == "#" {
+				// `# directive` syntax, read and merge with next token
+				directiveKind, err := p.nextToken()
+				if err != nil {
+					p.skipLine() // skip remaining part of directive
+					break
+				}
+				// parseDirective assumes full directive name including '#' prefix
+				token = "#" + directiveKind
+			}
 			directive, err := p.parseDirective(token)
 			if err != nil {
 				p.skipLine()
@@ -396,7 +406,10 @@ func (p *parser) parseExpr() (Expr, error) {
 func (p *parser) nextToken() (string, error) {
 	token, ok := p.tr.next()
 	if !ok {
-		return "", fmt.Errorf("expected identifier, found EOF")
+		return "", errors.New("expected identifier, found EOF")
+	}
+	if token == EOL {
+		return "", errors.New("expected token, found EOL")
 	}
 	return token, nil
 }
@@ -564,7 +577,7 @@ func (p *parser) parseDirective(token string) (Directive, error) {
 		if isEndOfIfBranch(token) {
 			return nil, fmt.Errorf("malformed input: unpaired #if condition token: %q", token)
 		}
-		return nil, nil
+		return nil, fmt.Errorf("unknown directive: %q", token)
 	}
 }
 
