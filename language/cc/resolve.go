@@ -16,12 +16,12 @@ package cc
 
 import (
 	"log"
-	"maps"
 	"path"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/index/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
@@ -145,18 +145,26 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 		return
 	}
 	ccImports := imports.(ccImports)
+	ccConfig := getCcConfig(c)
 
-	type labelsSet map[label.Label]struct{}
+	publicDeps := newPlatformDepsBuilder()
+	privateDeps := newPlatformDepsBuilder()
+
 	// Resolves given includes to rule labels and assigns them to given attribute.
 	// Excludes explicitly provided labels from being assigned
-	// Returns a set of successfully assigned labels, allowing to exclude them in following invocations
-	resolveIncludes := func(includes []ccInclude, attributeName string, excluded labelsSet) labelsSet {
-		deps := make(map[label.Label]struct{})
+	resolveIncludes := func(includes []ccInclude, builder platformDepsBuilder, excluded collections.Set[label.Label]) {
+
 		for _, include := range includes {
-			resolvedLabel := lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.normalizedPath})
-			if resolvedLabel == label.NoLabel && !include.isSystemInclude {
+			var resolvedLabel = label.NoLabel
+			// 1. Try resolve using fully qualified path (repository-root relative)
+			if !include.isSystemInclude {
+				relPath := filepath.Join(include.fromDirectory, include.path)
+				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: relPath})
+			}
+			// 2. Try resolve using exact path - using the exact include directive
+			if resolvedLabel == label.NoLabel {
 				// Retry to resolve is external dependency was defined using quotes instead of braces
-				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.rawPath})
+				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path})
 			}
 			if resolvedLabel == label.NoLabel {
 				// We typically can get here is given file does not exists or if is assigned to the resolved rule
@@ -164,26 +172,38 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			}
 			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
 			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
-				deps[resolvedLabel] = struct{}{}
+				switch {
+				case include.platforms == nil:
+					builder.addGeneric(resolvedLabel)
+				case len(include.platforms) == 0:
+					builder.addConstrained(label.New("", "conditions", "default"), resolvedLabel)
+				default:
+					for _, platform := range include.platforms {
+						if platformConfig, exists := ccConfig.platforms[platform]; exists {
+							builder.addConstrained(platformConfig.constraint, resolvedLabel)
+						}
+					}
+				}
 			}
 		}
-		if len(deps) > 0 {
-			r.SetAttr(attributeName, slices.SortedStableFunc(maps.Keys(deps), func(l, r label.Label) int {
-				return strings.Compare(l.String(), r.String())
-			}))
-		}
-		return deps
 	}
 
 	switch resolveCCRuleKind(r.Kind(), c) {
 	case "cc_library":
 		// Only cc_library has 'implementation_deps' attribute
 		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
-		publicDeps := resolveIncludes(ccImports.hdrIncludes, "deps", make(labelsSet))
-		resolveIncludes(ccImports.srcIncludes, "implementation_deps", publicDeps)
+		resolveIncludes(ccImports.hdrIncludes, publicDeps, collections.Set[label.Label]{})
+		resolveIncludes(ccImports.srcIncludes, privateDeps, publicDeps.all)
 	default:
 		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)
-		resolveIncludes(includes, "deps", make(labelsSet))
+		resolveIncludes(includes, publicDeps, collections.Set[label.Label]{})
+	}
+
+	if len(publicDeps.all) > 0 {
+		r.SetAttr("deps", publicDeps.build())
+	}
+	if len(privateDeps.all) > 0 {
+		r.SetAttr("implementation_deps", privateDeps.build())
 	}
 }
 
@@ -222,4 +242,45 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	}
 
 	return label.NoLabel
+}
+
+type platformDepsBuilder struct {
+	// Tracks all found dependencies
+	all collections.Set[label.Label]
+	// Dependencies that are shared by all platforms
+	generic collections.Set[label.Label]
+	// Map of platform specific constraints and dependencies assigned to each of them
+	constrainted map[label.Label]collections.Set[label.Label]
+}
+
+func newPlatformDepsBuilder() platformDepsBuilder {
+	return platformDepsBuilder{
+		all:          make(collections.Set[label.Label]),
+		generic:      make(collections.Set[label.Label]),
+		constrainted: make(map[label.Label]collections.Set[label.Label]),
+	}
+}
+func (b *platformDepsBuilder) addGeneric(dependency label.Label) {
+	b.all.Add(dependency)
+	b.generic.Add(dependency)
+}
+func (b *platformDepsBuilder) addConstrained(condition label.Label, dependency label.Label) {
+	b.all.Add(dependency)
+	deps, exists := b.constrainted[condition]
+	if !exists {
+		deps = make(collections.Set[label.Label])
+		b.constrainted[condition] = deps
+	}
+	deps.Add(dependency)
+}
+func (b *platformDepsBuilder) build() CcPlatformStrings {
+	platformStrings := CcPlatformStrings{[]string{}, map[string][]string{}}
+	toStringsSlice := func(labels collections.Set[label.Label]) []string {
+		return collections.Map(labels.Values(), func(label label.Label) string { return label.String() })
+	}
+	platformStrings.Generic = toStringsSlice(b.generic)
+	for constraintLabel, deps := range b.constrainted {
+		platformStrings.Constrained[constraintLabel.String()] = toStringsSlice(deps)
+	}
+	return platformStrings
 }
