@@ -147,29 +147,12 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	ccImports := imports.(ccImports)
 	ccConfig := getCcConfig(c)
 
+	publicDeps := newPlatformDepsBuilder()
+	privateDeps := newPlatformDepsBuilder()
+
 	// Resolves given includes to rule labels and assigns them to given attribute.
 	// Excludes explicitly provided labels from being assigned
-	// Returns a set of successfully assigned labels, allowing to exclude them in following invocations
-	resolveIncludes := func(includes []ccInclude, attributeName string, excluded collections.Set[label.Label]) collections.Set[label.Label] {
-		// Tracks all found dependencies, result of function call
-		allDeps := collections.Set[label.Label]{}
-		// Dependencies that are shared by all platforms
-		genericDeps := collections.Set[string]{}
-		addGeneric := func(label label.Label) {
-			allDeps.Add(label)
-			genericDeps.Add(label.String())
-		}
-		// Map of platform specific constraints and dependencies assigned to each of them
-		constrainedDeps := map[label.Label]collections.Set[string]{}
-		addConstrained := func(condition label.Label, label label.Label) {
-			allDeps.Add(label)
-			deps, exists := constrainedDeps[condition]
-			if !exists {
-				deps = collections.Set[string]{}
-				constrainedDeps[condition] = deps
-			}
-			deps.Add(label.String())
-		}
+	resolveIncludes := func(includes []ccInclude, builder platformDepsBuilder, excluded collections.Set[label.Label]) {
 
 		for _, include := range includes {
 			var resolvedLabel = label.NoLabel
@@ -191,40 +174,36 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
 				switch {
 				case include.platforms == nil:
-					addGeneric(resolvedLabel)
+					builder.addGeneric(resolvedLabel)
 				case len(include.platforms) == 0:
-					addConstrained(label.New("", "conditions", "default"), resolvedLabel)
+					builder.addConstrained(label.New("", "conditions", "default"), resolvedLabel)
 				default:
 					for _, platform := range include.platforms {
 						if platformConfig, exists := ccConfig.platforms[platform]; exists {
-							addConstrained(platformConfig.constraint, resolvedLabel)
+							builder.addConstrained(platformConfig.constraint, resolvedLabel)
 						}
 					}
 				}
 			}
 		}
-
-		platformStrings := CcPlatformStrings{[]string{}, map[string][]string{}}
-		platformStrings.Generic = genericDeps.Values()
-		for constraintLabel, deps := range constrainedDeps {
-			platformStrings.Constrained[constraintLabel.String()] = deps.Values()
-		}
-
-		if len(platformStrings.Strings()) > 0 {
-			r.SetAttr(attributeName, platformStrings)
-		}
-		return allDeps
 	}
 
 	switch resolveCCRuleKind(r.Kind(), c) {
 	case "cc_library":
 		// Only cc_library has 'implementation_deps' attribute
 		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
-		publicDeps := resolveIncludes(ccImports.hdrIncludes, "deps", collections.Set[label.Label]{})
-		resolveIncludes(ccImports.srcIncludes, "implementation_deps", publicDeps)
+		resolveIncludes(ccImports.hdrIncludes, publicDeps, collections.Set[label.Label]{})
+		resolveIncludes(ccImports.srcIncludes, privateDeps, publicDeps.all)
 	default:
 		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)
-		resolveIncludes(includes, "deps", collections.Set[label.Label]{})
+		resolveIncludes(includes, publicDeps, collections.Set[label.Label]{})
+	}
+
+	if len(publicDeps.all) > 0 {
+		r.SetAttr("deps", publicDeps.build())
+	}
+	if len(privateDeps.all) > 0 {
+		r.SetAttr("implementation_deps", privateDeps.build())
 	}
 }
 
@@ -263,4 +242,45 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	}
 
 	return label.NoLabel
+}
+
+type platformDepsBuilder struct {
+	// Tracks all found dependencies
+	all collections.Set[label.Label]
+	// Dependencies that are shared by all platforms
+	generic collections.Set[label.Label]
+	// Map of platform specific constraints and dependencies assigned to each of them
+	constrainted map[label.Label]collections.Set[label.Label]
+}
+
+func newPlatformDepsBuilder() platformDepsBuilder {
+	return platformDepsBuilder{
+		all:          make(collections.Set[label.Label]),
+		generic:      make(collections.Set[label.Label]),
+		constrainted: make(map[label.Label]collections.Set[label.Label]),
+	}
+}
+func (b *platformDepsBuilder) addGeneric(dependency label.Label) {
+	b.all.Add(dependency)
+	b.generic.Add(dependency)
+}
+func (b *platformDepsBuilder) addConstrained(condition label.Label, dependency label.Label) {
+	b.all.Add(dependency)
+	deps, exists := b.constrainted[condition]
+	if !exists {
+		deps = make(collections.Set[label.Label])
+		b.constrainted[condition] = deps
+	}
+	deps.Add(dependency)
+}
+func (b *platformDepsBuilder) build() CcPlatformStrings {
+	platformStrings := CcPlatformStrings{[]string{}, map[string][]string{}}
+	toStringsSlice := func(labels collections.Set[label.Label]) []string {
+		return collections.Map(labels.Values(), func(label label.Label) string { return label.String() })
+	}
+	platformStrings.Generic = toStringsSlice(b.generic)
+	for constraintLabel, deps := range b.constrainted {
+		platformStrings.Constrained[constraintLabel.String()] = toStringsSlice(deps)
+	}
+	return platformStrings
 }
