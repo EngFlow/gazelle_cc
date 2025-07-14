@@ -30,40 +30,12 @@ import (
 	"io"
 	"log"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 )
-
-// SourceInfo contains the structural information extracted from a C/C++ source file.
-type SourceInfo struct {
-	Directives []Directive // Top-level parsed preprocessor directives (may be nested)
-	HasMain    bool        // True if a main() function is detected
-}
-
-// CollectIncludes recursively traverses the directive tree and returns all IncludeDirective
-// instances, flattening the nested IfBlock structure. This allows consumers to extract all
-// discovered #include directives, regardless of conditional logic.
-func (si SourceInfo) CollectIncludes() []IncludeDirective {
-	var result []IncludeDirective
-	var walk func([]Directive)
-	walk = func(directives []Directive) {
-		for _, d := range directives {
-			switch v := d.(type) {
-			case IncludeDirective:
-				result = append(result, v)
-
-			case IfBlock:
-				for _, branch := range v.Branches {
-					walk(branch.Body)
-				}
-			}
-		}
-	}
-	walk(si.Directives)
-	return result
-}
 
 // ParseSource runs the extractor on an in‑memory buffer.
 func ParseSource(input string) (SourceInfo, error) {
