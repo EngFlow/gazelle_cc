@@ -16,7 +16,10 @@ package parser
 
 import (
 	"fmt"
+	"log"
 	"strings"
+
+	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 )
 
 type (
@@ -24,6 +27,8 @@ type (
 	// Each Expr node implements fmt.Stringer for debugging and round-tripping.
 	Expr interface {
 		fmt.Stringer
+		// Eval reports whether the expression evaluates to true for a given macro set
+		Eval(macros cc.Macros) bool
 	}
 
 	// Defined represents the defined(X) operator in #if expressions,
@@ -65,6 +70,9 @@ type (
 	// Value is a sub-interface of Expr, representing a literal value in a #if expression.
 	Value interface {
 		Expr
+		// Evaluates given Value to integer value. The bool flag identifies if given macro is defined an can was successfully evaluated
+		// Result of resolving a macro that is not defined in `macros` is implicitlly 0
+		Resolve(macros cc.Macros) (int, bool) // bool==false -> “undefined”
 	}
 	// Ident is a macro identifier, such as _WIN32.
 	Ident string
@@ -86,6 +94,60 @@ func (expr And) String() string         { return expr.L.String() + " && " + expr
 func (expr Or) String() string          { return expr.L.String() + " || " + expr.R.String() }
 func (expr Ident) String() string       { return string(expr) }
 func (expr ConstantInt) String() string { return fmt.Sprintf("%d", expr) }
+
+func (expr Defined) Eval(macros cc.Macros) bool {
+	_, exists := macros[string(expr.Name)]
+	return exists
+}
+func (expr Compare) Eval(macros cc.Macros) bool {
+	// Evaluate expression and convert boolean to int value or resolve values based on provided macros set environment.
+	resolveExpr := func(expr Expr) int {
+		switch v := expr.(type) {
+		case Value:
+			if intValue, defined := v.Resolve(macros); defined {
+				return intValue
+			}
+		default:
+			if v.Eval(macros) {
+				return 1
+			}
+		}
+		return 0
+	}
+	lv := resolveExpr(expr.Left)
+	rv := resolveExpr(expr.Right)
+	switch expr.Op {
+	case "==":
+		return lv == rv
+	case "!=":
+		return lv != rv
+	case "<":
+		return lv < rv
+	case "<=":
+		return lv <= rv
+	case ">":
+		return lv > rv
+	case ">=":
+		return lv >= rv
+	default:
+		log.Panicf("Unknown compare operation type: %v", expr)
+		return false
+	}
+}
+func (expr Not) Eval(macros cc.Macros) bool { return !expr.X.Eval(macros) }
+func (expr And) Eval(macros cc.Macros) bool { return expr.L.Eval(macros) && expr.R.Eval(macros) }
+func (expr Or) Eval(macros cc.Macros) bool  { return expr.L.Eval(macros) || expr.R.Eval(macros) }
+func (expr Ident) Eval(macros cc.Macros) bool {
+	value, _ := expr.Resolve(macros)
+	return value != 0
+}
+func (expr ConstantInt) Eval(macros cc.Macros) bool { return expr != 0 }
+
+func (expr Ident) Resolve(macros cc.Macros) (int, bool) {
+	v, defined := macros[string(expr)]
+	return v, defined
+}
+func (value ConstantInt) Resolve(macros cc.Macros) (int, bool) { return int(value), true }
 
 // Negate returns a new Compare expression with the comparison operator logically negated.
 // For example, == becomes !=, < becomes >=, and so on. Panics on unknown operator.
