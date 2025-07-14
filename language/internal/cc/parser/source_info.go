@@ -14,6 +14,12 @@
 
 package parser
 
+import (
+	"maps"
+
+	"github.com/EngFlow/gazelle_cc/language/internal/cc"
+)
+
 // SourceInfo contains the structural information extracted from a C/C++ source file.
 type SourceInfo struct {
 	Directives []Directive // Top-level parsed preprocessor directives (may be nested)
@@ -35,6 +41,46 @@ func (si SourceInfo) CollectIncludes() []IncludeDirective {
 			case IfBlock:
 				for _, branch := range v.Branches {
 					walk(branch.Body)
+				}
+			}
+		}
+	}
+	walk(si.Directives)
+	return result
+}
+
+// CollectIncludes recursively traverses the directive tree based on the successuflly evaluated conditions
+// and returns all found IncludeDirective instances. This allows consumers to extract
+// discovered #include directives based on given predefined environment
+func (si SourceInfo) CollectReachableIncludes(macros cc.Macros) []IncludeDirective {
+	var result []IncludeDirective
+	// Start with a copy of the provided macros, might be modified during evaluation
+	var env cc.Macros = maps.Clone(macros)
+	var walk func([]Directive)
+	walk = func(directives []Directive) {
+		for _, d := range directives {
+			switch v := d.(type) {
+			case IncludeDirective:
+				result = append(result, v)
+
+			case DefineDirective:
+				intValue := 1
+				if len(v.Tokens) > 0 {
+					if value, err := parseIntLiteral(v.Tokens[0]); err == nil {
+						intValue = value
+					}
+				}
+				env[v.Name] = intValue
+
+			case UndefineDirective:
+				delete(env, v.Name)
+
+			case IfBlock:
+				for _, branch := range v.Branches {
+					if branch.Condition == nil || branch.Condition.Eval(env) {
+						walk(branch.Body)
+						break
+					}
 				}
 			}
 		}

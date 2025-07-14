@@ -21,16 +21,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCollectIncludes(t *testing.T) {
+func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 	type macrosCase struct {
 		name   string
 		macros cc.Macros
 		want   []IncludeDirective
 	}
 	tests := []struct {
-		name    string
-		input   string
-		wantAll []IncludeDirective
+		name       string
+		input      string
+		wantAll    []IncludeDirective
+		reachCases []macrosCase
 	}{
 		{
 			name: "flat includes",
@@ -44,6 +45,17 @@ func TestCollectIncludes(t *testing.T) {
 				{Path: "foo.h"},
 				{Path: "bar.h", IsSystem: true},
 			},
+			reachCases: []macrosCase{
+				{
+					name:   "no macros",
+					macros: cc.Macros{},
+					want: []IncludeDirective{
+						{Path: "stdio.h", IsSystem: true},
+						{Path: "foo.h"},
+						{Path: "bar.h", IsSystem: true},
+					},
+				},
+			},
 		},
 		{
 			name: "ifdef disables include",
@@ -56,6 +68,21 @@ func TestCollectIncludes(t *testing.T) {
 			wantAll: []IncludeDirective{
 				{Path: "foo.h"},
 				{Path: "always.h"},
+			},
+			reachCases: []macrosCase{
+				{
+					name:   "FOO undefined",
+					macros: cc.Macros{},
+					want:   []IncludeDirective{{Path: "always.h"}},
+				},
+				{
+					name:   "FOO defined",
+					macros: cc.Macros{"FOO": 1},
+					want: []IncludeDirective{
+						{Path: "foo.h"},
+						{Path: "always.h"},
+					},
+				},
 			},
 		},
 		{
@@ -74,6 +101,23 @@ func TestCollectIncludes(t *testing.T) {
 				{Path: "b.h"},
 				{Path: "c.h"},
 			},
+			reachCases: []macrosCase{
+				{
+					name:   "A defined",
+					macros: cc.Macros{"A": 1},
+					want:   []IncludeDirective{{Path: "a.h"}},
+				},
+				{
+					name:   "B defined",
+					macros: cc.Macros{"B": 1},
+					want:   []IncludeDirective{{Path: "b.h"}},
+				},
+				{
+					name:   "none defined",
+					macros: cc.Macros{},
+					want:   []IncludeDirective{{Path: "c.h"}},
+				},
+			},
 		},
 		{
 			name: "define/undef",
@@ -90,6 +134,13 @@ func TestCollectIncludes(t *testing.T) {
 			wantAll: []IncludeDirective{
 				{Path: "foo.h"},
 				{Path: "should_not_appear.h"},
+			},
+			reachCases: []macrosCase{
+				{
+					name:   "no macros",
+					macros: cc.Macros{},
+					want:   []IncludeDirective{{Path: "foo.h"}},
+				},
 			},
 		},
 		{
@@ -108,6 +159,30 @@ func TestCollectIncludes(t *testing.T) {
 				{Path: "inner.h"},
 				{Path: "always.h"},
 			},
+			reachCases: []macrosCase{
+				{
+					name:   "none defined",
+					macros: cc.Macros{},
+					want:   []IncludeDirective{{Path: "always.h"}},
+				},
+				{
+					name:   "OUTER only",
+					macros: cc.Macros{"OUTER": 1},
+					want: []IncludeDirective{
+						{Path: "outer.h"},
+						{Path: "always.h"},
+					},
+				},
+				{
+					name:   "OUTER and INNER",
+					macros: cc.Macros{"OUTER": 1, "INNER": 1},
+					want: []IncludeDirective{
+						{Path: "outer.h"},
+						{Path: "inner.h"},
+						{Path: "always.h"},
+					},
+				},
+			},
 		},
 		{
 			name: "define value and compare",
@@ -123,6 +198,13 @@ func TestCollectIncludes(t *testing.T) {
 				{Path: "two.h"},
 				{Path: "three.h"},
 			},
+			reachCases: []macrosCase{
+				{
+					name:   "no macros",
+					macros: cc.Macros{},
+					want:   []IncludeDirective{{Path: "two.h"}},
+				},
+			},
 		},
 		{
 			name: "undef macro disables include",
@@ -136,6 +218,13 @@ func TestCollectIncludes(t *testing.T) {
 			wantAll: []IncludeDirective{
 				{Path: "foo.h"},
 			},
+			reachCases: []macrosCase{
+				{
+					name:   "no macros",
+					macros: cc.Macros{},
+					want:   []IncludeDirective{},
+				},
+			},
 		},
 	}
 
@@ -147,5 +236,10 @@ func TestCollectIncludes(t *testing.T) {
 		}
 		gotAll := result.CollectIncludes()
 		assert.ElementsMatch(t, tc.wantAll, gotAll, "CollectIncludes failed for %q", tc.name)
+
+		for _, rc := range tc.reachCases {
+			gotReach := result.CollectReachableIncludes(rc.macros)
+			assert.ElementsMatch(t, rc.want, gotReach, "CollectReachableIncludes failed for %q (%s)", tc.name, rc.name)
+		}
 	}
 }
