@@ -487,6 +487,35 @@ func TestParseConditionalIncludes(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Apply function-like macro
+			input: `
+			#if defined(__has_builtin)
+				#if __has_builtin(__builtin_add_overflow)
+				#endif
+			#endif
+			`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Defined{Ident("__has_builtin")},
+							Body: []Directive{
+								IfBlock{Branches: []ConditionalBranch{
+									{
+										Kind:      IfBranch,
+										Condition: Apply{Name: Ident("__has_builtin"), Args: []Expr{Ident("__builtin_add_overflow")}},
+										Body:      []Directive{},
+									},
+								},
+								},
+							},
+						}},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

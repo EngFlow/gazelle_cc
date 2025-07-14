@@ -108,7 +108,7 @@ var exprKeywordsPrecedence map[string]parseRule
 func init() {
 	exprKeywordsPrecedence = map[string]parseRule{
 		"!":       {precedence: precedenceBang, prefixParser: parseUnaryBangOperator},
-		"(":       {precedence: precedenceParens, prefixParser: parseUnaryOpenParenthesis},
+		"(":       {precedence: precedenceParens, prefixParser: parseUnaryOpenParenthesis, infixParser: parseBinaryApplyOperator},
 		"defined": {precedence: precedenceLowest, prefixParser: parseDefinedExpr},
 		"||":      {precedence: precedenceOr, infixParser: parseBinaryLogicOrOperator},
 		"&&":      {precedence: precedenceAnd, infixParser: parseBinaryLogicAndOperator},
@@ -194,6 +194,34 @@ func parseBinaryCompareOperator(p *parser, op string, lhs Expr) (Expr, error) {
 		return Compare{lhs, op, rhs}, nil
 	default:
 		panic(fmt.Sprintf("unknown binary compare operator %q", op))
+	}
+}
+
+func parseBinaryApplyOperator(p *parser, _ string, lhs Expr) (Expr, error) {
+	ident, ok := lhs.(Ident)
+	if !ok {
+		return nil, fmt.Errorf("expected identifier for apply operator, got %T", lhs)
+	}
+
+	args := []Expr{}
+	for {
+		token, ok := p.tr.peek()
+		switch {
+		case !ok || token == EOL:
+			return nil, fmt.Errorf("unexpected end of input while parsing apply operator %q", ident)
+		case token == ",":
+			p.tr.mustConsume(token)
+			continue
+		case token == ")":
+			p.tr.mustConsume(token)
+			return Apply{Name: ident, Args: args}, nil
+		default:
+			arg, err := p.parseExprPrecedence(precedenceLowest)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, arg)
+		}
 	}
 }
 
@@ -286,6 +314,7 @@ const EOL = "<EOL>"
 // bufio.SplitFunc that skips both whitespaces, line comments (//...) and block comments (/*...*/)
 // The tokenizer splits not only by whitespace seperated words but also by: parenthesis, curly/square brackets
 func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	isComma := func(c byte) bool { return c == ',' }
 	i := 0
 	for i < len(data) {
 		char := data[i]
@@ -312,7 +341,7 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		case unicode.IsSpace(rune(char)):
 			i++
 
-		case isParanthesis(rune(char)):
+		case isParanthesis(rune(char)) || isComma(char):
 			return i + 1, data[i : i+1], nil
 
 		case char == '!' || char == '=' || char == '<' || char == '>':
@@ -328,7 +357,7 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 				char := rune(data[i])
 				if isEOL(data[i]) ||
 					char == '!' || char == '=' || char == '<' || char == '>' ||
-					unicode.IsSpace(char) || isParanthesis(char) {
+					unicode.IsSpace(char) || isParanthesis(char) || isComma(data[i]) {
 					return i, data[start:i], nil
 				}
 				i++

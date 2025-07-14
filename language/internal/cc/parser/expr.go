@@ -16,6 +16,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 )
 
 type (
@@ -52,6 +53,12 @@ type (
 		Op    string // Comparison operator: "==", "!=", "<", "<=", ">", ">="
 		Right Expr   // Right-hand side of the comparison
 	}
+	Apply struct {
+		// Name or macro being applied.
+		Name Ident
+		// Arguments to the function or macro,
+		Args []Expr
+	}
 )
 
 type (
@@ -65,8 +72,15 @@ type (
 	ConstantInt int
 )
 
-func (expr Defined) String() string     { return fmt.Sprintf("defined(%s)", expr.Name) }
-func (expr Compare) String() string     { return fmt.Sprintf("%s %s %s", expr.Left, expr.Op, expr.Right) }
+func (expr Defined) String() string { return fmt.Sprintf("defined(%s)", expr.Name) }
+func (expr Compare) String() string { return fmt.Sprintf("%s %s %s", expr.Left, expr.Op, expr.Right) }
+func (expr Apply) String() string {
+	argStrings := make([]string, len(expr.Args))
+	for i, arg := range expr.Args {
+		argStrings[i] = arg.String()
+	}
+	return fmt.Sprintf("%s(%s)", expr.Name, strings.Join(argStrings, ", "))
+}
 func (expr Not) String() string         { return "!(" + expr.X.String() + ")" }
 func (expr And) String() string         { return expr.L.String() + " && " + expr.R.String() }
 func (expr Or) String() string          { return expr.L.String() + " || " + expr.R.String() }
