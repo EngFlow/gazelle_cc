@@ -378,7 +378,7 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token string) bool) ([]Dir
 				// `# directive` syntax, read and merge with next token
 				directiveKind, err := p.nextToken()
 				if err != nil {
-					skipped, _ := p.skipLine() // skip remaining part of directive
+					skipped, _ := p.readUntilEOL() // skip remaining part of directive
 					if debug {
 						log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token, err, skipped)
 					}
@@ -389,7 +389,7 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token string) bool) ([]Dir
 			}
 			directive, err := p.parseDirective(token)
 			if err != nil {
-				skipped, _ := p.skipLine() // skip remaining part of directive
+				skipped, _ := p.readUntilEOL() // skip remaining part of directive
 				if debug {
 					log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token, err, skipped)
 				}
@@ -424,8 +424,8 @@ func (p *parser) nextToken() (string, error) {
 	return token, nil
 }
 
-// skipLine skips all tokens until the end of the line, returning skipped tokens for error recovery.
-func (p *parser) skipLine() ([]string, error) {
+// readUntilEOL skips all tokens until the end of the line, returning all read tokens as a slice.
+func (p *parser) readUntilEOL() ([]string, error) {
 	tokens := []string{}
 	if p.tr.lastToken == EOL {
 		return tokens, nil
