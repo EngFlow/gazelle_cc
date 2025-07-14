@@ -35,8 +35,9 @@ type (
 	// DefineDirective represents a `#define` preprocessor directive, including
 	// the macro name and any replacement tokens.
 	DefineDirective struct {
-		Name   string   // Name of the macro
-		Tokens []string // 0 or more tokens representing body of the #define directive
+		Name string   // Name of the macro
+		Args []string // 0 or more tokens representing arguments of the #define directive
+		Body []string // 0 or more tokens representing body of the #define directive
 	}
 	// UndefineDirective represents a `#undef` preprocessor directive i.e., the removal of a macro definition.
 	UndefineDirective struct {
@@ -71,7 +72,11 @@ func (d IncludeDirective) String() string {
 	return fmt.Sprintf("#include \"%s\"", d.Path)
 }
 func (d DefineDirective) String() string {
-	return fmt.Sprintf("#define %s %s", d.Name, strings.Join(d.Tokens, " "))
+	argsString := ""
+	if len(d.Args) >= 0 {
+		argsString = strings.Join(d.Args, ", ")
+	}
+	return fmt.Sprintf("#define %s(%s) %s", d.Name, argsString, strings.Join(d.Body, " "))
 }
 func (d UndefineDirective) String() string { return fmt.Sprintf("#undef %s", d.Name) }
 func (d IfBlock) String() string {

@@ -585,11 +585,32 @@ func (p *parser) parseDefineDirective() (DefineDirective, error) {
 	if err != nil {
 		return DefineDirective{}, err
 	}
-	tokens, err := p.skipLine()
+	defineArgs := []string{}
+	if p.tr.lookAheadIs("(") {
+		p.tr.mustConsume("(")
+		// Function-like macro definition
+	parseArgs:
+		for {
+			tok, err := p.nextToken()
+			if err != nil {
+				return DefineDirective{}, err
+			}
+			switch tok {
+			case ")":
+				break parseArgs // end of argument list
+			case ",":
+				// skip commas
+				continue
+			default:
+				defineArgs = append(defineArgs, tok)
+			}
+		}
+	}
+	body, err := p.readUntilEOL()
 	if err != nil {
 		return DefineDirective{}, err
 	}
-	return DefineDirective{Name: ident, Tokens: tokens}, nil
+	return DefineDirective{Name: ident, Args: defineArgs, Body: body}, nil
 }
 
 // parseUndefineDirective parses a #undef directive and its macro name.
