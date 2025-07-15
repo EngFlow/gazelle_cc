@@ -64,9 +64,19 @@ func (si SourceInfo) CollectReachableIncludes(macros cc.Macros) []IncludeDirecti
 				result = append(result, v)
 
 			case DefineDirective:
-				intValue := 1
-				if len(v.Tokens) > 0 {
-					if value, err := parseIntLiteral(v.Tokens[0]); err == nil {
+				intValue := 0
+				switch {
+				case len(v.Args) > 0:
+					// Function-like macro definition is always assumed to be defined
+					intValue = 1
+				case len(v.Body) == 0:
+					// Object-like macro definition with no body is defined as 1
+					// #define FOO is interpreted as #define FOO 1
+					intValue = 1
+				default:
+					// Object-like macro definition, try to parse the body
+					// We only interpret the first token as an integer value
+					if value, err := parseIntLiteral(v.Body[0]); err == nil {
 						intValue = value
 					}
 				}

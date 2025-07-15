@@ -138,6 +138,12 @@ func TestExprEvaluation(t *testing.T) {
 			ConstantInt(1),
 			[]macrosPreset{linuxPreset, windowsPreset},
 		},
+		{
+			// Always evaluated as true, since Expr.Apply is not supported in #if expressions.
+			"eval apply",
+			Apply{Name: "SOME_MACRO", Args: []Expr{Ident("ARG1"), ConstantInt(42)}},
+			[]macrosPreset{linuxPreset, windowsPreset},
+		},
 	}
 
 	for _, tc := range cases {

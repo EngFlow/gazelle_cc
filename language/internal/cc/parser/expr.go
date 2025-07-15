@@ -134,6 +134,11 @@ func (expr Compare) Eval(macros cc.Macros) bool {
 		return false
 	}
 }
+func (expr Apply) Eval(macros cc.Macros) bool {
+	// We do not support evaluating macros with arguments in #if expressions
+	// Assume that the macro is defined and return true
+	return true
+}
 func (expr Not) Eval(macros cc.Macros) bool { return !expr.X.Eval(macros) }
 func (expr And) Eval(macros cc.Macros) bool { return expr.L.Eval(macros) && expr.R.Eval(macros) }
 func (expr Or) Eval(macros cc.Macros) bool  { return expr.L.Eval(macros) || expr.R.Eval(macros) }
