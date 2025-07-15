@@ -74,9 +74,9 @@ func (d IncludeDirective) String() string {
 func (d DefineDirective) String() string {
 	argsString := ""
 	if len(d.Args) >= 0 {
-		argsString = strings.Join(d.Args, ", ")
+		argsString = "(" + strings.Join(d.Args, ", ") + ")"
 	}
-	return fmt.Sprintf("#define %s(%s) %s", d.Name, argsString, strings.Join(d.Body, " "))
+	return fmt.Sprintf("#define %s%s %s", d.Name, argsString, strings.Join(d.Body, " "))
 }
 func (d UndefineDirective) String() string { return fmt.Sprintf("#undef %s", d.Name) }
 func (d IfBlock) String() string {
