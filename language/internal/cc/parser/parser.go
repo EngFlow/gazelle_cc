@@ -108,7 +108,7 @@ var exprKeywordsPrecedence map[string]parseRule
 func init() {
 	exprKeywordsPrecedence = map[string]parseRule{
 		"!":       {precedence: precedenceBang, prefixParser: parseUnaryBangOperator},
-		"(":       {precedence: precedenceParens, prefixParser: parseUnaryOpenParenthesis},
+		"(":       {precedence: precedenceParens, prefixParser: parseUnaryOpenParenthesis, infixParser: parseBinaryApplyOperator},
 		"defined": {precedence: precedenceLowest, prefixParser: parseDefinedExpr},
 		"||":      {precedence: precedenceOr, infixParser: parseBinaryLogicOrOperator},
 		"&&":      {precedence: precedenceAnd, infixParser: parseBinaryLogicAndOperator},
@@ -194,6 +194,34 @@ func parseBinaryCompareOperator(p *parser, op string, lhs Expr) (Expr, error) {
 		return Compare{lhs, op, rhs}, nil
 	default:
 		panic(fmt.Sprintf("unknown binary compare operator %q", op))
+	}
+}
+
+func parseBinaryApplyOperator(p *parser, _ string, lhs Expr) (Expr, error) {
+	ident, ok := lhs.(Ident)
+	if !ok {
+		return nil, fmt.Errorf("expected identifier for apply operator, got %T", lhs)
+	}
+
+	args := []Expr{}
+	for {
+		token, ok := p.tr.peek()
+		switch {
+		case !ok || token == EOL:
+			return nil, fmt.Errorf("unexpected end of input while parsing apply operator %q", ident)
+		case token == ",":
+			p.tr.mustConsume(token)
+			continue
+		case token == ")":
+			p.tr.mustConsume(token)
+			return Apply{Name: ident, Args: args}, nil
+		default:
+			arg, err := p.parseExprPrecedence(precedenceLowest)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, arg)
+		}
 	}
 }
 
@@ -286,6 +314,7 @@ const EOL = "<EOL>"
 // bufio.SplitFunc that skips both whitespaces, line comments (//...) and block comments (/*...*/)
 // The tokenizer splits not only by whitespace seperated words but also by: parenthesis, curly/square brackets
 func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	isComma := func(c byte) bool { return c == ',' }
 	i := 0
 	for i < len(data) {
 		char := data[i]
@@ -312,7 +341,7 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		case unicode.IsSpace(rune(char)):
 			i++
 
-		case isParanthesis(rune(char)):
+		case isParanthesis(rune(char)) || isComma(char):
 			return i + 1, data[i : i+1], nil
 
 		case char == '!' || char == '=' || char == '<' || char == '>':
@@ -328,7 +357,7 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 				char := rune(data[i])
 				if isEOL(data[i]) ||
 					char == '!' || char == '=' || char == '<' || char == '>' ||
-					unicode.IsSpace(char) || isParanthesis(char) {
+					unicode.IsSpace(char) || isParanthesis(char) || isComma(data[i]) {
 					return i, data[start:i], nil
 				}
 				i++
@@ -378,7 +407,7 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token string) bool) ([]Dir
 				// `# directive` syntax, read and merge with next token
 				directiveKind, err := p.nextToken()
 				if err != nil {
-					skipped, _ := p.skipLine() // skip remaining part of directive
+					skipped, _ := p.readUntilEOL() // skip remaining part of directive
 					if debug {
 						log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token, err, skipped)
 					}
@@ -389,7 +418,7 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token string) bool) ([]Dir
 			}
 			directive, err := p.parseDirective(token)
 			if err != nil {
-				skipped, _ := p.skipLine() // skip remaining part of directive
+				skipped, _ := p.readUntilEOL() // skip remaining part of directive
 				if debug {
 					log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token, err, skipped)
 				}
@@ -424,8 +453,8 @@ func (p *parser) nextToken() (string, error) {
 	return token, nil
 }
 
-// skipLine skips all tokens until the end of the line, returning skipped tokens for error recovery.
-func (p *parser) skipLine() ([]string, error) {
+// readUntilEOL skips all tokens until the end of the line, returning all read tokens as a slice.
+func (p *parser) readUntilEOL() ([]string, error) {
 	tokens := []string{}
 	if p.tr.lastToken == EOL {
 		return tokens, nil
@@ -556,11 +585,32 @@ func (p *parser) parseDefineDirective() (DefineDirective, error) {
 	if err != nil {
 		return DefineDirective{}, err
 	}
-	tokens, err := p.skipLine()
+	defineArgs := []string{}
+	if p.tr.lookAheadIs("(") {
+		p.tr.mustConsume("(")
+		// Function-like macro definition
+	parseArgs:
+		for {
+			tok, err := p.nextToken()
+			if err != nil {
+				return DefineDirective{}, err
+			}
+			switch tok {
+			case ")":
+				break parseArgs // end of argument list
+			case ",":
+				// skip commas
+				continue
+			default:
+				defineArgs = append(defineArgs, tok)
+			}
+		}
+	}
+	body, err := p.readUntilEOL()
 	if err != nil {
 		return DefineDirective{}, err
 	}
-	return DefineDirective{Name: ident, Tokens: tokens}, nil
+	return DefineDirective{Name: ident, Args: defineArgs, Body: body}, nil
 }
 
 // parseUndefineDirective parses a #undef directive and its macro name.

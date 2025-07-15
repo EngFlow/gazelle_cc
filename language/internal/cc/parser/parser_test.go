@@ -478,12 +478,73 @@ func TestParseConditionalIncludes(t *testing.T) {
 							Kind:      IfBranch,
 							Condition: Not{Defined{Ident("FOO_H")}},
 							Body: []Directive{
-								DefineDirective{Name: "FOO_H", Tokens: []string{}},
+								DefineDirective{Name: "FOO_H", Args: []string{}, Body: []string{}},
 								IncludeDirective{Path: "bar.h"},
 								UndefineDirective{Name: "FOO_H"},
 							},
 						},
 					}},
+				},
+			},
+		},
+		{
+			// Apply function-like macro
+			input: `
+			#if defined(__has_builtin)
+				#if __has_builtin(__builtin_add_overflow)
+				#endif
+			#endif
+			`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Defined{Ident("__has_builtin")},
+							Body: []Directive{
+								IfBlock{Branches: []ConditionalBranch{
+									{
+										Kind:      IfBranch,
+										Condition: Apply{Name: Ident("__has_builtin"), Args: []Expr{Ident("__builtin_add_overflow")}},
+										Body:      []Directive{},
+									},
+								},
+								},
+							},
+						}},
+					},
+				},
+			},
+		},
+		{
+			// Apply function-like macro
+			input: `
+			#define IS_EQUAL(a, b) ((a) == (b))
+			#if IS_EQUAL(FOO, BAR)
+				#include "foo.h"
+			#else 
+				#include "bar.h"
+			#endif
+			`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					DefineDirective{Name: "IS_EQUAL", Args: []string{"a", "b"}, Body: []string{"(", "(", "a", ")", "==", "(", "b", ")", ")"}},
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Apply{Name: Ident("IS_EQUAL"), Args: []Expr{Ident("FOO"), Ident("BAR")}},
+							Body: []Directive{
+								IncludeDirective{Path: "foo.h"},
+							},
+						},
+						{
+							Kind: ElseBranch,
+							Body: []Directive{
+								IncludeDirective{Path: "bar.h"},
+							},
+						},
+					},
+					},
 				},
 			},
 		},
