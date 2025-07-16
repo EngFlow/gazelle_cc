@@ -218,24 +218,24 @@ func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rules
 					consumedProtoFiles[newSourceFile(args.Rel, baseName+".pb.cc")] = true
 				}
 			}
-			protoRuleLabel, err := label.Parse(":" + protoRule.Name())
-			if err != nil {
-				log.Panicf("Failed to parse proto_library label of %v", protoRule.Name())
-			}
-			baseName := strings.TrimSuffix(protoRuleLabel.Name, "_proto")
+			baseName := strings.TrimSuffix(protoRule.Name(), "_proto")
 			ruleName := baseName + ccProtoRuleSufix
-			newRule := newOrExistingRule("cc_proto_library", ruleName, nil, rulesInfo, args)
-			// Every cc_proto_library needs to have exactyl 1 deps entry - the label or proto_library
+			newRule := rule.NewRule("cc_proto_library", ruleName)
+			// Every cc_proto_library needs to have exactly 1 dep entry - the label or proto_library
 			// https://github.com/protocolbuffers/protobuf/blob/d3560e72e791cb61c24df2a1b35946efbd972738/bazel/private/bazel_cc_proto_library.bzl#L132-L142
-			newRule.SetAttr("deps", []label.Label{protoRuleLabel})
+			// This dependency might be replaced during Resolve - at this point protoRule is named after the proto files, it might not be actually reachable after merging with exisitng proto_library rules
+			newRule.SetAttr("deps", []label.Label{label.New("", "", protoRule.Name())})
 			newRule.SetPrivateAttr(ccProtoLibraryFilesKey, protoFiles)
 
 			if args.File == nil || !args.File.HasDefaultVisibility() {
 				newRule.SetAttr("visibility", []string{"//visibility:public"})
 			}
+			ccProtoImports := ccProtoImports{
+				protos: protoFiles,
+			}
 
 			result.Gen = append(result.Gen, newRule)
-			result.Imports = append(result.Imports, ccImports{})
+			result.Imports = append(result.Imports, ccProtoImports)
 		}
 	}
 	for _, r := range args.OtherEmpty {

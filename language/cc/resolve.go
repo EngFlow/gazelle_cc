@@ -24,6 +24,7 @@ import (
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazelbuild/bazel-gazelle/language/proto"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
@@ -144,8 +145,15 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	if imports == nil {
 		return
 	}
-	ccImports := imports.(ccImports)
+	switch ruleKind := resolveCCRuleKind(r.Kind(), c); ruleKind {
+	case "cc_library", "cc_binary", "cc_test":
+		lang.resolveCcImports(c, ix, r, imports.(ccImports), from)
+	case "cc_proto_library":
+		lang.resolveCcProtoImports(c, ix, r, imports.(ccProtoImports), from)
+	}
+}
 
+func (lang *ccLanguage) resolveCcImports(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, ccImports ccImports, from label.Label) {
 	type labelsSet map[label.Label]struct{}
 	// Resolves given includes to rule labels and assigns them to given attribute.
 	// Excludes explicitly provided labels from being assigned
@@ -228,4 +236,46 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	}
 
 	return label.NoLabel
+}
+
+func (lang *ccLanguage) resolveCcProtoImports(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, imports ccProtoImports, from label.Label) {
+	// map of resolves rule labels and their occurrences - we might need to select the most popular one later
+	ruleDeps := map[label.Label]int{}
+	rel := from.Pkg
+	pc := proto.GetProtoConfig(c)
+
+	// Prepare the expected used when resolving based on lanugage/Proto Imports logic
+	prefix := rel
+	if stripImportPrefix := pc.StripImportPrefix; stripImportPrefix != "" {
+		if strings.HasPrefix(stripImportPrefix, "/") {
+			prefix = pathtools.TrimPrefix(rel, stripImportPrefix[len("/"):])
+		} else {
+			prefix = pathtools.TrimPrefix(rel, path.Join(rel, pc.StripImportPrefix))
+		}
+	}
+	if importPrefix := pc.ImportPrefix; importPrefix != "" {
+		prefix = path.Join(importPrefix, prefix)
+	}
+
+	for _, src := range imports.protos {
+		searchResult := ix.FindRulesByImport(resolve.ImportSpec{Lang: "proto", Imp: path.Join(prefix, src)}, "proto")
+		for _, found := range searchResult {
+			ruleDeps[found.Label] = ruleDeps[found.Label] + 1
+		}
+	}
+	// Every cc_proto_library needs to have exactly 1 dep entry - the label or proto_library
+	// https://github.com/protocolbuffers/protobuf/blob/d3560e72e791cb61c24df2a1b35946efbd972738/bazel/private/bazel_cc_proto_library.bzl#L132-L142
+	// If there are multiple candidates, select the most popular one
+	if len(ruleDeps) > 0 {
+		maxCount := 0
+		useLabel := label.NoLabel
+		for dep, count := range ruleDeps {
+			if count > maxCount {
+				maxCount = count
+				useLabel = dep
+			}
+		}
+		useLabel = useLabel.Rel(from.Repo, from.Pkg)
+		r.SetAttr("deps", []label.Label{useLabel})
+	}
 }

@@ -1,0 +1,5 @@
+proto_library(
+    name = "my_model_proto",
+    srcs = ["model.proto"],
+    visibility = ["//visibility:public"],
+)

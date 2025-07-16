@@ -55,6 +55,9 @@ type (
 		srcIncludes []ccInclude
 		// TODO: module imports / exports
 	}
+	ccProtoImports struct {
+		protos []string // List of .proto files referenced in cc_proto_library,
+	}
 	ccDependencyIndex map[string]label.Label
 )
 
