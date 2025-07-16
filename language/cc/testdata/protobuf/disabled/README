@@ -1,0 +1,1 @@
+When explicitlly disabled it should generate proto_library but not cc_proto_library

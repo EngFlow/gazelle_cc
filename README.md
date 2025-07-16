@@ -62,6 +62,11 @@ Controls how to handle cyclic dependencies between translation units:
 - `merge`: All groups forming a cycle will be merged into a single one **(default)**
 - `warn`: Don't modify rules forming a cycle, let user handle it manually
 
+### `# gazelle:cc_generate_proto [true|false]`
+
+Specifies whether Gazelle should create `cc_proto_library` targets (default: `true`).
+It can override the broader `# gazelle:proto` setting, letting you suppress proto-target generation specifically for C/C++ rules.
+
 ### `# gazelle:cc_indexfile <path>`
 
 Loads an index file, containing a map from header include paths to Bazel labels.
