@@ -27,7 +27,6 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
-	"github.com/bazelbuild/bazel-gazelle/language/proto"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
@@ -197,8 +196,8 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 // Returns a set of .pb.h files that should be excluded from normal cc_library rules
 func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rulesInfo rulesInfo, result *language.GenerateResult) sourceFileSet {
 	consumedProtoFiles := make(sourceFileSet)
-	protoConfig := proto.GetProtoConfig(args.Config)
-	if protoConfig == nil || !protoConfig.Mode.ShouldGenerateRules() {
+	protoMode := getProtoMode(args.Config)
+	if !protoMode.ShouldGenerateRules() {
 		// Don't create or delete proto rules in this mode.
 		// All pb.h would be added to cc_library
 		return consumedProtoFiles
