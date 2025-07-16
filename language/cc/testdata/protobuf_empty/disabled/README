@@ -1,0 +1,1 @@
+When disabled gazelle_cc should not remove exisitng proto rules.
