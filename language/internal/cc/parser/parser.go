@@ -30,40 +30,12 @@ import (
 	"io"
 	"log"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 )
-
-// SourceInfo contains the structural information extracted from a C/C++ source file.
-type SourceInfo struct {
-	Directives []Directive // Top-level parsed preprocessor directives (may be nested)
-	HasMain    bool        // True if a main() function is detected
-}
-
-// CollectIncludes recursively traverses the directive tree and returns all IncludeDirective
-// instances, flattening the nested IfBlock structure. This allows consumers to extract all
-// discovered #include directives, regardless of conditional logic.
-func (si SourceInfo) CollectIncludes() []IncludeDirective {
-	var result []IncludeDirective
-	var walk func([]Directive)
-	walk = func(directives []Directive) {
-		for _, d := range directives {
-			switch v := d.(type) {
-			case IncludeDirective:
-				result = append(result, v)
-
-			case IfBlock:
-				for _, branch := range v.Branches {
-					walk(branch.Body)
-				}
-			}
-		}
-	}
-	walk(si.Directives)
-	return result
-}
 
 // ParseSource runs the extractor on an in‑memory buffer.
 func ParseSource(input string) (SourceInfo, error) {
@@ -643,12 +615,12 @@ func (p *parser) parseDirective(token string) (Directive, error) {
 
 // parseValue parses a token as an identifier or integer literal, for use in #if/#elif expressions.
 func parseValue(token string) (Value, error) {
-	if parsableIntegerRegex.MatchString(token) {
+	if cc.ParsableIntegerRegex.MatchString(token) {
 		if v, err := parseIntLiteral(token); err == nil {
 			return ConstantInt(v), nil
 		}
 	}
-	if macroIdentifierRegex.MatchString(token) {
+	if cc.MacroIdentifierRegex.MatchString(token) {
 		return Ident(token), nil
 	}
 	return nil, fmt.Errorf("token %q is neither identifier nor integer literal", token)
@@ -662,12 +634,6 @@ func parseIntLiteral(tok string) (int, error) {
 	v, err := strconv.ParseInt(tok, 0, 64)
 	return int(v), err
 }
-
-// A valid macro identifier must follow these rules:
-// * First character must be ‘_’ or a letter.
-// * Subsequent characters may be ‘_’, letters, or decimal digits.
-var macroIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-var parsableIntegerRegex = regexp.MustCompile(`^(?:0[xX][0-9a-fA-F]+|0[0-7]*|[1-9][0-9]*)(?:[uU](?:ll?|LL?)?|ll?[uU]?|LL?[uU]?)?$`)
 
 // Thin wrapper around bufio.Scanner that provides `peek` and `next“ primitives while automatically skipping the ubiquitous newline marker except when explicitly requested.
 // When an algorithm needs to honour line boundaries (e.g. parseExpr) it calls nextInternal/peekInternal instead.
