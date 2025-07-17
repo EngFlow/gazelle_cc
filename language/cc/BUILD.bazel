@@ -15,7 +15,10 @@ go_library(
     importpath = "github.com/EngFlow/gazelle_cc/language/cc",
     visibility = ["//visibility:public"],
     deps = [
+        "//index/internal/collections",
         "//language/internal/cc/parser",
+        "@com_github_bazelbuild_buildtools//build",
+        "@com_github_bmatcuk_doublestar_v4//:doublestar",
         "@gazelle//config",
         "@gazelle//label",
         "@gazelle//language",
