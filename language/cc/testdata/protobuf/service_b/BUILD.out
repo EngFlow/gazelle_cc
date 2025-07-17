@@ -26,7 +26,7 @@ proto_library(
 cc_proto_library(
     name = "model_cc_proto",
     visibility = ["//visibility:public"],
-    deps = [":model_proto"],
+    deps = [":proto_interface"],
 )
 
 cc_proto_library(
