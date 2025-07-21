@@ -42,7 +42,7 @@ func TestParseMacros(t *testing.T) {
 			},
 		},
 		{
-			defs: []string{"-D__ANDROID__", "-D__ARM_ARCH=8"},
+			defs: []string{"__ANDROID__", "__ARM_ARCH=8"},
 			expected: Environment{
 				"__ANDROID__": 1,
 				"__ARM_ARCH":  8,
@@ -70,7 +70,7 @@ func TestParseMacros(t *testing.T) {
 	}
 
 	for _, def := range unparsableTestCases {
-		if _, err := ParseMacro(def); err == nil {
+		if _, err := parseMacro(def); err == nil {
 			t.Errorf("ParseMacros(%v) expected error, got nil", def)
 		}
 	}
