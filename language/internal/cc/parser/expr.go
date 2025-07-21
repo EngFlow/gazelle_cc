@@ -28,7 +28,7 @@ type (
 	Expr interface {
 		fmt.Stringer
 		// Eval reports whether the expression evaluates to true for a given macro set
-		Eval(macros cc.Macros) bool
+		Eval(macros cc.Macros) (int, error)
 	}
 
 	// Defined represents the defined(X) operator in #if expressions,
@@ -70,9 +70,6 @@ type (
 	// Value is a sub-interface of Expr, representing a literal value in a #if expression.
 	Value interface {
 		Expr
-		// Evaluates given Value to integer value. The bool flag identifies if given macro is defined an can was successfully evaluated
-		// Result of resolving a macro that is not defined in `macros` is implicitlly 0
-		Resolve(macros cc.Macros) (int, bool) // bool==false -> “undefined”
 	}
 	// Ident is a macro identifier, such as _WIN32.
 	Ident string
@@ -95,64 +92,99 @@ func (expr Or) String() string          { return expr.L.String() + " || " + expr
 func (expr Ident) String() string       { return string(expr) }
 func (expr ConstantInt) String() string { return fmt.Sprintf("%d", expr) }
 
-func (expr Defined) Eval(macros cc.Macros) bool {
-	_, exists := macros[string(expr.Name)]
-	return exists
-}
-func (expr Compare) Eval(macros cc.Macros) bool {
-	// Evaluate expression and convert boolean to int value or resolve values based on provided macros set environment.
-	resolveExpr := func(expr Expr) int {
-		switch v := expr.(type) {
-		case Value:
-			if intValue, defined := v.Resolve(macros); defined {
-				return intValue
-			}
-		default:
-			if v.Eval(macros) {
-				return 1
-			}
-		}
-		return 0
+func Evaluate(expr Expr, macros cc.Macros) (bool, error) {
+	intValue, err := expr.Eval(macros)
+	if err != nil {
+		return false, fmt.Errorf("failed to evaluate expression %s: %w", expr, err)
 	}
-	lv := resolveExpr(expr.Left)
-	rv := resolveExpr(expr.Right)
+	return intValue != 0, nil
+}
+
+func (expr Defined) Eval(macros cc.Macros) (int, error) {
+	_, exists := macros[string(expr.Name)]
+	return booleanToInt(exists), nil
+}
+func (expr Compare) Eval(macros cc.Macros) (int, error) {
+	lv, err := expr.Left.Eval(macros)
+	if err != nil {
+		return 0, err
+	}
+	rv, err := expr.Right.Eval(macros)
+	if err != nil {
+		return 0, err
+	}
 	switch expr.Op {
 	case "==":
-		return lv == rv
+		return booleanToInt(lv == rv), nil
 	case "!=":
-		return lv != rv
+		return booleanToInt(lv != rv), nil
 	case "<":
-		return lv < rv
+		return booleanToInt(lv < rv), nil
 	case "<=":
-		return lv <= rv
+		return booleanToInt(lv <= rv), nil
 	case ">":
-		return lv > rv
+		return booleanToInt(lv > rv), nil
 	case ">=":
-		return lv >= rv
+		return booleanToInt(lv >= rv), nil
 	default:
 		log.Panicf("Unknown compare operation type: %v", expr)
-		return false
+		return 0, nil
 	}
 }
-func (expr Apply) Eval(macros cc.Macros) bool {
+func (expr Apply) Eval(macros cc.Macros) (int, error) {
 	// We do not support evaluating macros with arguments in #if expressions
 	// Assume that the macro is defined and return true
-	return true
+	return 1, nil
 }
-func (expr Not) Eval(macros cc.Macros) bool { return !expr.X.Eval(macros) }
-func (expr And) Eval(macros cc.Macros) bool { return expr.L.Eval(macros) && expr.R.Eval(macros) }
-func (expr Or) Eval(macros cc.Macros) bool  { return expr.L.Eval(macros) || expr.R.Eval(macros) }
-func (expr Ident) Eval(macros cc.Macros) bool {
-	value, _ := expr.Resolve(macros)
-	return value != 0
+func (expr Not) Eval(macros cc.Macros) (int, error) {
+	result, err := expr.X.Eval(macros)
+	if err != nil {
+		return 0, err
+	}
+	if result == 0 {
+		result = 1
+	} else {
+		result = 0
+	}
+	return result, nil
 }
-func (expr ConstantInt) Eval(macros cc.Macros) bool { return expr != 0 }
+func (expr And) Eval(macros cc.Macros) (int, error) {
+	lValue, err := expr.L.Eval(macros)
+	if err != nil || lValue == 0 {
+		return 0, err
+	}
+	rValue, err := expr.R.Eval(macros)
+	if err != nil || rValue == 0 {
+		return 0, err
+	}
+	return 1, nil
+}
+func (expr Or) Eval(macros cc.Macros) (int, error) {
+	lValue, err := expr.L.Eval(macros)
+	if err != nil {
+		return lValue, err
+	}
+	if lValue != 0 {
+		return 1, nil
+	}
 
-func (expr Ident) Resolve(macros cc.Macros) (int, bool) {
-	v, defined := macros[string(expr)]
-	return v, defined
+	rValue, err := expr.R.Eval(macros)
+	if err != nil {
+		return rValue, err
+	}
+	if rValue != 0 {
+		return 1, nil
+	}
+	return 0, nil
 }
-func (value ConstantInt) Resolve(macros cc.Macros) (int, bool) { return int(value), true }
+func (expr Ident) Eval(macros cc.Macros) (int, error) {
+	v, defined := macros[string(expr)]
+	if !defined {
+		return 0, nil
+	}
+	return v, nil
+}
+func (expr ConstantInt) Eval(macros cc.Macros) (int, error) { return int(expr), nil }
 
 // Negate returns a new Compare expression with the comparison operator logically negated.
 // For example, == becomes !=, < becomes >=, and so on. Panics on unknown operator.
@@ -175,4 +207,11 @@ func (expr Compare) Negate() Compare {
 		panic(fmt.Sprintf("unknown compare operation type: %s", expr.Op))
 	}
 	return Compare{Left: expr.Left, Op: newOperator, Right: expr.Right}
+}
+
+func booleanToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

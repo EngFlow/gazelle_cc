@@ -15,6 +15,7 @@
 package parser
 
 import (
+	"log"
 	"maps"
 
 	"github.com/EngFlow/gazelle_cc/language/internal/cc"
@@ -87,7 +88,18 @@ func (si SourceInfo) CollectReachableIncludes(macros cc.Macros) []IncludeDirecti
 
 			case IfBlock:
 				for _, branch := range v.Branches {
-					if branch.Condition == nil || branch.Condition.Eval(env) {
+					shouldVisit := true // By default we visit the branch, unless the condition is present and evaluates to false
+					if branch.Condition != nil {
+						result, err := Evaluate(branch.Condition, env)
+						if err != nil {
+							if debug {
+								log.Printf("Failed to evaluate condition %v: %v", branch.Condition, err)
+							}
+							continue
+						}
+						shouldVisit = result
+					}
+					if shouldVisit {
 						walk(branch.Body)
 						break
 					}
