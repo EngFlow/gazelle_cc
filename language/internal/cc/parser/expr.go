@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-
-	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 )
 
 type (
@@ -27,8 +25,8 @@ type (
 	// Each Expr node implements fmt.Stringer for debugging and round-tripping.
 	Expr interface {
 		fmt.Stringer
-		// Eval reports whether the expression evaluates to true for a given macro set
-		Eval(macros cc.Macros) (int, error)
+		// Eval returns the result of evaluations the expression in given environemt (macro set). It may return 0 if the expression is not depends on unknown definitions.
+		Eval(env Environment) (int, error)
 	}
 
 	// Defined represents the defined(X) operator in #if expressions,
@@ -92,24 +90,24 @@ func (expr Or) String() string          { return expr.L.String() + " || " + expr
 func (expr Ident) String() string       { return string(expr) }
 func (expr ConstantInt) String() string { return fmt.Sprintf("%d", expr) }
 
-func Evaluate(expr Expr, macros cc.Macros) (bool, error) {
-	intValue, err := expr.Eval(macros)
+func Evaluate(expr Expr, env Environment) (bool, error) {
+	intValue, err := expr.Eval(env)
 	if err != nil {
 		return false, fmt.Errorf("failed to evaluate expression %s: %w", expr, err)
 	}
 	return intValue != 0, nil
 }
 
-func (expr Defined) Eval(macros cc.Macros) (int, error) {
-	_, exists := macros[string(expr.Name)]
+func (expr Defined) Eval(env Environment) (int, error) {
+	_, exists := env[string(expr.Name)]
 	return booleanToInt(exists), nil
 }
-func (expr Compare) Eval(macros cc.Macros) (int, error) {
-	lv, err := expr.Left.Eval(macros)
+func (expr Compare) Eval(env Environment) (int, error) {
+	lv, err := expr.Left.Eval(env)
 	if err != nil {
 		return 0, err
 	}
-	rv, err := expr.Right.Eval(macros)
+	rv, err := expr.Right.Eval(env)
 	if err != nil {
 		return 0, err
 	}
@@ -131,13 +129,13 @@ func (expr Compare) Eval(macros cc.Macros) (int, error) {
 		return 0, nil
 	}
 }
-func (expr Apply) Eval(macros cc.Macros) (int, error) {
-	// We do not support evaluating macros with arguments in #if expressions
+func (expr Apply) Eval(env Environment) (int, error) {
+	// We do not support evaluating env with arguments in #if expressions
 	// Assume that the macro is defined and return true
 	return 1, nil
 }
-func (expr Not) Eval(macros cc.Macros) (int, error) {
-	result, err := expr.X.Eval(macros)
+func (expr Not) Eval(env Environment) (int, error) {
+	result, err := expr.X.Eval(env)
 	if err != nil {
 		return 0, err
 	}
@@ -148,19 +146,19 @@ func (expr Not) Eval(macros cc.Macros) (int, error) {
 	}
 	return result, nil
 }
-func (expr And) Eval(macros cc.Macros) (int, error) {
-	lValue, err := expr.L.Eval(macros)
+func (expr And) Eval(env Environment) (int, error) {
+	lValue, err := expr.L.Eval(env)
 	if err != nil || lValue == 0 {
 		return 0, err
 	}
-	rValue, err := expr.R.Eval(macros)
+	rValue, err := expr.R.Eval(env)
 	if err != nil || rValue == 0 {
 		return 0, err
 	}
 	return 1, nil
 }
-func (expr Or) Eval(macros cc.Macros) (int, error) {
-	lValue, err := expr.L.Eval(macros)
+func (expr Or) Eval(env Environment) (int, error) {
+	lValue, err := expr.L.Eval(env)
 	if err != nil {
 		return lValue, err
 	}
@@ -168,7 +166,7 @@ func (expr Or) Eval(macros cc.Macros) (int, error) {
 		return 1, nil
 	}
 
-	rValue, err := expr.R.Eval(macros)
+	rValue, err := expr.R.Eval(env)
 	if err != nil {
 		return rValue, err
 	}
@@ -177,14 +175,14 @@ func (expr Or) Eval(macros cc.Macros) (int, error) {
 	}
 	return 0, nil
 }
-func (expr Ident) Eval(macros cc.Macros) (int, error) {
-	v, defined := macros[string(expr)]
+func (expr Ident) Eval(env Environment) (int, error) {
+	v, defined := env[string(expr)]
 	if !defined {
 		return 0, nil
 	}
 	return v, nil
 }
-func (expr ConstantInt) Eval(macros cc.Macros) (int, error) { return int(expr), nil }
+func (expr ConstantInt) Eval(env Environment) (int, error) { return int(expr), nil }
 
 // Negate returns a new Compare expression with the comparison operator logically negated.
 // For example, == becomes !=, < becomes >=, and so on. Panics on unknown operator.

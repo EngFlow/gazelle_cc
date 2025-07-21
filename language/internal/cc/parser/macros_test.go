@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package parser
 
 import (
 	"testing"
@@ -23,27 +23,27 @@ import (
 func TestParseMacros(t *testing.T) {
 	type testCase struct {
 		defs     []string
-		expected Macros
+		expected Environment
 	}
 
 	validTestCases := []testCase{
 		{
 			defs: []string{"FOO"},
-			expected: Macros{
+			expected: Environment{
 				"FOO": 1,
 			},
 		},
 		{
-			defs: []string{"BAR=123", "BAZ=0x2AUL", "QUX=0755"},
-			expected: Macros{
-				"BAR": 123,
-				"BAZ": 42,
-				"QUX": 493,
+			defs: []string{"DEC=123", "HEX=0x2A", "OCT=0755"},
+			expected: Environment{
+				"DEC": 123,
+				"HEX": 42,
+				"OCT": 493,
 			},
 		},
 		{
 			defs: []string{"-D__ANDROID__", "-D__ARM_ARCH=8"},
-			expected: Macros{
+			expected: Environment{
 				"__ANDROID__": 1,
 				"__ARM_ARCH":  8,
 			},
@@ -65,6 +65,8 @@ func TestParseMacros(t *testing.T) {
 		"-DBAD-NAME=1",   // invalid identifier
 		"SUFFIX=123XYZ",  // unknown suffix
 		"HEXFLT=0x1.8p3", // hex-float
+		"UNSIGNED=0xA2U", // unsigned suffix
+		"LONG=123L",      // long suffix
 	}
 
 	for _, def := range unparsableTestCases {

@@ -16,9 +16,6 @@ package parser
 
 import (
 	"log"
-	"maps"
-
-	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 )
 
 // SourceInfo contains the structural information extracted from a C/C++ source file.
@@ -53,10 +50,10 @@ func (si SourceInfo) CollectIncludes() []IncludeDirective {
 // CollectIncludes recursively traverses the directive tree based on the successuflly evaluated conditions
 // and returns all found IncludeDirective instances. This allows consumers to extract
 // discovered #include directives based on given predefined environment
-func (si SourceInfo) CollectReachableIncludes(macros cc.Macros) []IncludeDirective {
+func (si SourceInfo) CollectReachableIncludes(environment Environment) []IncludeDirective {
 	var result []IncludeDirective
 	// Start with a copy of the provided macros, might be modified during evaluation
-	var env cc.Macros = maps.Clone(macros)
+	var env Environment = environment.Clone()
 	var walk func([]Directive)
 	walk = func(directives []Directive) {
 		for _, d := range directives {

@@ -17,7 +17,6 @@ package parser
 import (
 	"testing"
 
-	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,7 +27,7 @@ const (
 	windowsPreset macrosPreset = "windows"
 )
 
-var macroPresets = map[macrosPreset]cc.Macros{
+var macroPresets = map[macrosPreset]Environment{
 	linuxPreset: {
 		"LINUX":       1,
 		"SHARED_FLAG": 1,

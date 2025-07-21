@@ -30,11 +30,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
-
-	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 )
 
 // ParseSource runs the extractor on an in‑memory buffer.
@@ -613,14 +612,22 @@ func (p *parser) parseDirective(token string) (Directive, error) {
 	}
 }
 
+// A valid macro identifier must follow these rules:
+// * First character must be ‘_’ or a letter.
+// * Subsequent characters may be ‘_’, letters, or decimal digits.
+var macroIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// A parsable integer literal can be in decimal, octal, or hex form, but may not include C specific suffixes.
+var parsableIntegerRegex = regexp.MustCompile(`^(?:0[xX][0-9A-Fa-f]+|0[0-7]*|[1-9][0-9]*)$`)
+
 // parseValue parses a token as an identifier or integer literal, for use in #if/#elif expressions.
 func parseValue(token string) (Value, error) {
-	if cc.ParsableIntegerRegex.MatchString(token) {
+	if parsableIntegerRegex.MatchString(token) {
 		if v, err := parseIntLiteral(token); err == nil {
 			return ConstantInt(v), nil
 		}
 	}
-	if cc.MacroIdentifierRegex.MatchString(token) {
+	if macroIdentifierRegex.MatchString(token) {
 		return Ident(token), nil
 	}
 	return nil, fmt.Errorf("token %q is neither identifier nor integer literal", token)
@@ -628,10 +635,7 @@ func parseValue(token string) (Value, error) {
 
 // parseIntLiteral parses an integer literal in decimal, octal, or hex form, ignoring C suffixes.
 func parseIntLiteral(tok string) (int, error) {
-	tok = strings.TrimRightFunc(tok, func(r rune) bool {
-		return r == 'u' || r == 'U' || r == 'l' || r == 'L'
-	})
-	v, err := strconv.ParseInt(tok, 0, 64)
+	v, err := strconv.ParseInt(tok, 0, 32)
 	return int(v), err
 }
 

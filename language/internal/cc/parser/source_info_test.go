@@ -17,15 +17,14 @@ package parser
 import (
 	"testing"
 
-	"github.com/EngFlow/gazelle_cc/language/internal/cc"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 	type macrosCase struct {
-		name   string
-		macros cc.Macros
-		want   []IncludeDirective
+		name string
+		env  Environment
+		want []IncludeDirective
 	}
 	tests := []struct {
 		name       string
@@ -47,8 +46,8 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 			},
 			reachCases: []macrosCase{
 				{
-					name:   "no macros",
-					macros: cc.Macros{},
+					name: "no macros",
+					env:  Environment{},
 					want: []IncludeDirective{
 						{Path: "stdio.h", IsSystem: true},
 						{Path: "foo.h"},
@@ -71,13 +70,13 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 			},
 			reachCases: []macrosCase{
 				{
-					name:   "FOO undefined",
-					macros: cc.Macros{},
-					want:   []IncludeDirective{{Path: "always.h"}},
+					name: "FOO undefined",
+					env:  Environment{},
+					want: []IncludeDirective{{Path: "always.h"}},
 				},
 				{
-					name:   "FOO defined",
-					macros: cc.Macros{"FOO": 1},
+					name: "FOO defined",
+					env:  Environment{"FOO": 1},
 					want: []IncludeDirective{
 						{Path: "foo.h"},
 						{Path: "always.h"},
@@ -103,19 +102,19 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 			},
 			reachCases: []macrosCase{
 				{
-					name:   "A defined",
-					macros: cc.Macros{"A": 1},
-					want:   []IncludeDirective{{Path: "a.h"}},
+					name: "A defined",
+					env:  Environment{"A": 1},
+					want: []IncludeDirective{{Path: "a.h"}},
 				},
 				{
-					name:   "B defined",
-					macros: cc.Macros{"B": 1},
-					want:   []IncludeDirective{{Path: "b.h"}},
+					name: "B defined",
+					env:  Environment{"B": 1},
+					want: []IncludeDirective{{Path: "b.h"}},
 				},
 				{
-					name:   "none defined",
-					macros: cc.Macros{},
-					want:   []IncludeDirective{{Path: "c.h"}},
+					name: "none defined",
+					env:  Environment{},
+					want: []IncludeDirective{{Path: "c.h"}},
 				},
 			},
 		},
@@ -137,9 +136,9 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 			},
 			reachCases: []macrosCase{
 				{
-					name:   "no macros",
-					macros: cc.Macros{},
-					want:   []IncludeDirective{{Path: "foo.h"}},
+					name: "no macros",
+					env:  Environment{},
+					want: []IncludeDirective{{Path: "foo.h"}},
 				},
 			},
 		},
@@ -161,21 +160,21 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 			},
 			reachCases: []macrosCase{
 				{
-					name:   "none defined",
-					macros: cc.Macros{},
-					want:   []IncludeDirective{{Path: "always.h"}},
+					name: "none defined",
+					env:  Environment{},
+					want: []IncludeDirective{{Path: "always.h"}},
 				},
 				{
-					name:   "OUTER only",
-					macros: cc.Macros{"OUTER": 1},
+					name: "OUTER only",
+					env:  Environment{"OUTER": 1},
 					want: []IncludeDirective{
 						{Path: "outer.h"},
 						{Path: "always.h"},
 					},
 				},
 				{
-					name:   "OUTER and INNER",
-					macros: cc.Macros{"OUTER": 1, "INNER": 1},
+					name: "OUTER and INNER",
+					env:  Environment{"OUTER": 1, "INNER": 1},
 					want: []IncludeDirective{
 						{Path: "outer.h"},
 						{Path: "inner.h"},
@@ -200,9 +199,9 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 			},
 			reachCases: []macrosCase{
 				{
-					name:   "no macros",
-					macros: cc.Macros{},
-					want:   []IncludeDirective{{Path: "two.h"}},
+					name: "no macros",
+					env:  Environment{},
+					want: []IncludeDirective{{Path: "two.h"}},
 				},
 			},
 		},
@@ -220,9 +219,9 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 			},
 			reachCases: []macrosCase{
 				{
-					name:   "no macros",
-					macros: cc.Macros{},
-					want:   []IncludeDirective{},
+					name: "no macros",
+					env:  Environment{},
+					want: []IncludeDirective{},
 				},
 			},
 		},
@@ -238,7 +237,7 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 		assert.ElementsMatch(t, tc.wantAll, gotAll, "CollectIncludes failed for %q", tc.name)
 
 		for _, rc := range tc.reachCases {
-			gotReach := result.CollectReachableIncludes(rc.macros)
+			gotReach := result.CollectReachableIncludes(rc.env)
 			assert.ElementsMatch(t, rc.want, gotReach, "CollectReachableIncludes failed for %q (%s)", tc.name, rc.name)
 		}
 	}
