@@ -35,6 +35,13 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 	rulesInfo := extractRulesInfo(args)
 
 	var result = language.GenerateResult{}
+	result.RelsToIndex = c.listRelsToIndex(args, srcInfo)
+
+	if !getCcConfig(args.Config).generateCC {
+		// No need to generate or remove any rules
+		return result
+	}
+
 	consumedProtoFiles := c.generateProtoLibraryRules(args, rulesInfo, &result)
 	c.generateLibraryRules(args, srcInfo, rulesInfo, consumedProtoFiles, &result)
 	c.generateBinaryRules(args, srcInfo, rulesInfo, &result)
@@ -43,8 +50,6 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
 	// However we need to inspect for existing rules that are no longer matching any files
 	result.Empty = slices.Concat(result.Empty, c.findEmptyRules(args, srcInfo, rulesInfo, result.Gen))
-
-	result.RelsToIndex = c.listRelsToIndex(args, srcInfo)
 
 	return result
 }
