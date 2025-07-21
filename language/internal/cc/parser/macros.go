@@ -39,12 +39,7 @@ type MacroDefinition struct {
 // validating that each value is an integerliteral understood by the conditional-expression evaluator.
 func ParseMacro(definition string) (MacroDefinition, error) {
 	definition = strings.TrimPrefix(definition, "-D") // tolerate gcc/clang style
-	name, stringValue := definition, ""               // default: bare macro
-
-	if eqIdx := strings.Index(definition, "="); eqIdx >= 0 {
-		name, stringValue = definition[:eqIdx], definition[eqIdx+1:]
-	}
-
+	name, stringValue, _ := strings.Cut(definition, "=")
 	if !macroIdentifierRegex.MatchString(name) {
 		return MacroDefinition{}, fmt.Errorf("invalid macro name %q", name)
 	}
