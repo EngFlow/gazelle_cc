@@ -9,3 +9,9 @@ indexer_integration_test(
     gazelle_binary_path = "//:gazelle_cc",
     indexer_binary_path = "//index/conan",
 )
+
+go_test(
+    name = "integration_tests_test",
+    srcs = ["integration_test.go"],
+    deps = ["//index/internal/tests"],
+)

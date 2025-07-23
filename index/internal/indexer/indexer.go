@@ -34,7 +34,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/EngFlow/gazelle_cc/index/internal/collections"
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
 
