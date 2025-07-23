@@ -18,10 +18,12 @@ import (
 	"log"
 	"maps"
 	"path"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
@@ -265,26 +267,20 @@ func expandGlob(relPath string, glob rule.GlobValue) ([]string, error) {
 		return nil, nil
 	}
 
-	matched := map[string]struct{}{}
+	matched := make(collections.Set[string])
 	for _, pattern := range glob.Patterns {
 		if err := walkGlob(relPath, pattern, matched); err != nil {
 			return nil, err
 		}
 	}
-	excluded := map[string]struct{}{}
+	excluded := make(collections.Set[string])
 	for _, pattern := range glob.Excludes {
 		if err := walkGlob(relPath, pattern, excluded); err != nil {
 			return nil, err
 		}
 	}
 
-	result := make([]string, 0, len(matched))
-	for path := range matched {
-		if _, excluded := excluded[path]; !excluded {
-			result = append(result, path)
-		}
-	}
-	log.Printf("gazelle_cc: glob %q expanded to %d files in %q: %v", strings.Join(glob.Patterns, ","), len(result), relPath, result)
+	result := matched.Diff(excluded).Values()
 	sort.Strings(result)
 	return result, nil
 }
@@ -293,13 +289,13 @@ func expandGlob(relPath string, glob rule.GlobValue) ([]string, error) {
 // Records every matching file path in found
 // Supports "**" for zero or more segments, and ordinary glob patterns
 // Resolving does not use I/O, it uses cached directory info obtained from walk.GetDirInfo - it might panic if the directory was not walked before.
-func walkGlob(dirRel string, pattern string, found map[string]struct{}) error {
+func walkGlob(dirRel string, pattern string, found collections.Set[string]) error {
 	patternParts := strings.Split(path.Clean(pattern), "/")
 	return walkGlobImpl(dirRel, patternParts, "", found)
 }
 
 // walkGlobImpl is the implementation of walkGlob that does the actual walking.
-func walkGlobImpl(dirRel string, patternSegments []string, prefix string, found map[string]struct{}) error {
+func walkGlobImpl(dirRel string, patternSegments []string, prefix string, found collections.Set[string]) error {
 	di, err := walk.GetDirInfo(dirRel) // cached; no I/O
 	if err != nil {
 		return err

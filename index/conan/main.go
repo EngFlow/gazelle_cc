@@ -26,9 +26,9 @@ import (
 	"github.com/EngFlow/gazelle_cc/index/conan/internal/targets"
 	"github.com/EngFlow/gazelle_cc/index/internal/bazel"
 	"github.com/EngFlow/gazelle_cc/index/internal/bazel/proto"
-	"github.com/EngFlow/gazelle_cc/index/internal/collections"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer/cli"
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
