@@ -15,24 +15,20 @@
 package cc
 
 import (
-	"fmt"
 	"log"
 	"maps"
-	"os"
 	"path"
-	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
-	"github.com/EngFlow/gazelle_cc/index/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
-	bzl "github.com/bazelbuild/buildtools/build"
-	doublestar "github.com/bmatcuk/doublestar/v4"
+	"github.com/bazelbuild/bazel-gazelle/walk"
 )
 
 // resolve.Resolver methods
@@ -58,7 +54,7 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 			}
 		}
 	default:
-		hdrs, err := collectStringsAttr(r, filepath.Dir(f.Path), "hdrs")
+		hdrs, err := collectStringsAttr(r, f.Pkg, "hdrs")
 		if err != nil {
 			log.Printf("gazelle_cc: failed to collect 'hdrs' attribute of %v defined in %v:%v, these would not be indexed: %v", r.Kind(), f.Pkg, r.Name(), err)
 			break
@@ -239,7 +235,11 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	return label.NoLabel
 }
 
-func collectStringsAttr(r *rule.Rule, pkgDir, name string) ([]string, error) {
+// collectStringsAttr collects the values of the given attribute from the rule.
+// If the attribute is a list of strings, it returns the list.
+// If the attribute is a glob, it expands the glob patterns relative to dir and returns
+// the resulting paths.
+func collectStringsAttr(r *rule.Rule, dir, name string) ([]string, error) {
 	// Fast path: plain list of strings in the BUILD file.
 	if ss := r.AttrStrings(name); ss != nil {
 		return ss, nil
@@ -249,87 +249,104 @@ func collectStringsAttr(r *rule.Rule, pkgDir, name string) ([]string, error) {
 	if expr == nil {
 		return nil, nil
 	}
-
-	switch e := expr.(type) {
-	case *bzl.ListExpr:
-		return bzl.Strings(e), nil
-
-	case *bzl.CallExpr:
-		id, ok := e.X.(*bzl.Ident)
-		if !ok {
-			break
-		}
-		switch id.Name {
-		case "glob":
-			patterns, excludes := parseGlobCall(e)
-			return expandGlob(pkgDir, patterns, excludes)
-		}
+	if globValue, ok := rule.ParseGlobExpr(expr); ok {
+		return expandGlob(dir, globValue)
 	}
 	return nil, nil
 }
 
-func parseGlobCall(call *bzl.CallExpr) (patterns, excludes []string) {
-	if len(call.List) > 0 {
-		if lst, ok := call.List[0].(*bzl.ListExpr); ok {
-			patterns = bzl.Strings(lst)
+// expandGlob expands the glob patterns in the given glob value relative to relPath.
+// It returns a sorted list of paths that match the patterns, excluding those that match the excludes.
+// The paths are relative to relPath, and they are sorted in lexicographical order.
+// It does not use I/O, it uses cached directory info obtained from walk.GetDirInfo
+// so it might panic if the directory was not walked before.
+func expandGlob(relPath string, glob rule.GlobValue) ([]string, error) {
+	if len(glob.Patterns) == 0 {
+		return nil, nil
+	}
+
+	matched := map[string]struct{}{}
+	for _, pattern := range glob.Patterns {
+		if err := walkGlob(relPath, pattern, matched); err != nil {
+			return nil, err
 		}
 	}
-	for idx, arg := range call.List {
-		switch v := arg.(type) {
-		// named argument
-		case *bzl.AssignExpr:
-			lhs, ok := v.LHS.(*bzl.Ident)
-			if !ok {
-				continue
-			}
-			rhs := bzl.Strings(v.RHS)
-			switch lhs.Name {
-			case "include":
-				patterns = rhs
-			case "exclude":
-				excludes = rhs
-			}
-		// positional argument
-		case *bzl.ListExpr:
-			strings := bzl.Strings(arg)
-			switch idx {
-			case 0:
-				patterns = strings
-			case 1:
-				excludes = strings
-			}
+	excluded := map[string]struct{}{}
+	for _, pattern := range glob.Excludes {
+		if err := walkGlob(relPath, pattern, excluded); err != nil {
+			return nil, err
 		}
 	}
-	return
+
+	result := make([]string, 0, len(matched))
+	for path := range matched {
+		if _, excluded := excluded[path]; !excluded {
+			result = append(result, path)
+		}
+	}
+	log.Printf("gazelle_cc: glob %q expanded to %d files in %q: %v", strings.Join(glob.Patterns, ","), len(result), relPath, result)
+	sort.Strings(result)
+	return result, nil
 }
 
-func expandGlob(pkgDir string, patterns, excludes []string) ([]string, error) {
-	fsys := os.DirFS(pkgDir)
-	globOpts := []doublestar.GlobOption{doublestar.WithFilesOnly(), doublestar.WithNoFollow()}
+// Recursively walks the directory tree rooted at dirRel, following glob pattern,
+// Records every matching file path in found
+// Supports "**" for zero or more segments, and ordinary glob patterns
+// Resolving does not use I/O, it uses cached directory info obtained from walk.GetDirInfo - it might panic if the directory was not walked before.
+func walkGlob(dirRel string, pattern string, found map[string]struct{}) error {
+	patternParts := strings.Split(path.Clean(pattern), "/")
+	return walkGlobImpl(dirRel, patternParts, "", found)
+}
 
-	// First, resolve all exclude patterns.
-	excludeSet := collections.SetOf[string]()
-	for _, p := range excludes {
-		files, err := doublestar.Glob(fsys, p, globOpts...)
-		if err != nil {
-			return nil, fmt.Errorf("exclude glob %q: %w", p, err)
-		}
-		excludeSet.Join(collections.ToSet(files))
+// walkGlobImpl is the implementation of walkGlob that does the actual walking.
+func walkGlobImpl(dirRel string, patternSegments []string, prefix string, found map[string]struct{}) error {
+	di, err := walk.GetDirInfo(dirRel) // cached; no I/O
+	if err != nil {
+		return err
 	}
 
-	// Then, resolve the main patterns.
-	resolved := collections.SetOf[string]()
-	for _, pattern := range patterns {
-		matched, err := doublestar.Glob(fsys, pattern, globOpts...)
-		if err != nil {
-			return nil, fmt.Errorf("glob %q: %w", pattern, err)
+	// Pattern exhausted -> add every regular file in this directory.
+	if len(patternSegments) == 0 {
+		for _, f := range di.RegularFiles {
+			found[path.Join(prefix, f)] = struct{}{}
 		}
-		for _, matchedPath := range matched {
-			if excludeSet.Contains(matchedPath) {
+		return nil
+	}
+
+	head, tail := patternSegments[0], patternSegments[1:]
+	switch head {
+	case "**": // zero or more segments
+		// Zero-segment case: keep matching in the same directory.
+		if err := walkGlobImpl(dirRel, tail, prefix, found); err != nil {
+			return err
+		}
+		// One-or-more: recurse into every subdirectory, keep "**".
+		for _, sd := range di.Subdirs {
+			err := walkGlobImpl(path.Join(dirRel, sd), patternSegments, path.Join(prefix, sd), found)
+			if err != nil {
+				return err
+			}
+		}
+
+	default: // ordinary component (may contain *, ?, [class])
+		if len(tail) == 0 { // last segment — matches files
+			for _, f := range di.RegularFiles {
+				if ok, _ := path.Match(head, f); ok {
+					found[path.Join(prefix, f)] = struct{}{}
+				}
+			}
+			return nil
+		}
+		// Still more segments — match subdirectories
+		for _, subDir := range di.Subdirs {
+			if ok, _ := path.Match(head, subDir); !ok {
 				continue
 			}
-			resolved.Add(matchedPath)
+			err := walkGlobImpl(path.Join(dirRel, subDir), tail, path.Join(prefix, subDir), found)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	return resolved.Values(), nil
+	return nil
 }
