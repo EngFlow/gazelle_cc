@@ -6,8 +6,8 @@ go_library(
         "collections.go",
         "set.go",
     ],
-    importpath = "github.com/EngFlow/gazelle_cc/index/internal/collections",
-    visibility = ["//index:__subpackages__"],
+    importpath = "github.com/EngFlow/gazelle_cc/internal/collections",
+    visibility = ["//:__subpackages__"],
 )
 
 go_test(

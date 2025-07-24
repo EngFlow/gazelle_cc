@@ -1,0 +1,16 @@
+# gazelle:cc_group unit
+
+cc_library(
+  name = "library",
+  hdrs = glob(
+    ["include/**/*.h"],
+    ["include/private/*.h"]),
+)
+
+cc_library(
+    name = "library_private",
+    hdrs = glob(
+      include = ["include/private/*.h"],
+      exclude = ["include/**/excluded_*.h"]
+    ),
+)
