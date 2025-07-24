@@ -1,0 +1,4 @@
+cc_library(
+  name = "library_with_build",
+  hdrs = ["with_build.h"],
+)

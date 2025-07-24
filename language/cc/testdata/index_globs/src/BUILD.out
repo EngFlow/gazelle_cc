@@ -26,3 +26,10 @@ cc_library(
     implementation_deps = ["//:library_private"],
     visibility = ["//visibility:public"],
 )
+
+cc_library(
+    name = "usage_with_build",
+    srcs = ["usage_with_build.cc"],
+    implementation_deps = ["//include/with_build:library_with_build"],
+    visibility = ["//visibility:public"],
+)
