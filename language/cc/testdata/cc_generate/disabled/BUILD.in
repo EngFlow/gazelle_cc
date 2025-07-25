@@ -1,0 +1,13 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_generate false
+
+cc_library(
+    name = "existing",
+    hdrs = ["existing.h"],
+)
+
+cc_library(
+    name = "non_existing",
+    hdrs = ["non_existing.h"],
+)

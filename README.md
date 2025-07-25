@@ -62,6 +62,12 @@ Controls how to handle cyclic dependencies between translation units:
 - `merge`: All groups forming a cycle will be merged into a single one **(default)**
 - `warn`: Don't modify rules forming a cycle, let user handle it manually
 
+### `# gazelle:cc_generate [true|false]`
+
+Specifies whether Gazelle should create C/C++ specific targets, e.g. `cc_library` (default: `true`).
+Setting this to `false` disables rule generation in the current directory and its subdirectories, allowing manual rule management instead.
+Existing `cc_library` rules are still indexed and may be used to resolve internal dependencies.
+
 ### `# gazelle:cc_generate_proto [true|false]`
 
 Specifies whether Gazelle should create `cc_proto_library` targets (default: `true`).

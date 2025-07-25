@@ -37,6 +37,7 @@ const (
 	cc_group_unit_cycles = "cc_group_unit_cycles"
 	cc_indexfile         = "cc_indexfile"
 	cc_search            = "cc_search"
+	cc_generate          = "cc_generate"
 	cc_generate_proto    = "cc_generate_proto"
 )
 
@@ -46,6 +47,7 @@ func (c *ccLanguage) KnownDirectives() []string {
 		cc_group_unit_cycles,
 		cc_indexfile,
 		cc_search,
+		cc_generate,
 		cc_generate_proto,
 	}
 }
@@ -69,12 +71,10 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 			selectDirectiveChoice(&conf.groupingMode, sourceGroupingModes, d)
 		case cc_group_unit_cycles:
 			selectDirectiveChoice(&conf.groupsCycleHandlingMode, groupsCycleHandlingModes, d)
+		case cc_generate:
+			parseBoolDirective(&conf.generateCC, d)
 		case cc_generate_proto:
-			if generateProto, err := strconv.ParseBool(d.Value); err == nil {
-				conf.generateProto = generateProto
-			} else {
-				log.Printf("gazelle_cc: parsing cc_generate_proto: %v", err)
-			}
+			parseBoolDirective(&conf.generateProto, d)
 		case cc_indexfile:
 			// New indexfiles replace inherited ones
 			if d.Value == "" {
@@ -158,6 +158,16 @@ func selectDirectiveChoice[T ~string](target *T, options []T, d rule.Directive) 
 	log.Printf("Invalid value for directive %v, expected one of %v, got: %v", d.Key, options, d.Value)
 }
 
+// Compares the directive value with list of expected choices. If there is a match it updates the target with matching value
+// If there is no match is emits warning on stderr
+func parseBoolDirective(target *bool, d rule.Directive) {
+	if value, err := strconv.ParseBool(d.Value); err == nil {
+		*target = value
+	} else {
+		log.Printf("gazelle_cc: parsing %v: %v", d.Key, err)
+	}
+}
+
 type ccConfig struct {
 	// Defines how how sources should be grouped when defining rules
 	groupingMode sourceGroupingMode
@@ -167,6 +177,8 @@ type ccConfig struct {
 	dependencyIndexes []ccDependencyIndex
 	// List of 'gazelle:cc_search' directives, used to construct RelsToIndex.
 	ccSearch []ccSearch
+	// Should `cc_library`, `cc_binary` and `cc_test` rules be generated
+	generateCC bool
 	// Should `cc_proto_library` rules be generated
 	generateProto bool
 }
@@ -193,6 +205,7 @@ func newCcConfig() *ccConfig {
 		groupsCycleHandlingMode: mergeOnGroupsCycle,
 		dependencyIndexes:       []ccDependencyIndex{},
 		ccSearch:                defaultCcSearch(),
+		generateCC:              true,
 		generateProto:           true,
 	}
 }
@@ -201,6 +214,7 @@ func (conf *ccConfig) clone() *ccConfig {
 	return &ccConfig{
 		groupingMode:            conf.groupingMode,
 		groupsCycleHandlingMode: conf.groupsCycleHandlingMode,
+		generateCC:              conf.generateCC,
 		generateProto:           conf.generateProto,
 		// No deep cloning of dependency indexes to reduce memory usage
 		dependencyIndexes: conf.dependencyIndexes[:len(conf.dependencyIndexes):len(conf.dependencyIndexes)],
