@@ -5,7 +5,9 @@ go_library(
     srcs = [
         "directive.go",
         "expr.go",
+        "macros.go",
         "parser.go",
+        "source_info.go",
     ],
     importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc/parser",
     visibility = ["//language:__subpackages__"],
@@ -13,9 +15,12 @@ go_library(
 
 go_test(
     name = "parser_test",
-    srcs = ["parser_test.go"],
-    embed = [":parser"],
-    deps = [
-        "@com_github_stretchr_testify//assert",
+    srcs = [
+        "expr_test.go",
+        "macros_test.go",
+        "parser_test.go",
+        "source_info_test.go",
     ],
+    embed = [":parser"],
+    deps = ["@com_github_stretchr_testify//assert"],
 )
