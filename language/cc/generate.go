@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -50,6 +51,8 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 }
 
 func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) ccImports {
+	ccConfig := getCcConfig(args.Config)
+	platformEnvs := ccConfig.getPlatformEnvironments()
 	imports := ccImports{}
 	for _, file := range files {
 		var includes *[]ccInclude
@@ -60,11 +63,37 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 		}
 
 		sourceInfo := sourceInfos[file]
+
+		// Evaluate the directives and search for platform specific include paths
+		// We do it for each enabled platform using it's unique set of macros
+		platformIncludes := map[string][]platform.Platform{}
+		for platform, macros := range platformEnvs {
+			reachable := sourceInfo.CollectReachableIncludes(macros)
+			for _, include := range reachable {
+				platformIncludes[include.Path] = append(platformIncludes[include.Path], platform)
+			}
+		}
+		// Returns platforms that are known to use given #include
+		platformsForInclude := func(include parser.IncludeDirective) []platform.Platform {
+			usedByPlatforms, exists := platformIncludes[include.Path]
+			if len(usedByPlatforms) == len(platformEnvs) {
+				// Reachable by all platforms, return to mark it as shared
+				return nil // shared
+			}
+			if !exists {
+				// Not reachable by any platform, explicitly create empty splice to distniguish from nil
+				return []platform.Platform{}
+			}
+			return usedByPlatforms
+		}
+
+		// Assign all includes found in the directives
 		for _, include := range sourceInfo.CollectIncludes() {
 			*includes = append(*includes, ccInclude{
 				path:            path.Clean(include.Path),
 				fromDirectory:   args.Rel,
 				isSystemInclude: include.IsSystem,
+				platforms:       platformsForInclude(include),
 			})
 		}
 	}
@@ -128,7 +157,7 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo cc
 		newRule := newOrExistingRule("cc_library", ruleName, srcGroups, rulesInfo, args)
 
 		// Deal with rules that conflict with existing defintions
-		if ambigiousRuleAssignments, exists := ambigiousRuleAssignments[groupId]; exists {
+		if ambigiousRuleAssignments, reachableByPlatforms := ambigiousRuleAssignments[groupId]; reachableByPlatforms {
 			if !c.handleAmbigiousRulesAssignment(args, conf, srcInfo, rulesInfo, newRule, result, *group, ambigiousRuleAssignments) {
 				continue // Failed to handle issue, skip this group. New rule could have been modified
 			}
@@ -181,7 +210,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 		newRule := newOrExistingRule("cc_test", ruleName, srcGroups, rulesInfo, args)
 
 		// Deal with rules that conflict with existing defintions
-		if ambigiousRuleAssignments, exists := ambigiousRuleAssignments[groupId]; exists {
+		if ambigiousRuleAssignments, reachableByPlatforms := ambigiousRuleAssignments[groupId]; reachableByPlatforms {
 			if !c.handleAmbigiousRulesAssignment(args, conf, srcInfo, rulesInfo, newRule, result, *group, ambigiousRuleAssignments) {
 				continue // Failed to handle issue, skip this group. New rule could have been modified
 			}
@@ -321,7 +350,7 @@ func (srcGroups *sourceGroups) adjustToExistingRules(rulesInfo rulesInfo) (ambig
 		// Collect info about previous assignment of sources to rules creating this group
 		assignedToRules := make(map[string]bool)
 		for _, src := range group.sources {
-			if groupName, exists := rulesInfo.groupAssignment[src.toGroupId()]; exists {
+			if groupName, reachableByPlatforms := rulesInfo.groupAssignment[src.toGroupId()]; reachableByPlatforms {
 				assignedToRules[groupName] = true
 			}
 		}
@@ -492,7 +521,7 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 		assignSources := func(srcs []string) {
 			for _, filename := range srcs {
 				srcFile := newSourceFile(args.Rel, filename)
-				if _, exists := info.ccRuleSources[ruleName]; !exists {
+				if _, reachableByPlatforms := info.ccRuleSources[ruleName]; !reachableByPlatforms {
 					info.ccRuleSources[ruleName] = make(sourceFileSet)
 				}
 				info.ccRuleSources[ruleName][srcFile] = true
@@ -513,7 +542,7 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 }
 
 func resolveCCRuleKind(kind string, config *config.Config) string {
-	if target, exists := config.AliasMap[kind]; exists {
+	if target, reachableByPlatforms := config.AliasMap[kind]; reachableByPlatforms {
 		return target
 	}
 	for _, mapping := range config.KindMap {
