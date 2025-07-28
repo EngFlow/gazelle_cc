@@ -36,35 +36,6 @@ import (
 	"unicode"
 )
 
-// SourceInfo contains the structural information extracted from a C/C++ source file.
-type SourceInfo struct {
-	Directives []Directive // Top-level parsed preprocessor directives (may be nested)
-	HasMain    bool        // True if a main() function is detected
-}
-
-// CollectIncludes recursively traverses the directive tree and returns all IncludeDirective
-// instances, flattening the nested IfBlock structure. This allows consumers to extract all
-// discovered #include directives, regardless of conditional logic.
-func (si SourceInfo) CollectIncludes() []IncludeDirective {
-	var result []IncludeDirective
-	var walk func([]Directive)
-	walk = func(directives []Directive) {
-		for _, d := range directives {
-			switch v := d.(type) {
-			case IncludeDirective:
-				result = append(result, v)
-
-			case IfBlock:
-				for _, branch := range v.Branches {
-					walk(branch.Body)
-				}
-			}
-		}
-	}
-	walk(si.Directives)
-	return result
-}
-
 // ParseSource runs the extractor on an in‑memory buffer.
 func ParseSource(input string) (SourceInfo, error) {
 	return parse(strings.NewReader(input))
@@ -641,6 +612,14 @@ func (p *parser) parseDirective(token string) (Directive, error) {
 	}
 }
 
+// A valid macro identifier must follow these rules:
+// * First character must be ‘_’ or a letter.
+// * Subsequent characters may be ‘_’, letters, or decimal digits.
+var macroIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// A parsable integer literal can be in decimal, octal, or hex form, but may not include C specific suffixes.
+var parsableIntegerRegex = regexp.MustCompile(`^(?:0[xX][0-9A-Fa-f]+|0[0-7]*|[1-9][0-9]*)$`)
+
 // parseValue parses a token as an identifier or integer literal, for use in #if/#elif expressions.
 func parseValue(token string) (Value, error) {
 	if parsableIntegerRegex.MatchString(token) {
@@ -656,18 +635,9 @@ func parseValue(token string) (Value, error) {
 
 // parseIntLiteral parses an integer literal in decimal, octal, or hex form, ignoring C suffixes.
 func parseIntLiteral(tok string) (int, error) {
-	tok = strings.TrimRightFunc(tok, func(r rune) bool {
-		return r == 'u' || r == 'U' || r == 'l' || r == 'L'
-	})
-	v, err := strconv.ParseInt(tok, 0, 64)
+	v, err := strconv.ParseInt(tok, 0, 32)
 	return int(v), err
 }
-
-// A valid macro identifier must follow these rules:
-// * First character must be ‘_’ or a letter.
-// * Subsequent characters may be ‘_’, letters, or decimal digits.
-var macroIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-var parsableIntegerRegex = regexp.MustCompile(`^(?:0[xX][0-9a-fA-F]+|0[0-7]*|[1-9][0-9]*)(?:[uU](?:ll?|LL?)?|ll?[uU]?|LL?[uU]?)?$`)
 
 // Thin wrapper around bufio.Scanner that provides `peek` and `next“ primitives while automatically skipping the ubiquitous newline marker except when explicitly requested.
 // When an algorithm needs to honour line boundaries (e.g. parseExpr) it calls nextInternal/peekInternal instead.
