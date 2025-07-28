@@ -1,7 +1,7 @@
-load("@rules_go//go:def.bzl", "go_test")
 load("//index/internal/tests:indexer_integration_test.bzl", "indexer_integration_test")
 
 # gazelle:exclude testcases
+# gazelle:exclude integration_test.go
 
 indexer_integration_test(
     name = "integration_test",

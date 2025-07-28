@@ -6,8 +6,8 @@ go_library(
     importpath = "github.com/EngFlow/gazelle_cc/index/conan/internal/targets",
     visibility = ["//index/conan:__subpackages__"],
     deps = [
-        "//index/internal/collections",
         "//index/internal/indexer",
+        "//internal/collections",
         "@gazelle//label",
     ],
 )
@@ -17,8 +17,8 @@ go_test(
     srcs = ["grouping_test.go"],
     embed = [":targets"],
     deps = [
-        "//index/internal/collections",
         "//index/internal/indexer",
+        "//internal/collections",
         "@com_github_stretchr_testify//assert",
         "@gazelle//label",
     ],
