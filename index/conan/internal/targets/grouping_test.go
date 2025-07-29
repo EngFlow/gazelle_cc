@@ -17,8 +17,8 @@ package targets
 import (
 	"testing"
 
-	"github.com/EngFlow/gazelle_cc/index/internal/collections"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/stretchr/testify/assert"
 )
