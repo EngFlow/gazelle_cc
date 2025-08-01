@@ -83,7 +83,14 @@ func splitSourcesIntoGroups(args language.GenerateArgs, srcs []sourceFile, srcIn
 	switch conf.groupingMode {
 	case groupSourcesByDirectory:
 		// All sources grouped together
-		groupName := groupId(filepath.Base(args.Dir))
+		groupName := groupId(args.Rel)
+		if groupName == "" {
+			// We're in the top-level directory, try use repo name
+			groupName = groupId(args.Config.RepoName)
+		}
+		if groupName == "" {
+			groupName = groupId(filepath.Base(args.Dir))
+		}
 		srcGroups = sourceGroups{groupName: {sources: srcs}}
 	case groupSourcesByUnit:
 		srcGroups = groupSourcesByUnits(srcs, srcInfo.sourceInfos)
@@ -129,7 +136,7 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo cc
 
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups[groupId]
-		ruleName := string(groupId)
+		ruleName := groupId.toRuleName()
 		newRule := newOrExistingRule("cc_library", ruleName, srcGroups, rulesInfo, args)
 
 		// Deal with rules that conflict with existing defintions
@@ -160,7 +167,10 @@ func (c *ccLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccS
 	srcGroups := identitySourceGroups(srcInfo.mainSrcs)
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups[groupId]
-		ruleName := group.sources[0].baseName()
+		ruleName := groupId.toRuleName()
+		if hasRuleWithName(ruleName, result.Gen) {
+			ruleName = ruleName + "_main"
+		}
 		newRule := newOrExistingRule("cc_binary", ruleName, srcGroups, rulesInfo, args)
 		newRule.SetAttr("srcs", toRelativePaths(args.Rel, group.sources))
 		result.Gen = append(result.Gen, newRule)
@@ -179,8 +189,11 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups[groupId]
-		ruleName := string(groupId)
+		ruleName := groupId.toRuleName()
 		if !(strings.HasSuffix(ruleName, "test") || strings.HasPrefix(ruleName, "test")) {
+			ruleName = ruleName + "_test"
+		}
+		if hasRuleWithName(ruleName, result.Gen) {
 			ruleName = ruleName + "_test"
 		}
 		newRule := newOrExistingRule("cc_test", ruleName, srcGroups, rulesInfo, args)
@@ -538,4 +551,10 @@ func (info *rulesInfo) existingRulesOfKind(kind string, args language.GenerateAr
 		}
 	}
 	return rules
+}
+
+func hasRuleWithName(name string, rules []*rule.Rule) bool {
+	return slices.ContainsFunc(rules, func(rule *rule.Rule) bool {
+		return rule.Name() == name
+	})
 }
