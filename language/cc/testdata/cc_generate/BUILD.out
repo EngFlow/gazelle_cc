@@ -1,0 +1,11 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "cc_generate",
+    hdrs = ["foo.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//disabled:existing",
+        "//disabled/reenabled",
+    ],
+)
