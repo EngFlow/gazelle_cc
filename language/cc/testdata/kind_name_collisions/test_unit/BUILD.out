@@ -1,0 +1,21 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+# gazelle:cc_group unit
+
+cc_library(
+    name = "handler_test",
+    hdrs = ["handler_test.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "handler_test_test",
+    srcs = ["handler_test.cc"],
+    deps = [":handler_test"],
+)
+
+cc_test(
+    name = "other_test",
+    srcs = ["other_test.cc"],
+    deps = [":handler_test"],
+)

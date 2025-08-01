@@ -28,6 +28,10 @@ import (
 // groupId represents a unique identifier for a group of source files
 type groupId string
 
+func (id groupId) toRuleName() string {
+	return filepath.Base(string(id))
+}
+
 // sourceGroup represents a collection of source files and their dependencies
 type sourceGroup struct {
 	sources   []sourceFile
