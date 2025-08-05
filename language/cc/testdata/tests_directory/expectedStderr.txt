@@ -1,0 +1,1 @@
+gazelle: gazelle_cc: found mixed test sources with and without main method signatures in %WORKSPACEPATH%/tests/ambigious_runners, these cannot be handled by gazelle. Under `cc_group unit` each file would be treated as standalone test

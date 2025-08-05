@@ -1,0 +1,34 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+# gazelle:cc_group unit
+
+cc_library(
+    name = "runner",
+    srcs = ["runner.cc"],
+)
+
+cc_library(
+    name = "utils",
+    srcs = ["utils.cc"],
+    hdrs = ["utils.h"],
+)
+
+cc_test(
+    name = "a_test",
+    srcs = ["a.cc"],
+    deps = [
+        ":runner",
+        ":utils",
+        "//src",
+    ],
+)
+
+cc_test(
+    name = "b_test",
+    srcs = ["b.cc"],
+    deps = [
+        ":runner",
+        ":utils",
+        "//src",
+    ],
+)

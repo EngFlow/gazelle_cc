@@ -1,0 +1,22 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+cc_library(
+    name = "shared",
+    hdrs = ["shared.h"],
+)
+
+cc_test(
+    name = "non_runner_test",
+    srcs = ["non_runner.cc"],
+)
+
+cc_test(
+    name = "test1",
+    srcs = ["test1.cc"],
+)
+
+cc_test(
+    name = "test2",
+    srcs = ["test2.cc"],
+    deps = [":shared"],
+)

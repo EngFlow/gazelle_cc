@@ -1,0 +1,7 @@
+This test case ensures that sources defined in test directories are treated as tests, instead of as regular sources.
+Test directory is a directory that contains a segment named "test" or "tests", eg. `foo/test/integration`, `tests/bar`, etc.
+`src/test` and `src/test/integration` directories tests wheter subdirectories are correctlly treated as tests, these should generate `cc_test` istead of `cc_library`
+`test` directory ensures sources with `main` method (test runners) are emmited as `cc_test` instead of standalone `cc_binary` under `cc_group directory` mode.
+`tests` directory tests behaviour under `cc_group unit` mode. Here each test suite should be emitted as standlone `cc_test`. Any sources that are shared between tests should be treated as `test library` - package private `cc_library`.
+If there existis only 1 test runner (source with main) it should become implicit dependency of test suites as it's required when linking (`tests/`).
+If there are multiple test runners each of them should be treated as standlone test (`tests/multiple_runners`), we warn user if we find test suite that is not also a test runner, in such case each file would still become standalone `cc_test` (`test/ambigious_runners`)

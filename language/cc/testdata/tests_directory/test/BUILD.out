@@ -1,0 +1,10 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "test",
+    srcs = [
+        "lib_suite.cc",
+        "runner.cc",
+    ],
+    deps = ["//src"],
+)

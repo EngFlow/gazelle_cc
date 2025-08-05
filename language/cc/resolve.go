@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
@@ -146,12 +147,10 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	}
 	ccImports := imports.(ccImports)
 
-	type labelsSet map[label.Label]struct{}
 	// Resolves given includes to rule labels and assigns them to given attribute.
 	// Excludes explicitly provided labels from being assigned
 	// Returns a set of successfully assigned labels, allowing to exclude them in following invocations
-	resolveIncludes := func(includes []ccInclude, attributeName string, excluded labelsSet) labelsSet {
-		deps := make(map[label.Label]struct{})
+	resolveIncludes := func(includes []ccInclude, attributeName string, excluded collections.Set[label.Label], deps collections.Set[label.Label]) collections.Set[label.Label] {
 		for _, include := range includes {
 			var resolvedLabel = label.NoLabel
 			// 1. Try resolve using fully qualified path (repository-root relative)
@@ -170,7 +169,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			}
 			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
 			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
-				deps[resolvedLabel] = struct{}{}
+				deps.Add(resolvedLabel)
 			}
 		}
 		if len(deps) > 0 {
@@ -185,11 +184,16 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	case "cc_library":
 		// Only cc_library has 'implementation_deps' attribute
 		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
-		publicDeps := resolveIncludes(ccImports.hdrIncludes, "deps", make(labelsSet))
-		resolveIncludes(ccImports.srcIncludes, "implementation_deps", publicDeps)
+		publicDeps := resolveIncludes(ccImports.hdrIncludes, "deps", make(collections.Set[label.Label]), make(collections.Set[label.Label]))
+		resolveIncludes(ccImports.srcIncludes, "implementation_deps", publicDeps, make(collections.Set[label.Label]))
 	default:
 		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)
-		resolveIncludes(includes, "deps", make(labelsSet))
+		// cc_test might have implicit dependency on test runner - cc_library defining main method required when linking
+		deps := make(collections.Set[label.Label])
+		if testRunnerDep, ok := r.PrivateAttr(ccTestRunnerDepKey).(label.Label); ok {
+			deps.Add(testRunnerDep)
+		}
+		resolveIncludes(includes, "deps", make(collections.Set[label.Label]), deps)
 	}
 }
 
