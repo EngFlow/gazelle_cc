@@ -59,6 +59,7 @@ type (
 )
 
 const ccProtoLibraryFilesKey = "_protos"
+const ccTestRunnerDepKey = "_test_runner"
 
 func NewLanguage() language.Language {
 	return &ccLanguage{
@@ -145,7 +146,7 @@ func (*ccLanguage) Fix(c *config.Config, f *rule.File) {}
 
 var sourceExtensions = []string{".c", ".cc", ".cpp", ".cxx", ".c++", ".S"}
 var headerExtensions = []string{".h", ".hh", ".hpp", ".hxx"}
-var cExtensions = append(sourceExtensions, headerExtensions...)
+var ccExtensions = append(sourceExtensions, headerExtensions...)
 
 func hasMatchingExtension(filename string, extensions []string) bool {
 	ext := filepath.Ext(filename)

@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -177,7 +178,88 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 	srcGroups := splitSourcesIntoGroups(args, srcInfo.testSrcs, srcInfo)
 	ambigiousRuleAssignments := srcGroups.adjustToExistingRules(rulesInfo)
 
-	for _, groupId := range srcGroups.groupIds() {
+	// If group A depends on group B then group B should be emitted as cc_library
+	testLibraryGroupIds := make(collections.Set[groupId])
+	var testRunnerGroupId groupId = groupId("")
+	var testGroupIds []groupId
+	switch conf.groupingMode {
+	case groupSourcesByDirectory:
+		testGroupIds = srcGroups.groupIds()
+	case groupSourcesByUnit:
+		// In unit mode some files might be a test runners (having main method)
+		// We might need to adjust the source grouping to inject the runners into cc_test rules
+		// If there is exactly 1 runner and tests exists it should be embeded into every test rule
+		// If there are only test runners or only test sources every single of them is a standalone cc_test
+		// If there is more then 1 runner and tests exists then we don't know how to handle these - we emit a warning and treat every single file as standlone cc_test
+		testRunnerGroups, testGroups := []groupId{}, make([]groupId, 0, len(srcGroups))
+		for id, group := range srcGroups {
+			for _, dep := range group.dependsOn {
+				testLibraryGroupIds = *testLibraryGroupIds.Add(dep)
+			}
+			hasMain := slices.ContainsFunc(
+				group.sources,
+				func(src sourceFile) bool { return srcInfo.sourceInfos[src].HasMain },
+			)
+			if hasMain {
+				testRunnerGroups = append(testRunnerGroups, id)
+			} else {
+				testGroups = append(testGroups, id)
+			}
+		}
+		// If some of the sources are classified test-library we exclude them from testGroups
+		if len(testLibraryGroupIds) > 0 {
+			testsOnly := make([]groupId, 0, len(testGroups)-len(testLibraryGroupIds))
+			for _, groupId := range testGroups {
+				if testLibraryGroupIds.Contains(groupId) {
+					continue
+				}
+				testsOnly = append(testsOnly, groupId)
+			}
+			testGroups = testsOnly
+		}
+
+		// Decide how to handle source based on ammount of runners and test sources
+		switch {
+		case len(testRunnerGroups) == 1 && len(testGroups) > 0:
+			testRunnerGroupId = testRunnerGroups[0]
+			testLibraryGroupIds.Add(testRunnerGroupId)
+			testGroupIds = testGroups
+		case len(testRunnerGroups) > 1 && len(testGroups) > 0:
+			log.Printf("gazelle_cc: found mixed test sources with and without main method signatures in %v, these cannot be handled by gazelle. Under `cc_group unit` each file would be treated as standalone test", args.Dir)
+			testGroupIds = slices.Concat(testGroups, testRunnerGroups)
+		default:
+			testGroupIds = slices.Concat(testGroups, testRunnerGroups)
+		}
+	}
+
+	// Generate test libraries as cc_library
+	// Find also the rule name generated for test runner
+	testRunnerRuleName := label.NoLabel
+	// Ensure deterministic order of rules
+	testLibGroupIds := testLibraryGroupIds.Values()
+	slices.Sort(testLibGroupIds)
+	for _, groupId := range testLibGroupIds {
+		group := srcGroups[groupId]
+		ruleName := string(groupId)
+		newRule := newOrExistingRule("cc_library", ruleName, srcGroups, rulesInfo, args)
+		if groupId == testRunnerGroupId {
+			testRunnerRuleName = label.Label{Name: newRule.Name(), Relative: true}
+		}
+
+		srcs, hdrs := partitionCSources(group.sources)
+		if len(hdrs) > 0 {
+			newRule.SetAttr("hdrs", toRelativePaths(args.Rel, hdrs))
+		}
+		if len(srcs) > 0 {
+			newRule.SetAttr("srcs", toRelativePaths(args.Rel, srcs))
+		}
+		result.Gen = append(result.Gen, newRule)
+		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
+	}
+
+	// Generate actual cc_test rules
+	slices.Sort(testGroupIds)
+	for _, groupId := range testGroupIds {
 		group := srcGroups[groupId]
 		ruleName := string(groupId)
 		if !(strings.HasSuffix(ruleName, "test") || strings.HasPrefix(ruleName, "test")) {
@@ -192,6 +274,10 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 			}
 		}
 		newRule.SetAttr("srcs", toRelativePaths(args.Rel, group.sources))
+		// Store the found test runner info, the runner would be injected into `deps` attribute
+		if testRunnerRuleName != label.NoLabel {
+			newRule.SetPrivateAttr(ccTestRunnerDepKey, testRunnerRuleName)
+		}
 		result.Gen = append(result.Gen, newRule)
 		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
 	}
@@ -286,9 +372,21 @@ func collectSourceInfos(args language.GenerateArgs) ccSourceInfoSet {
 	res := ccSourceInfoSet{}
 	res.sourceInfos = map[sourceFile]parser.SourceInfo{}
 
+	inTestDirectory := slices.ContainsFunc(
+		strings.Split(args.Rel, "/"),
+		func(segment string) bool {
+			switch segment {
+			case "test", "tests":
+				return true
+			default:
+				return false
+			}
+		},
+	)
+
 	for _, fileName := range args.RegularFiles {
 		file := newSourceFile(args.Rel, fileName)
-		if !hasMatchingExtension(fileName, cExtensions) {
+		if !hasMatchingExtension(fileName, ccExtensions) {
 			res.unmatched = append(res.unmatched, file)
 			continue
 		}
@@ -302,6 +400,8 @@ func collectSourceInfos(args language.GenerateArgs) ccSourceInfoSet {
 		baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 		baseName = strings.ToLower(baseName)
 		switch {
+		case inTestDirectory:
+			res.testSrcs = append(res.testSrcs, file)
 		case hasMatchingExtension(fileName, headerExtensions):
 			res.hdrs = append(res.hdrs, file)
 		case strings.HasPrefix(baseName, "test") || strings.HasSuffix(baseName, "test"):
