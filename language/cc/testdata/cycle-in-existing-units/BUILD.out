@@ -36,4 +36,3 @@ cc_library(
     defines = ["USE_FEATURE_A"],
     visibility = ["//visibility:public"],
 )
-
