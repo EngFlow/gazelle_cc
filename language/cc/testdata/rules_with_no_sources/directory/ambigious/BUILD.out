@@ -12,16 +12,6 @@ cc_library(
     hdrs = ["lib_b.h"],
 )
 
-cc_library(
-    name = "ambigious",
-    srcs = ["lib_a.h"],
-    hdrs = [
-        "lib_a.h",
-        "lib_b.h",
-    ],
-    visibility = ["//visibility:public"],
-)
-
 cc_binary(
     name = "app",
     srcs = ["app.cc"],
@@ -32,3 +22,12 @@ cc_binary(
     srcs = ["bin.cc"],
 )
 
+cc_library(
+    name = "ambigious",
+    srcs = ["lib_a.h"],
+    hdrs = [
+        "lib_a.h",
+        "lib_b.h",
+    ],
+    visibility = ["//visibility:public"],
+)

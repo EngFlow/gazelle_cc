@@ -1,14 +1,12 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
-# gazelle:cc_group unit
-
-cc_library(
+cc_binary(
     name = "cli",
-    hdrs = ["cli.h"],
-    visibility = ["//visibility:public"],
+    srcs = ["cli.cc"],
 )
 
-cc_binary(
-    name = "cli_main",
-    srcs = ["cli.cc"],
+cc_library(
+    name = "cli_lib",
+    hdrs = ["cli.h"],
+    visibility = ["//visibility:public"],
 )

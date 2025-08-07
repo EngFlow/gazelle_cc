@@ -35,6 +35,7 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 	srcInfo := collectSourceInfos(args)
 	rulesInfo := extractRulesInfo(args)
 
+	// The order of rules generation matters - name conflict and renaming is based on result.Gen content
 	var result = language.GenerateResult{}
 	result.RelsToIndex = c.listRelsToIndex(args, srcInfo)
 
@@ -44,8 +45,8 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 	}
 
 	consumedProtoFiles := c.generateProtoLibraryRules(args, rulesInfo, &result)
-	c.generateLibraryRules(args, srcInfo, rulesInfo, consumedProtoFiles, &result)
 	c.generateBinaryRules(args, srcInfo, rulesInfo, &result)
+	c.generateLibraryRules(args, srcInfo, rulesInfo, consumedProtoFiles, &result)
 	c.generateTestRules(args, srcInfo, rulesInfo, &result)
 
 	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
@@ -138,6 +139,9 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo cc
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups[groupId]
 		ruleName := groupId.toRuleName()
+		if hasRuleWithName(ruleName, result.Gen) {
+			ruleName = ruleName + "_lib"
+		}
 		newRule := newOrExistingRule("cc_library", ruleName, srcGroups, rulesInfo, args)
 
 		// Deal with rules that conflict with existing defintions
@@ -169,9 +173,6 @@ func (c *ccLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccS
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups[groupId]
 		ruleName := groupId.toRuleName()
-		if hasRuleWithName(ruleName, result.Gen) {
-			ruleName = ruleName + "_main"
-		}
 		newRule := newOrExistingRule("cc_binary", ruleName, srcGroups, rulesInfo, args)
 		newRule.SetAttr("srcs", toRelativePaths(args.Rel, group.sources))
 		result.Gen = append(result.Gen, newRule)
@@ -272,7 +273,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 	for _, groupId := range testGroupIds {
 		group := srcGroups[groupId]
 		ruleName := groupId.toRuleName()
-		if !(strings.HasSuffix(ruleName, "test") || strings.HasPrefix(ruleName, "test")) {
+		if !(strings.HasSuffix(ruleName, "test")) {
 			ruleName = ruleName + "_test"
 		}
 		if hasRuleWithName(ruleName, result.Gen) {

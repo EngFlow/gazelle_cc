@@ -1,15 +1,15 @@
 load("//:custom_cc.bzl", "custom_cc_binary", "custom_cc_library", "custom_cc_test")
 
-custom_cc_library(
-    name = "new",
-    hdrs = ["lib.h"],
-    visibility = ["//visibility:public"],
-)
-
 custom_cc_binary(
     name = "bin",
     srcs = ["bin.c"],
     deps = [":new"],
+)
+
+custom_cc_library(
+    name = "new",
+    hdrs = ["lib.h"],
+    visibility = ["//visibility:public"],
 )
 
 custom_cc_test(
