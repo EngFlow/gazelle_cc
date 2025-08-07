@@ -20,6 +20,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
@@ -29,6 +30,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/bazelbuild/bazel-gazelle/walk"
 )
 
 // resolve.Resolver methods
@@ -54,7 +56,11 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 			}
 		}
 	default:
-		hdrs := r.AttrStrings("hdrs")
+		hdrs, err := collectStringsAttr(*c, r, f.Pkg, "hdrs")
+		if err != nil {
+			log.Printf("gazelle_cc: failed to collect 'hdrs' attribute of %v defined in %v:%v, these would not be indexed: %v", r.Kind(), f.Pkg, r.Name(), err)
+			break
+		}
 		stripIncludePrefix := r.AttrString("strip_include_prefix")
 		if stripIncludePrefix != "" {
 			stripIncludePrefix = path.Clean(stripIncludePrefix)
@@ -232,4 +238,147 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	}
 
 	return label.NoLabel
+}
+
+// collectStringsAttr collects the values of the given attribute from the rule.
+// If the attribute is a list of strings, it returns the list.
+// If the attribute is a glob, it expands the glob patterns relative to dir and returns
+// the resulting paths.
+func collectStringsAttr(c config.Config, r *rule.Rule, dir, attrName string) ([]string, error) {
+	// Fast path: plain list of strings in the BUILD file.
+	if ss := r.AttrStrings(attrName); ss != nil {
+		return ss, nil
+	}
+
+	expr := r.Attr(attrName) // nil if the attribute is not present
+	if expr == nil {
+		return nil, nil
+	}
+	if globValue, ok := rule.ParseGlobExpr(expr); ok {
+		return expandGlob(c, dir, globValue)
+	}
+	return nil, nil
+}
+
+// expandGlob expands the glob patterns in the given glob value relative to relPath.
+// It returns a sorted list of paths that match the patterns, excluding those that match the excludes.
+// The paths are relative to relPath, and they are sorted in lexicographical order.
+// It does not use I/O, it uses cached directory info obtained from walk.GetDirInfo
+// so it might panic if the directory was not walked before.
+func expandGlob(config config.Config, dir string, glob rule.GlobValue) ([]string, error) {
+	if len(glob.Patterns) == 0 {
+		return nil, nil
+	}
+
+	included := newGlobWalker(config, dir)
+	if err := included.walk(glob.Patterns...); err != nil {
+		return nil, err
+	}
+	excluded := newGlobWalker(config, dir)
+	if err := excluded.walk(glob.Excludes...); err != nil {
+		return nil, err
+	}
+	result := included.matched.Diff(excluded.matched).Values()
+	sort.Strings(result)
+	return result, nil
+}
+
+// globWalker is a utility that walks the directory tree and collects paths matching glob patterns
+// It uses cached directory info obtained from walk.GetDirInfo, so it does not perform I/O.
+// It can handle patterns with "**" for zero or more segments, and ordinary glob patterns.
+// Can be reused to walk multiple patterns, collecting all matching paths in a single set.
+type globWalker struct {
+	resolveFromDirectory string // project root-relative path directory where we resolve glob pattern from
+	// gazelle configuration, required to resolve valid BUILD file names
+	config config.Config
+	// set of paths that match the glob pattern.
+	matched collections.Set[string]
+}
+
+// creates a new globWalker with the given configuration.
+func newGlobWalker(config config.Config, fromDirectory string) *globWalker {
+	return &globWalker{
+		resolveFromDirectory: fromDirectory,
+		config:               config,
+		matched:              make(collections.Set[string]),
+	}
+}
+
+// walkAll walks the directory tree rooted at globWalker.resolveFromDirectory following all glob patterns.
+// It records every matching file path in globWalker.matched set.
+// It does not use I/O, it uses cached directory info obtained from walk.GetDirInfo
+// so it might panic if the directory was not walked before.
+func (w *globWalker) walk(patterns ...string) error {
+	for _, pattern := range patterns {
+		patternParts := strings.Split(path.Clean(pattern), "/")
+		if err := w.walkImpl("", patternParts); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// walkImpl is the implementation of walkGlob that does the actual walking.
+// relDir is the directory project root-relative path where we resolve glob pattern from
+// patternSegments is the list of segments in the glob pattern, split by "/"
+// prefix is the path relative to relDir
+func (w *globWalker) walkImpl(relativePath string, patternSegments []string) error {
+	di, err := walk.GetDirInfo(path.Join(w.resolveFromDirectory, relativePath)) // cached; no I/O
+	if err != nil {
+		return err
+	}
+
+	if relativePath != "" {
+		// When walking the subdirectories, we need to exclude dirs containg BUILD files
+		for _, f := range di.RegularFiles {
+			if w.config.IsValidBuildFileName(f) {
+				return nil // BUILD file found, stop walking
+			}
+		}
+	}
+
+	// Pattern exhausted -> add every regular file in this directory.
+	if len(patternSegments) == 0 {
+		for _, f := range di.RegularFiles {
+			w.matched.Add(path.Join(relativePath, f))
+		}
+		return nil
+	}
+
+	head, tail := patternSegments[0], patternSegments[1:]
+	switch head {
+	case "**": // zero or more segments
+		// Zero-segment case: keep matching in the same directory.
+		if err := w.walkImpl(relativePath, tail); err != nil {
+			return err
+		}
+		// One-or-more: recurse into every subdirectory, keep "**".
+		for _, subDir := range di.Subdirs {
+			err := w.walkImpl(path.Join(relativePath, subDir), patternSegments)
+			if err != nil {
+				return err
+			}
+		}
+
+	default: // ordinary component (may contain *, ?, [class])
+		if len(tail) == 0 { // last segment — matches files
+			for _, f := range di.RegularFiles {
+				if ok, _ := path.Match(head, f); ok {
+					w.matched.Add(path.Join(relativePath, f))
+				}
+			}
+			return nil
+		}
+		// Still more segments — match subdirectories
+		for _, subDir := range di.Subdirs {
+			if ok, _ := path.Match(head, subDir); !ok {
+				continue
+			}
+			err := w.walkImpl(path.Join(relativePath, subDir), tail)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

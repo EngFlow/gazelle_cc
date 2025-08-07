@@ -25,6 +25,7 @@ go_library(
         "@gazelle//repo",
         "@gazelle//resolve",
         "@gazelle//rule",
+        "@gazelle//walk",
     ],
 )
 

@@ -6,7 +6,7 @@ go_library(
     importpath = "github.com/EngFlow/gazelle_cc/index/internal/bazel",
     visibility = ["//index:__subpackages__"],
     deps = [
-        "//index/internal/bazel/proto:build_go_proto",
+        "//index/internal/bazel/proto",
         "@org_golang_google_protobuf//proto",
     ],
 )
