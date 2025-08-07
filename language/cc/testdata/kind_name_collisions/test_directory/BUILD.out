@@ -1,16 +1,16 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 cc_library(
-    name = "test",
+    name = "test_directory",
     hdrs = ["handler_test.h"],
     visibility = ["//visibility:public"],
 )
 
 cc_test(
-    name = "test_test",
+    name = "test_directory_test",
     srcs = [
         "handler_test.cc",
         "other_test.cc",
     ],
-    deps = [":test"],
+    deps = [":test_directory"],
 )

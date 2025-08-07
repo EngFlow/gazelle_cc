@@ -252,7 +252,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 	slices.Sort(testLibGroupIds)
 	for _, groupId := range testLibGroupIds {
 		group := srcGroups[groupId]
-		ruleName := string(groupId)
+		ruleName := groupId.toRuleName()
 		newRule := newOrExistingRule("cc_library", ruleName, srcGroups, rulesInfo, args)
 		if groupId == testRunnerGroupId {
 			testRunnerRuleName = label.Label{Name: newRule.Name(), Relative: true}
@@ -274,7 +274,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 	for _, groupId := range testGroupIds {
 		group := srcGroups[groupId]
 		ruleName := groupId.toRuleName()
-		if !(strings.HasSuffix(ruleName, "test")) {
+		if !(strings.HasSuffix(ruleName, "test") || strings.HasPrefix(ruleName, "test")) {
 			ruleName = ruleName + "_test"
 		}
 		if hasRuleWithName(ruleName, result.Gen) {
