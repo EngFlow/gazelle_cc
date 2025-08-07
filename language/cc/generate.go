@@ -85,15 +85,16 @@ func splitSourcesIntoGroups(args language.GenerateArgs, srcs []sourceFile, srcIn
 	switch conf.groupingMode {
 	case groupSourcesByDirectory:
 		// All sources grouped together
-		groupName := groupId(args.Rel)
+		groupName := args.Rel
 		if groupName == "" {
 			// We're in the top-level directory, try use repo name
-			groupName = groupId(args.Config.RepoName)
+			groupName = args.Config.RepoName
 		}
+		// Last, not deterministic, fallback - the repository directory name
 		if groupName == "" {
-			groupName = groupId(filepath.Base(args.Dir))
+			groupName = filepath.Base(args.Dir)
 		}
-		srcGroups = sourceGroups{groupName: {sources: srcs}}
+		srcGroups = sourceGroups{groupId(groupName): {sources: srcs}}
 	case groupSourcesByUnit:
 		srcGroups = groupSourcesByUnits(srcs, srcInfo.sourceInfos)
 	}
