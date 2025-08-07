@@ -22,6 +22,6 @@ cc_test(
     deps = [
         ":interface_cc_proto",
         "//service_a:protobuf_service_a_cc_proto",
-        "//service_b:model_cc_proto",
+        "//service_b:proto_interface_cc_proto",
     ],
 )
