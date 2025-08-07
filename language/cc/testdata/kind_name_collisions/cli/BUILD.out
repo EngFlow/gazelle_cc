@@ -1,14 +1,12 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 cc_binary(
-    name = "app",
-    srcs = ["app.cpp"],
-    deps = [":b"],
+    name = "cli",
+    srcs = ["cli.cc"],
 )
 
 cc_library(
-    name = "b",
-    srcs = ["lib.c"],
-    hdrs = ["lib.h"],
+    name = "cli_lib",
+    hdrs = ["cli.h"],
     visibility = ["//visibility:public"],
 )

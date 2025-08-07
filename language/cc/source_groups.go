@@ -26,7 +26,14 @@ import (
 )
 
 // groupId represents a unique identifier for a group of source files
+// used when detecting (possibly cyclic) dependenices between sources inside directory under `cc_group unit` mode
+// it might be constructred based on the repository-relative path to the sources (excluding file extension) or just the directory name
 type groupId string
+
+// constructs a rule name based on the groupId, typically it's the last segment of the path (directory or file name without extension)
+func (id groupId) toRuleName() string {
+	return filepath.Base(string(id))
+}
 
 // sourceGroup represents a collection of source files and their dependencies
 type sourceGroup struct {
@@ -283,8 +290,7 @@ func selectGroupName(files []sourceFile) groupId {
 		slices.Sort(hdrs)
 		selectedFile = hdrs[0]
 	}
-	groupName := strings.ToLower(selectedFile.baseName())
-	return groupId(groupName)
+	return selectedFile.toGroupId()
 }
 
 // Splits the source files into sources and headers
