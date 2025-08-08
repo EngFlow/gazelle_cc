@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"errors"
 	"log"
 	"maps"
 	"path"
@@ -31,6 +32,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 	"github.com/bazelbuild/bazel-gazelle/walk"
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 // resolve.Resolver methods
@@ -269,116 +271,60 @@ func expandGlob(config config.Config, dir string, glob rule.GlobValue) ([]string
 	if len(glob.Patterns) == 0 {
 		return nil, nil
 	}
-
-	included := newGlobWalker(config, dir)
-	if err := included.walk(glob.Patterns...); err != nil {
-		return nil, err
-	}
-	excluded := newGlobWalker(config, dir)
-	if err := excluded.walk(glob.Excludes...); err != nil {
-		return nil, err
-	}
-	result := included.matched.Diff(excluded.matched).Values()
-	sort.Strings(result)
-	return result, nil
-}
-
-// globWalker is a utility that walks the directory tree and collects paths matching glob patterns
-// It uses cached directory info obtained from walk.GetDirInfo, so it does not perform I/O.
-// It can handle patterns with "**" for zero or more segments, and ordinary glob patterns.
-// Can be reused to walk multiple patterns, collecting all matching paths in a single set.
-type globWalker struct {
-	resolveFromDirectory string // project root-relative path directory where we resolve glob pattern from
-	// gazelle configuration, required to resolve valid BUILD file names
-	config config.Config
-	// set of paths that match the glob pattern.
-	matched collections.Set[string]
-}
-
-// creates a new globWalker with the given configuration.
-func newGlobWalker(config config.Config, fromDirectory string) *globWalker {
-	return &globWalker{
-		resolveFromDirectory: fromDirectory,
-		config:               config,
-		matched:              make(collections.Set[string]),
-	}
-}
-
-// walkAll walks the directory tree rooted at globWalker.resolveFromDirectory following all glob patterns.
-// It records every matching file path in globWalker.matched set.
-// It does not use I/O, it uses cached directory info obtained from walk.GetDirInfo
-// so it might panic if the directory was not walked before.
-func (w *globWalker) walk(patterns ...string) error {
-	for _, pattern := range patterns {
-		patternParts := strings.Split(path.Clean(pattern), "/")
-		if err := w.walkImpl("", patternParts); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// walkImpl is the implementation of walkGlob that does the actual walking.
-// relDir is the directory project root-relative path where we resolve glob pattern from
-// patternSegments is the list of segments in the glob pattern, split by "/"
-// prefix is the path relative to relDir
-func (w *globWalker) walkImpl(relativePath string, patternSegments []string) error {
-	di, err := walk.GetDirInfo(path.Join(w.resolveFromDirectory, relativePath)) // cached; no I/O
-	if err != nil {
-		return err
-	}
-
-	if relativePath != "" {
-		// When walking the subdirectories, we need to exclude dirs containg BUILD files
-		for _, f := range di.RegularFiles {
-			if w.config.IsValidBuildFileName(f) {
-				return nil // BUILD file found, stop walking
+	// Filter out invalid patterns
+	validatedPatterns := func(patterns []string) []string {
+		validated := make([]string, 0, len(patterns))
+		for _, pattern := range patterns {
+			if doublestar.ValidatePattern(pattern) {
+				validated = append(validated, pattern)
 			}
 		}
+		return validated
 	}
 
-	// Pattern exhausted -> add every regular file in this directory.
-	if len(patternSegments) == 0 {
-		for _, f := range di.RegularFiles {
-			w.matched.Add(path.Join(relativePath, f))
-		}
-		return nil
+	includePatterns := validatedPatterns(glob.Patterns)
+	if len(includePatterns) == 0 {
+		return nil, errors.New("no valid include patterns found")
 	}
+	excludePatterns := validatedPatterns(glob.Excludes)
 
-	head, tail := patternSegments[0], patternSegments[1:]
-	switch head {
-	case "**": // zero or more segments
-		// Zero-segment case: keep matching in the same directory.
-		if err := w.walkImpl(relativePath, tail); err != nil {
-			return err
+	// Traverse the file tree using walk.GetDirInfo and collect all matching files
+	matched := []string{}
+	var traverse func(string)
+	traverse = func(relativePath string) {
+		di, err := walk.GetDirInfo(relativePath)
+		if err != nil {
+			return // swallow errors
 		}
-		// One-or-more: recurse into every subdirectory, keep "**".
-		for _, subDir := range di.Subdirs {
-			err := w.walkImpl(path.Join(relativePath, subDir), patternSegments)
-			if err != nil {
-				return err
+		if relativePath != "" {
+			// When walking the subdirectories, we need to exclude dirs containg BUILD files
+			if slices.ContainsFunc(di.RegularFiles, config.IsValidBuildFileName) {
+				return // BUILD file found, stop walking
 			}
 		}
-
-	default: // ordinary component (may contain *, ?, [class])
-		if len(tail) == 0 { // last segment — matches files
-			for _, f := range di.RegularFiles {
-				if ok, _ := path.Match(head, f); ok {
-					w.matched.Add(path.Join(relativePath, f))
-				}
+		for _, file := range di.RegularFiles {
+			path := filepath.Join(relativePath, file)
+			// Check matches include pattern
+			if !slices.ContainsFunc(
+				includePatterns,
+				func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, path) },
+			) {
+				continue // not included
 			}
-			return nil
+			// Check matched exclude pattern
+			if slices.ContainsFunc(
+				excludePatterns,
+				func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, path) },
+			) {
+				continue // excluded
+			}
+			matched = append(matched, path)
 		}
-		// Still more segments — match subdirectories
-		for _, subDir := range di.Subdirs {
-			if ok, _ := path.Match(head, subDir); !ok {
-				continue
-			}
-			err := w.walkImpl(path.Join(relativePath, subDir), tail)
-			if err != nil {
-				return err
-			}
+		for _, dir := range di.Subdirs {
+			traverse(filepath.Join(relativePath, dir))
 		}
 	}
-	return nil
+	traverse(dir)
+	sort.Strings(matched)
+	return matched, nil
 }
