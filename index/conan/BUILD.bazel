@@ -8,7 +8,7 @@ go_library(
     deps = [
         "//index/conan/internal/targets",
         "//index/internal/bazel",
-        "//index/internal/bazel/proto:build_go_proto",
+        "//index/internal/bazel/proto",
         "//index/internal/indexer",
         "//index/internal/indexer/cli",
         "//internal/collections",

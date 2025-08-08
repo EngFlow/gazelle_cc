@@ -1,22 +1,21 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
-    name = "rules_foreign_cc_lib",
+    name = "bcr_lib",
     srcs = ["main.go"],
-    importpath = "github.com/EngFlow/gazelle_cc/index/rules_foreign_cc",
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/bcr",
     visibility = ["//visibility:private"],
     deps = [
         "//index/internal/bazel",
         "//index/internal/bazel/proto",
-        "//index/internal/indexer",
-        "//index/internal/indexer/cli",
         "//internal/collections",
+        "@com_github_ulikunitz_xz//:xz",
         "@gazelle//label",
     ],
 )
 
 go_binary(
-    name = "rules_foreign_cc",
-    embed = [":rules_foreign_cc_lib"],
-    visibility = ["//visibility:public"],
+    name = "bcr",
+    embed = [":bcr_lib"],
+    visibility = ["//index:__subpackages__"],
 )
