@@ -15,11 +15,13 @@
 package cc
 
 import (
+	"errors"
 	"log"
 	"maps"
 	"path"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
@@ -29,6 +31,8 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/bazelbuild/bazel-gazelle/walk"
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 // resolve.Resolver methods
@@ -54,7 +58,11 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 			}
 		}
 	default:
-		hdrs := r.AttrStrings("hdrs")
+		hdrs, err := collectStringsAttr(*c, r, f.Pkg, "hdrs")
+		if err != nil {
+			log.Printf("gazelle_cc: failed to collect 'hdrs' attribute of %v defined in %v:%v, these would not be indexed: %v", r.Kind(), f.Pkg, r.Name(), err)
+			break
+		}
 		stripIncludePrefix := r.AttrString("strip_include_prefix")
 		if stripIncludePrefix != "" {
 			stripIncludePrefix = path.Clean(stripIncludePrefix)
@@ -232,4 +240,91 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	}
 
 	return label.NoLabel
+}
+
+// collectStringsAttr collects the values of the given attribute from the rule.
+// If the attribute is a list of strings, it returns the list.
+// If the attribute is a glob, it expands the glob patterns relative to dir and returns
+// the resulting paths.
+func collectStringsAttr(c config.Config, r *rule.Rule, dir, attrName string) ([]string, error) {
+	// Fast path: plain list of strings in the BUILD file.
+	if ss := r.AttrStrings(attrName); ss != nil {
+		return ss, nil
+	}
+
+	expr := r.Attr(attrName) // nil if the attribute is not present
+	if expr == nil {
+		return nil, nil
+	}
+	if globValue, ok := rule.ParseGlobExpr(expr); ok {
+		return expandGlob(c, dir, globValue)
+	}
+	return nil, nil
+}
+
+// expandGlob expands the glob patterns in the given glob value relative to relPath.
+// It returns a sorted list of paths that match the patterns, excluding those that match the excludes.
+// The paths are relative to relPath, and they are sorted in lexicographical order.
+// It does not use I/O, it uses cached directory info obtained from walk.GetDirInfo
+// so it might panic if the directory was not walked before.
+func expandGlob(config config.Config, dir string, glob rule.GlobValue) ([]string, error) {
+	if len(glob.Patterns) == 0 {
+		return nil, nil
+	}
+	// Filter out invalid patterns
+	validatedPatterns := func(patterns []string) []string {
+		validated := make([]string, 0, len(patterns))
+		for _, pattern := range patterns {
+			if doublestar.ValidatePattern(pattern) {
+				validated = append(validated, pattern)
+			}
+		}
+		return validated
+	}
+
+	includePatterns := validatedPatterns(glob.Patterns)
+	if len(includePatterns) == 0 {
+		return nil, errors.New("no valid include patterns found")
+	}
+	excludePatterns := validatedPatterns(glob.Excludes)
+
+	// Traverse the file tree using walk.GetDirInfo and collect all matching files
+	matched := []string{}
+	var traverse func(string)
+	traverse = func(relativePath string) {
+		di, err := walk.GetDirInfo(relativePath)
+		if err != nil {
+			return // swallow errors
+		}
+		if relativePath != "" {
+			// When walking the subdirectories, we need to exclude dirs containg BUILD files
+			if slices.ContainsFunc(di.RegularFiles, config.IsValidBuildFileName) {
+				return // BUILD file found, stop walking
+			}
+		}
+		for _, file := range di.RegularFiles {
+			path := filepath.Join(relativePath, file)
+			// Check matches include pattern
+			if !slices.ContainsFunc(
+				includePatterns,
+				func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, path) },
+			) {
+				continue // not included
+			}
+			// Check matched exclude pattern
+			if slices.ContainsFunc(
+				excludePatterns,
+				func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, path) },
+			) {
+				continue // excluded
+			}
+			matched = append(matched, path)
+		}
+		for _, dir := range di.Subdirs {
+			traverse(filepath.Join(relativePath, dir))
+		}
+	}
+	traverse(dir)
+	sort.Strings(matched)
+	return matched, nil
 }

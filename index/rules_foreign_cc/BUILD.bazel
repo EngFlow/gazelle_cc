@@ -7,7 +7,7 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//index/internal/bazel",
-        "//index/internal/bazel/proto:build_go_proto",
+        "//index/internal/bazel/proto",
         "//index/internal/indexer",
         "//index/internal/indexer/cli",
         "//internal/collections",
