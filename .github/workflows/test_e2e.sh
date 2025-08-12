@@ -40,7 +40,7 @@ function testExampleBzlMod() {
 
   bazel build //...
   bazel test --test_output=errors //...
-  bazel run //proto:example 
+  bazel run //proto:example
 }
 
 function testExampleWorkspace() {
@@ -59,7 +59,7 @@ function testExampleWorkspace() {
 
   bazel build //...
   bazel test --test_output=errors //...
-  bazel run //app:main 
+  bazel run //app:main
 }
 
 testExampleBzlMod
