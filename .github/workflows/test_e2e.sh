@@ -6,13 +6,13 @@ scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 rootDir=$(realpath "$scriptDir/../..")
 
 function runBazelCommandTreatingWarningsAsErrors() {
-  local CMD="$1"
-  shift
   local OUTPUT_BASE_DIR=$(bazel info output_base)
   local BAZEL_COMMAND_LOG_FILE="$OUTPUT_BASE_DIR/command.log"
+  local BAZEL_CMD="$1"
+  shift
 
   # Disable colors and control characters to make grep work properly
-  bazel "$CMD" --color=no --curses=no "$@"
+  command bazel "$BAZEL_CMD" --color=no --curses=no "$@"
 
   # Expect no warnings in the command output
   local COLLECTED_WARNINGS=$(grep "^WARNING" "$BAZEL_COMMAND_LOG_FILE" || true)
@@ -24,6 +24,9 @@ function runBazelCommandTreatingWarningsAsErrors() {
   fi
 }
 
+# Wrap the original bazel command
+alias bazel=runBazelCommandTreatingWarningsAsErrors
+
 function testExampleBzlMod() {
   echo "Test example/bzlmod"
   cd "$rootDir/example/bzlmod"
@@ -32,7 +35,7 @@ function testExampleBzlMod() {
   rm -f mylib/BUILD.bazel proto/BUILD.bazel
 
   # Run gazelle to generate BUILD files
-  runBazelCommandTreatingWarningsAsErrors run :gazelle
+  bazel run :gazelle
 
   # Verify that BUILD files were generated
   test -f mylib/BUILD.bazel
@@ -51,7 +54,7 @@ function testExampleWorkspace() {
   rm -f mylib/BUILD.bazel app/BUILD.bazel
 
   # Run gazelle to generate BUILD files
-  runBazelCommandTreatingWarningsAsErrors run :gazelle
+  bazel run :gazelle
 
   # Verify that BUILD files were generated
   test -f mylib/BUILD.bazel
