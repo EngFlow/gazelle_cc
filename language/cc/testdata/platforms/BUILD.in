@@ -1,0 +1,8 @@
+# gazelle:cc_group unit
+# gazelle:cc_platform windows/x86_64 @platforms//os:windows OS_WINDOWS PTR_SIZE=64
+# gazelle:cc_platform osx/aarch64 //platforms/macos_arm PTR_SIZE=64
+# gazelle:cc_platform linux/i386 //platforms/linux_x86 OS_LINUX PTR_SIZE=32
+
+# Invalid
+# gazelle:cc_platform linux //platforms/linux_x86 
+# gazelle:cc_platform x86_64 //platforms/linux_x86 
