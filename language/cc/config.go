@@ -18,12 +18,17 @@ import (
 	"errors"
 	"flag"
 	"log"
+	"maps"
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"unicode"
 
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language/proto"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
@@ -39,6 +44,7 @@ const (
 	cc_search            = "cc_search"
 	cc_generate          = "cc_generate"
 	cc_generate_proto    = "cc_generate_proto"
+	cc_platform          = "cc_platform"
 )
 
 func (c *ccLanguage) KnownDirectives() []string {
@@ -49,6 +55,7 @@ func (c *ccLanguage) KnownDirectives() []string {
 		cc_search,
 		cc_generate,
 		cc_generate_proto,
+		cc_platform,
 	}
 }
 
@@ -76,7 +83,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		case cc_generate_proto:
 			parseBoolDirective(&conf.generateProto, d)
 		case cc_indexfile:
-			// New indexfiles replace inherited ones
+			// Reset existing indexfiles
 			if d.Value == "" {
 				conf.dependencyIndexes = []ccDependencyIndex{}
 				continue
@@ -132,6 +139,42 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				}
 				conf.ccSearch = append(conf.ccSearch, s)
 			}
+
+		case cc_platform:
+			// Reset existing platforms
+			if d.Value == "" {
+				conf.platforms = map[platform.Platform]platformConfig{}
+				continue
+			}
+			args := strings.Fields(d.Value)
+			if len(args) < 2 {
+				log.Printf("gazelle_cc: invalid %v input: %v - %v", d.Key, d.Value)
+				continue
+			}
+			for i := range args {
+				args[i] = strings.Trim(args[i], "\"")
+			}
+			platformId, err := platform.Parse(args[0])
+			if err != nil {
+				log.Printf("gazelle_cc: invalid %v input for platform identifier '%v': %v", d.Key, args[0], err)
+				continue
+			}
+			constraintLabel, err := label.Parse(args[1])
+			if err != nil {
+				log.Printf("gazelle_cc: invalid %v input for constraint label '%v': %v", d.Key, args[1], err)
+				continue
+			}
+
+			macros, err := parser.ParseMacros(args[2:])
+			if err != nil {
+				log.Printf("gazelle_cc: invalid %v input for platform macro definition '%v': %v", d.Key, d.Value, err)
+			}
+
+			conf.platforms[platformId] = platformConfig{
+				platform:       platformId,
+				constraint:     constraintLabel,
+				userDefinedEnv: macros,
+			}
 		}
 	}
 }
@@ -181,6 +224,8 @@ type ccConfig struct {
 	generateCC bool
 	// Should `cc_proto_library` rules be generated
 	generateProto bool
+	// Platforms for which os/arch specific selects should be generated
+	platforms map[platform.Platform]platformConfig
 }
 
 type ccSearch struct {
@@ -207,6 +252,7 @@ func newCcConfig() *ccConfig {
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
 		generateProto:           true,
+		platforms:               map[platform.Platform]platformConfig{},
 	}
 }
 
@@ -219,6 +265,7 @@ func (conf *ccConfig) clone() *ccConfig {
 		// No deep cloning of dependency indexes to reduce memory usage
 		dependencyIndexes: conf.dependencyIndexes[:len(conf.dependencyIndexes):len(conf.dependencyIndexes)],
 		ccSearch:          conf.ccSearch[:len(conf.ccSearch):len(conf.ccSearch)],
+		platforms:         maps.Clone(conf.platforms),
 	}
 }
 
@@ -227,6 +274,27 @@ func (conf *ccConfig) clone() *ccConfig {
 // We don't ask the user to write this explicitly.
 func defaultCcSearch() []ccSearch {
 	return []ccSearch{{}}
+}
+
+type platformConfig struct {
+	platform       platform.Platform
+	constraint     label.Label
+	userDefinedEnv parser.Environment
+}
+
+func (pc platformConfig) getPlatformEnvironment() parser.Environment {
+	env := make(parser.Environment)
+	maps.Copy(env, platform.KnownPlatformEnv[pc.platform])
+	maps.Copy(env, pc.userDefinedEnv)
+	return env
+}
+
+func (conf ccConfig) getPlatformEnvironments() map[platform.Platform]parser.Environment {
+	result := map[platform.Platform]parser.Environment{}
+	for platform, config := range conf.platforms {
+		result[platform] = config.getPlatformEnvironment()
+	}
+	return result
 }
 
 type sourceGroupingMode string
