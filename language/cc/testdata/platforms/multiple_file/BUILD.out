@@ -1,0 +1,29 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_group directory
+
+cc_library(
+    name = "multiple_file",
+    srcs = [
+        "file1.cc",
+        "file2.cc",
+    ],
+    implementation_deps = [
+        "//shared:api",
+    ] + select({
+        "//platforms/linux_x86": [
+            "//select:32bits",
+            "//select:unix",
+        ],
+        "//platforms/macos_arm": [
+            "//select:64bits",
+            "//select:macos",
+        ],
+        "@platforms//os:windows": [
+            "//select:64bits",
+            "//select:win",
+        ],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)

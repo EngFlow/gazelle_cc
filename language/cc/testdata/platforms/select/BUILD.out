@@ -1,0 +1,37 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "32bits",
+    hdrs = ["32bits.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "64bits",
+    hdrs = ["64bits.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "macos",
+    hdrs = ["macos.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "non_unix",
+    hdrs = ["non_unix.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "unix",
+    hdrs = ["unix.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "win",
+    hdrs = ["win.h"],
+    visibility = ["//visibility:public"],
+)
