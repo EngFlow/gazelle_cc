@@ -73,6 +73,10 @@ Existing `cc_library` rules are still indexed and may be used to resolve interna
 Specifies whether Gazelle should create `cc_proto_library` targets (default: `true`).
 It can override the broader `# gazelle:proto` setting, letting you suppress proto-target generation specifically for C/C++ rules.
 
+### `# gazelle:cc_use_builtin_bzlmod_index [true|false]`
+
+Specifies wheter Gazelle should use built-in index to resolve external dependencies provided using `bazel_dep`. See [External dependencies / bazel_dep section](#bazel_dep) for more details.
+
 ### `# gazelle:cc_indexfile <path>`
 
 Loads an index file, containing a map from header include paths to Bazel labels.
@@ -186,7 +190,8 @@ The knowledge about the headers and their defining rules of external repositorie
 
 #### `bazel_dep`
 
-Gazelle C++ extension is using a [built-in index](./language/cc/bzldep-index.json) created based on all the `cc_library` rules found in [Bazel Central Registry](https://registry.bazel.build/) repositories.
+Gazelle C++ extension is using a [built-in index](./language/cc/bzldep-index.json) created based on all the `cc_library` rules found in [Bazel Central Registry](https://registry.bazel.build/) repositories. 
+The usage of built-in index can be controlled using `# gazelle:cc_use_builtin_bzlmod_index <true|false>` directive.
 
 Currently that's the recommended way of defining external dependencies
 
