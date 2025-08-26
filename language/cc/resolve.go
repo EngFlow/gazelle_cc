@@ -225,7 +225,7 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 		}
 	}
 
-	if label, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists {
+	if label, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists && label.Repo != c.RepoName {
 		apparantName := c.ModuleToApparentName(label.Repo)
 		// Empty apparentName means that there is no such a repository added by bazel_dep
 		if apparantName != "" {
