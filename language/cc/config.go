@@ -39,6 +39,7 @@ const (
 	cc_search            = "cc_search"
 	cc_generate          = "cc_generate"
 	cc_generate_proto    = "cc_generate_proto"
+	cc_embed_headers     = "cc_embed_headers"
 )
 
 func (c *ccLanguage) KnownDirectives() []string {
@@ -49,6 +50,7 @@ func (c *ccLanguage) KnownDirectives() []string {
 		cc_search,
 		cc_generate,
 		cc_generate_proto,
+		cc_embed_headers,
 	}
 }
 
@@ -132,6 +134,43 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				}
 				conf.ccSearch = append(conf.ccSearch, s)
 			}
+
+		case cc_embed_headers:
+			if d.Value == "" {
+				// Special syntax (empty value) to reset directive.
+				conf.headerEmbedingConfigs = []ccHeaderEmbedingConfig{}
+				break
+			}
+			args, err := splitQuoted(d.Value)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+			if len(args) != 2 {
+				log.Printf("# gazelle:cc_embed_headers got %d arguments, expected none or exactly 2, a directory with headers, and directory with corresponding sources", len(args))
+				continue
+			}
+			validateValidPaths := func(checkedPath string, kind string) bool {
+				if path.Clean(checkedPath) != checkedPath {
+					log.Printf("# gazelle:cc_embed_headers: %v path %q is not clean", kind, checkedPath)
+					return false
+				}
+				if path.IsAbs(checkedPath) {
+					log.Printf("# gazelle:cc_embed_headers: %v path %q must be relative", kind, checkedPath)
+					return false
+				}
+				return true
+			}
+			embedingConf := ccHeaderEmbedingConfig{headersDir: args[0], sourcesDir: args[1]}
+			if !validateValidPaths(embedingConf.headersDir, "headers directory") {
+				continue
+			}
+			if !validateValidPaths(embedingConf.sourcesDir, "sources directory") {
+				continue
+			}
+			conf.headerEmbedingConfigs = append(conf.headerEmbedingConfigs, embedingConf)
+			// Extra append-only list of config due to limiatation of Gazelle API in Embeds method
+			c.headerEmbedingConfigs = append(c.headerEmbedingConfigs, embedingConf)
 		}
 	}
 }
@@ -181,6 +220,18 @@ type ccConfig struct {
 	generateCC bool
 	// Should `cc_proto_library` rules be generated
 	generateProto bool
+	// Configurations for mappings of headers defined in different directory branches then its implementation sources
+	// Notice: used only when indexing embedable headers, during resolution of embedings in sources uses append-only config defined in ccLanguage (workaround to Gazelle API limitation)
+	headerEmbedingConfigs []ccHeaderEmbedingConfig
+}
+
+// Defines a configuration for header embeding allowing to map header to it's implementation
+// if they're defined in different subdirectories, but have the same paths relative to hdr/src roots
+type ccHeaderEmbedingConfig struct {
+	// path to directory contaning headers that should be embedable
+	headersDir string
+	// path to directory contaning implementation for embedable headers
+	sourcesDir string
 }
 
 type ccSearch struct {
@@ -207,6 +258,7 @@ func newCcConfig() *ccConfig {
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
 		generateProto:           true,
+		headerEmbedingConfigs:   []ccHeaderEmbedingConfig{},
 	}
 }
 
@@ -217,8 +269,9 @@ func (conf *ccConfig) clone() *ccConfig {
 		generateCC:              conf.generateCC,
 		generateProto:           conf.generateProto,
 		// No deep cloning of dependency indexes to reduce memory usage
-		dependencyIndexes: conf.dependencyIndexes[:len(conf.dependencyIndexes):len(conf.dependencyIndexes)],
-		ccSearch:          conf.ccSearch[:len(conf.ccSearch):len(conf.ccSearch)],
+		dependencyIndexes:     conf.dependencyIndexes[:len(conf.dependencyIndexes):len(conf.dependencyIndexes)],
+		ccSearch:              conf.ccSearch[:len(conf.ccSearch):len(conf.ccSearch)],
+		headerEmbedingConfigs: conf.headerEmbedingConfigs[:len(conf.headerEmbedingConfigs):len(conf.headerEmbedingConfigs)],
 	}
 }
 
