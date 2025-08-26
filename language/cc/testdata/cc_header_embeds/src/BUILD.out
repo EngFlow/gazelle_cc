@@ -1,0 +1,9 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "manager",
+    srcs = ["manager.c"],
+    implementation_deps = ["//src/utils:collector"],
+    visibility = ["//visibility:public"],
+    deps = ["//include:manager"],
+)

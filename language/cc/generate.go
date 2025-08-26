@@ -166,6 +166,9 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo cc
 
 		result.Gen = append(result.Gen, newRule)
 		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
+
+		// Register headers without corrsponding implementation and embadable if needed
+		c.registerEmbedableHeaders(label.Label{Pkg: args.Rel, Name: newRule.Name()}, hdrs, srcs, *conf)
 	}
 }
 

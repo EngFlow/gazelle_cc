@@ -39,6 +39,11 @@ type (
 		// Set of missing bazel_dep modules referenced in includes but not defined
 		// Used for deduplication of missing modul_dep warnings
 		notFoundBzlModDeps map[string]bool
+		// Configurations for mappings of headers defined in different directory branches then its implementation sources
+		// Notice: used only during resolution of embedings in sources, when indexing using erasable entry in ccConfig (workaround to Gazelle API limitation)
+		headerEmbedingConfigs []ccHeaderEmbedingConfig
+		// Mapping of keys created based on headers
+		embedableHeaders map[string]label.Label
 	}
 	ccInclude struct {
 		// Include path extracted from brackets or double quotes
@@ -63,8 +68,10 @@ const ccTestRunnerDepKey = "_test_runner"
 
 func NewLanguage() language.Language {
 	return &ccLanguage{
-		bzlmodBuiltInIndex: loadBuiltInBzlModDependenciesIndex(),
-		notFoundBzlModDeps: make(map[string]bool),
+		bzlmodBuiltInIndex:    loadBuiltInBzlModDependenciesIndex(),
+		notFoundBzlModDeps:    make(map[string]bool),
+		embedableHeaders:      make(map[string]label.Label),
+		headerEmbedingConfigs: []ccHeaderEmbedingConfig{},
 	}
 }
 

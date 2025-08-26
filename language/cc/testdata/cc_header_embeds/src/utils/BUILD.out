@@ -1,0 +1,8 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "collector",
+    srcs = ["collector.cc"],
+    visibility = ["//visibility:public"],
+    deps = ["//include/utils:collector"],
+)

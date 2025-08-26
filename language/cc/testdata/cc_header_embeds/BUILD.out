@@ -1,0 +1,13 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+# gazelle:cc_group unit
+# gazelle:cc_embed_headers include src
+
+cc_test(
+    name = "test",
+    srcs = ["test.cc"],
+    deps = [
+        "//src:manager",
+        "//src/utils:collector",
+    ],
+)

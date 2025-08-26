@@ -4,6 +4,7 @@ go_library(
     name = "cc",
     srcs = [
         "config.go",
+        "embedding.go",
         "generate.go",
         "lang.go",
         "resolve.go",

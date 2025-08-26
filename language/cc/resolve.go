@@ -35,9 +35,23 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
+const embededHeaderDependenciesKey = "_cc_embeded_deps"
+
 // resolve.Resolver methods
-func (c *ccLanguage) Name() string                                        { return languageName }
-func (c *ccLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
+func (c *ccLanguage) Name() string { return languageName }
+
+func (c *ccLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label {
+	if len(c.headerEmbedingConfigs) == 0 {
+		return nil
+	}
+
+	embedableHdrTargets := c.resolveEmbedableHeaders(from, r.AttrStrings("srcs"))
+
+	// Allows to reference it during imports
+	r.SetPrivateAttr(embededHeaderDependenciesKey, embedableHdrTargets)
+
+	return embedableHdrTargets
+}
 
 func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	var imports []resolve.ImportSpec
@@ -155,6 +169,12 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	}
 	ccImports := imports.(ccImports)
 
+	// Every embeded target is always treated as public shared dependency
+	embededDeps := collections.Set[label.Label]{}
+	if embededHdrTargets, ok := r.PrivateAttr(embededHeaderDependenciesKey).([]label.Label); ok {
+		embededDeps.Join(collections.ToSet(embededHdrTargets))
+	}
+
 	// Resolves given includes to rule labels and assigns them to given attribute.
 	// Excludes explicitly provided labels from being assigned
 	// Returns a set of successfully assigned labels, allowing to exclude them in following invocations
@@ -192,7 +212,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	case "cc_library":
 		// Only cc_library has 'implementation_deps' attribute
 		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
-		publicDeps := resolveIncludes(ccImports.hdrIncludes, "deps", make(collections.Set[label.Label]), make(collections.Set[label.Label]))
+		publicDeps := resolveIncludes(ccImports.hdrIncludes, "deps", make(collections.Set[label.Label]), embededDeps)
 		resolveIncludes(ccImports.srcIncludes, "implementation_deps", publicDeps, make(collections.Set[label.Label]))
 	default:
 		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)

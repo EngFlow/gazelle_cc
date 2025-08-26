@@ -315,6 +315,11 @@ func (s *sourceFile) baseName() string {
 	return strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))
 }
 
+func (s *sourceFile) pathWithoutExt() string {
+	name := string(*s)
+	return strings.TrimSuffix(name, filepath.Ext(name))
+}
+
 func (s *sourceFile) stringValue() string {
 	return string(*s)
 }
