@@ -33,12 +33,13 @@ func (*ccLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config)
 func (*ccLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error          { return nil }
 
 const (
-	cc_group             = "cc_group"
-	cc_group_unit_cycles = "cc_group_unit_cycles"
-	cc_indexfile         = "cc_indexfile"
-	cc_search            = "cc_search"
-	cc_generate          = "cc_generate"
-	cc_generate_proto    = "cc_generate_proto"
+	cc_group                    = "cc_group"
+	cc_group_unit_cycles        = "cc_group_unit_cycles"
+	cc_indexfile                = "cc_indexfile"
+	cc_use_builtin_bzlmod_index = "cc_use_builtin_bzlmod_index"
+	cc_search                   = "cc_search"
+	cc_generate                 = "cc_generate"
+	cc_generate_proto           = "cc_generate_proto"
 )
 
 func (c *ccLanguage) KnownDirectives() []string {
@@ -46,6 +47,7 @@ func (c *ccLanguage) KnownDirectives() []string {
 		cc_group,
 		cc_group_unit_cycles,
 		cc_indexfile,
+		cc_use_builtin_bzlmod_index,
 		cc_search,
 		cc_generate,
 		cc_generate_proto,
@@ -75,6 +77,8 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 			parseBoolDirective(&conf.generateCC, d)
 		case cc_generate_proto:
 			parseBoolDirective(&conf.generateProto, d)
+		case cc_use_builtin_bzlmod_index:
+			parseBoolDirective(&conf.useBuiltinBzlmodIndex, d)
 		case cc_indexfile:
 			// New indexfiles replace inherited ones
 			if d.Value == "" {
@@ -173,6 +177,8 @@ type ccConfig struct {
 	groupingMode sourceGroupingMode
 	// Should rules with sources assigned to different targets be merged into single one if they define a cyclic dependency
 	groupsCycleHandlingMode groupsCycleHandlingMode
+	// Control wheter built-in bzlmod based index file should be used
+	useBuiltinBzlmodIndex bool
 	// User defined dependency indexes based on the filename
 	dependencyIndexes []ccDependencyIndex
 	// List of 'gazelle:cc_search' directives, used to construct RelsToIndex.
@@ -203,6 +209,7 @@ func newCcConfig() *ccConfig {
 	return &ccConfig{
 		groupingMode:            groupSourcesByDirectory,
 		groupsCycleHandlingMode: mergeOnGroupsCycle,
+		useBuiltinBzlmodIndex:   true,
 		dependencyIndexes:       []ccDependencyIndex{},
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
@@ -211,15 +218,11 @@ func newCcConfig() *ccConfig {
 }
 
 func (conf *ccConfig) clone() *ccConfig {
-	return &ccConfig{
-		groupingMode:            conf.groupingMode,
-		groupsCycleHandlingMode: conf.groupsCycleHandlingMode,
-		generateCC:              conf.generateCC,
-		generateProto:           conf.generateProto,
-		// No deep cloning of dependency indexes to reduce memory usage
-		dependencyIndexes: conf.dependencyIndexes[:len(conf.dependencyIndexes):len(conf.dependencyIndexes)],
-		ccSearch:          conf.ccSearch[:len(conf.ccSearch):len(conf.ccSearch)],
-	}
+	copy := *conf
+	// No deep cloning of dependency indexes to reduce memory usage
+	copy.dependencyIndexes = conf.dependencyIndexes[:len(conf.dependencyIndexes):len(conf.dependencyIndexes)]
+	copy.ccSearch = conf.ccSearch[:len(conf.ccSearch):len(conf.ccSearch)]
+	return &copy
 }
 
 // defaultCcSearch returns a list of search paths containing only the repository

@@ -225,17 +225,19 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 		}
 	}
 
-	if label, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists {
-		apparantName := c.ModuleToApparentName(label.Repo)
-		// Empty apparentName means that there is no such a repository added by bazel_dep
-		if apparantName != "" {
-			label.Repo = apparantName
-			return label
-		}
-		if _, exists := lang.notFoundBzlModDeps[label.Repo]; !exists {
-			// Warn only once per missing module_dep
-			lang.notFoundBzlModDeps[label.Repo] = true
-			log.Printf("%v: Resolved mapping of '#include %v' to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, importSpec.Imp, label, label.Repo)
+	if conf.useBuiltinBzlmodIndex {
+		if label, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists && label.Repo != c.RepoName {
+			apparantName := c.ModuleToApparentName(label.Repo)
+			// Empty apparentName means that there is no such a repository added by bazel_dep
+			if apparantName != "" {
+				label.Repo = apparantName
+				return label
+			}
+			if _, exists := lang.notFoundBzlModDeps[label.Repo]; !exists {
+				// Warn only once per missing module_dep
+				lang.notFoundBzlModDeps[label.Repo] = true
+				log.Printf("%v: Resolved mapping of '#include %v' to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, importSpec.Imp, label, label.Repo)
+			}
 		}
 	}
 
