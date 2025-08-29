@@ -1,5 +1,4 @@
 bazel-*
-.vscode
 sandbox/*
 .cache
 .scala-build

@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "bazel: build debuggable gazelle_cc in example/bzlmod",
+      "type": "process",
+      "command": "bazel",
+      "args": [
+        "build",
+        "--compilation_mode=dbg",
+        ":gazelle_cc"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/example/bzlmod",
+      },
+      "group": "build"
+    }
+  ]
+}
