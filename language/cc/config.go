@@ -40,6 +40,7 @@ const (
 	cc_search                   = "cc_search"
 	cc_generate                 = "cc_generate"
 	cc_generate_proto           = "cc_generate_proto"
+	cc_unresolved_deps          = "cc_unresolved_deps"
 )
 
 func (c *ccLanguage) KnownDirectives() []string {
@@ -51,6 +52,7 @@ func (c *ccLanguage) KnownDirectives() []string {
 		cc_search,
 		cc_generate,
 		cc_generate_proto,
+		cc_unresolved_deps,
 	}
 }
 
@@ -136,6 +138,9 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				}
 				conf.ccSearch = append(conf.ccSearch, s)
 			}
+		case cc_unresolved_deps:
+			selectDirectiveChoice(&conf.unresolvedDepsMode, unresolvedDepsModes, d)
+			log.Printf("applying %v='%v' in @%v//%v\n", d.Key, conf.unresolvedDepsMode, config.RepoName, f.Pkg) // TODO remove debug log
 		}
 	}
 }
@@ -173,12 +178,14 @@ func parseBoolDirective(target *bool, d rule.Directive) {
 }
 
 type ccConfig struct {
-	// Defines how how sources should be grouped when defining rules
+	// Defines how sources should be grouped when defining rules
 	groupingMode sourceGroupingMode
 	// Should rules with sources assigned to different targets be merged into single one if they define a cyclic dependency
 	groupsCycleHandlingMode groupsCycleHandlingMode
 	// Control wheter built-in bzlmod based index file should be used
 	useBuiltinBzlmodIndex bool
+	// Defines how to handle unresolved dependencies
+	unresolvedDepsMode unresolvedDepsMode
 	// User defined dependency indexes based on the filename
 	dependencyIndexes []ccDependencyIndex
 	// List of 'gazelle:cc_search' directives, used to construct RelsToIndex.
@@ -210,6 +217,7 @@ func newCcConfig() *ccConfig {
 		groupingMode:            groupSourcesByDirectory,
 		groupsCycleHandlingMode: mergeOnGroupsCycle,
 		useBuiltinBzlmodIndex:   true,
+		unresolvedDepsMode:      warnAboutUnresolvedDeps,
 		dependencyIndexes:       []ccDependencyIndex{},
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
@@ -252,6 +260,21 @@ const (
 	mergeOnGroupsCycle groupsCycleHandlingMode = "merge"
 	// Don't modify rules forming a cycle, let user handle it manually
 	warnOnGroupsCycle groupsCycleHandlingMode = "warn"
+)
+
+type unresolvedDepsMode string
+
+var unresolvedDepsModes = []unresolvedDepsMode{ignoreUnresolvedDeps, warnAboutUnresolvedDeps, failImmediatelyOnUnresolvedDeps, failEventuallyOnUnresolvedDeps}
+
+const (
+	// Ignore unresolved dependencies and proceed with the build
+	ignoreUnresolvedDeps unresolvedDepsMode = "ignore"
+	// Warn about unresolved dependencies but proceed with the build
+	warnAboutUnresolvedDeps unresolvedDepsMode = "warn"
+	// Fail immediately on the first occurred unresolved dependency
+	failImmediatelyOnUnresolvedDeps unresolvedDepsMode = "error_fast"
+	// Collect all unresolved dependencies and fail at the end if the list is not empty
+	failEventuallyOnUnresolvedDeps unresolvedDepsMode = "error"
 )
 
 // splitQuoted splits the string s around each instance of one or more consecutive
