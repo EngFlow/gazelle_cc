@@ -62,3 +62,83 @@ func TestGetTokens(t *testing.T) {
 		assert.Equal(t, tc.expected, actualTokens, "Input:%v", tc.input)
 	}
 }
+
+type tokenWithLineNumber struct {
+	token      string
+	lineNumber int
+}
+
+func readAllTokensWithLineNumbers(reader *tokenReader) []tokenWithLineNumber {
+	var tokens []tokenWithLineNumber
+	for {
+		token, ok := reader.next()
+		if !ok {
+			break
+		}
+		tokens = append(tokens, tokenWithLineNumber{token: token, lineNumber: reader.lineNumber})
+	}
+	return tokens
+}
+
+func TestLineNumberTracking(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected []tokenWithLineNumber
+	}{
+		{
+			input: "#include <fmt/core.h>\n#include \"mylib.h\"",
+			expected: []tokenWithLineNumber{
+				{token: "#include", lineNumber: 1},
+				{token: "<", lineNumber: 1},
+				{token: "fmt/core.h", lineNumber: 1},
+				{token: ">", lineNumber: 1},
+				{token: "<EOL>", lineNumber: 2},
+				{token: "#include", lineNumber: 2},
+				{token: "\"mylib.h\"", lineNumber: 2},
+			},
+		},
+		{
+			input: `#include <iostream>
+
+					/*
+						a multiline comment
+					*/
+					#include <fmt/core.h>
+
+					int main() {
+						return 0;
+					}`,
+			expected: []tokenWithLineNumber{
+				{token: "#include", lineNumber: 1},
+				{token: "<", lineNumber: 1},
+				{token: "iostream", lineNumber: 1},
+				{token: ">", lineNumber: 1},
+				{token: "<EOL>", lineNumber: 2},
+				{token: "<EOL>", lineNumber: 3},
+				{token: "<EOL>", lineNumber: 6},
+				{token: "#include", lineNumber: 6},
+				{token: "<", lineNumber: 6},
+				{token: "fmt/core.h", lineNumber: 6},
+				{token: ">", lineNumber: 6},
+				{token: "<EOL>", lineNumber: 7},
+				{token: "<EOL>", lineNumber: 8},
+				{token: "int", lineNumber: 8},
+				{token: "main", lineNumber: 8},
+				{token: "(", lineNumber: 8},
+				{token: ")", lineNumber: 8},
+				{token: "{", lineNumber: 8},
+				{token: "<EOL>", lineNumber: 9},
+				{token: "return", lineNumber: 9},
+				{token: "0;", lineNumber: 9},
+				{token: "<EOL>", lineNumber: 10},
+				{token: "}", lineNumber: 10},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		reader := newTokenReader(strings.NewReader(tc.input))
+		actualTokens := readAllTokensWithLineNumbers(reader)
+		assert.Equal(t, tc.expected, actualTokens, "Input:%v", tc.input)
+	}
+}

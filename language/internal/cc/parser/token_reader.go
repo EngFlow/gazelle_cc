@@ -37,14 +37,16 @@ func isComma(char byte) bool { return char == ',' }
 
 const EOL = "<EOL>"
 
-// bufio.SplitFunc that skips both whitespaces, line comments (//...) and block comments (/*...*/)
+// Skips both whitespaces, line comments (//...) and block comments (/*...*/)
 // The tokenizer splits not only by whitespace seperated words but also by: parenthesis, curly/square brackets
-func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
+// signalEOL is called for every EOL token (returned or skipped), useful for line number tracking
+func tokenizer(data []byte, atEOF bool, signalEOL func()) (advance int, token []byte, err error) {
 	i := 0
 	for i < len(data) {
 		char := data[i]
 		switch {
 		case isEOL(char):
+			signalEOL()
 			return i + 1, []byte(EOL), nil
 		// Skip line comments
 		case bytes.HasPrefix(data[i:], []byte("//")):
@@ -54,13 +56,13 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 			}
 		// Skip block comments
 		case bytes.HasPrefix(data[i:], []byte("/*")):
-			i += 2
-			for i < len(data)-1 {
-				if bytes.HasPrefix(data[i:], []byte("*/")) {
+			for i += 2; i < len(data)-1; i++ {
+				if isEOL(data[i]) {
+					signalEOL()
+				} else if bytes.HasPrefix(data[i:], []byte("*/")) {
 					i += 2
 					break
 				}
-				i++
 			}
 		// Skip whitespace
 		case unicode.IsSpace(rune(char)):
@@ -97,20 +99,28 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	return i, nil, nil
 }
 
+// A closure over tokenizer adapting it to bufio.SplitFunc.
+func makeTokenizer(signalEOL func()) bufio.SplitFunc {
+	return func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		return tokenizer(data, atEOF, signalEOL)
+	}
+}
+
 // Thin wrapper around bufio.Scanner that provides `peek` and `next“ primitives while automatically skipping the ubiquitous newline marker except when explicitly requested.
 // When an algorithm needs to honour line boundaries (e.g. parseExpr) it calls nextInternal/peekInternal instead.
 type tokenReader struct {
-	scanner   *bufio.Scanner
-	buf       *string // one‑token look‑ahead; nil when empty
-	lastToken string  // previously read token; nil when empty
-	atEOF     bool    // has reader reached the EOF
+	scanner    *bufio.Scanner
+	buf        *string // one‑token look‑ahead; nil when empty
+	lastToken  string  // previously read token; nil when empty
+	atEOF      bool    // has reader reached the EOF
+	lineNumber int     // current line number, every encountered EOL increments this
 }
 
 // newTokenReader constructs a tokenReader using the provided reader and our tokenizer.
 func newTokenReader(r io.Reader) *tokenReader {
-	sc := bufio.NewScanner(r)
-	sc.Split(tokenizer)
-	return &tokenReader{scanner: sc}
+	reader := &tokenReader{scanner: bufio.NewScanner(r), lineNumber: 1}
+	reader.scanner.Split(makeTokenizer(func() { reader.lineNumber++ }))
+	return reader
 }
 
 // next returns the next token, skipping EOL markers by default.
