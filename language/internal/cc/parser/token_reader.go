@@ -22,7 +22,7 @@ import (
 	"unicode"
 )
 
-func isParanthesis(char rune) bool {
+func isParenthesis(char rune) bool {
 	switch char {
 	case '(', ')', '[', ']', '{', '}':
 		return true
@@ -33,12 +33,13 @@ func isParanthesis(char rune) bool {
 
 func isEOL(char byte) bool { return char == '\n' }
 
+func isComma(char byte) bool { return char == ',' }
+
 const EOL = "<EOL>"
 
 // bufio.SplitFunc that skips both whitespaces, line comments (//...) and block comments (/*...*/)
 // The tokenizer splits not only by whitespace seperated words but also by: parenthesis, curly/square brackets
 func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	isComma := func(c byte) bool { return c == ',' }
 	i := 0
 	for i < len(data) {
 		char := data[i]
@@ -48,14 +49,14 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		// Skip line comments
 		case bytes.HasPrefix(data[i:], []byte("//")):
 			i += 2
-			for i < len(data) && data[i] != '\n' {
+			for i < len(data) && !isEOL(data[i]) {
 				i++
 			}
 		// Skip block comments
 		case bytes.HasPrefix(data[i:], []byte("/*")):
 			i += 2
 			for i < len(data)-1 {
-				if data[i] == '*' && data[i+1] == '/' {
+				if bytes.HasPrefix(data[i:], []byte("*/")) {
 					i += 2
 					break
 				}
@@ -65,7 +66,7 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		case unicode.IsSpace(rune(char)):
 			i++
 
-		case isParanthesis(rune(char)) || isComma(char):
+		case isParenthesis(rune(char)) || isComma(char):
 			return i + 1, data[i : i+1], nil
 
 		case char == '!' || char == '=' || char == '<' || char == '>':
@@ -81,7 +82,7 @@ func tokenizer(data []byte, atEOF bool) (advance int, token []byte, err error) {
 				char := rune(data[i])
 				if isEOL(data[i]) ||
 					char == '!' || char == '=' || char == '<' || char == '>' ||
-					unicode.IsSpace(char) || isParanthesis(char) || isComma(data[i]) {
+					unicode.IsSpace(char) || isParenthesis(char) || isComma(data[i]) {
 					return i, data[start:i], nil
 				}
 				i++
@@ -179,7 +180,7 @@ func (tr *tokenReader) nextInternal(keepEOL bool, keepEndlineSlash bool) (string
 	}
 }
 
-// returns the next token but does not consume the input, optionally filtering out EOL markers. The bool flag identicates if data was available
+// returns the next token but does not consume the input, optionally filtering out EOL markers. The bool flag indicates if data was available
 func (tr *tokenReader) peekInternal(keepEOL bool, skipEndlineSlash bool) (string, bool) {
 	if tr.buf != nil {
 		if !keepEOL && *tr.buf == EOL {
