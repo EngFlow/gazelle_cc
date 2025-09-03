@@ -21,6 +21,7 @@ go_test(
         "macros_test.go",
         "parser_test.go",
         "source_info_test.go",
+        "token_reader_test.go",
     ],
     embed = [":parser"],
     deps = ["@com_github_stretchr_testify//assert"],
