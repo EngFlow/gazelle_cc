@@ -4,10 +4,15 @@ shopt -s extglob
 
 # Paths ignored when checking the headers
 IGNORE_PATHS=(
-  "language/cc/testdata/*",
+  "example/*"
+  "language/cc/testdata/*"
 )
+
 # Source extensions that should be checked
-EXTS=(".go")
+EXTS=(
+  ".go"
+  ".proto"
+)
 
 HEADER=$(cat <<EOF
 // Copyright 2025 EngFlow Inc. All rights reserved.
