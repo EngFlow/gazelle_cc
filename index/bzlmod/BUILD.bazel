@@ -1,22 +1,21 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
-    name = "conan_lib",
+    name = "bzlmod_lib",
     srcs = ["main.go"],
-    importpath = "github.com/EngFlow/gazelle_cc/index/conan",
+    importpath = "github.com/EngFlow/gazelle_cc/index/bzlmod",
     visibility = ["//visibility:private"],
     deps = [
-        "//index/internal/bazel",
-        "//index/internal/bazel/proto",
+        "//index/internal/bcr",
         "//index/internal/indexer",
         "//index/internal/indexer/cli",
         "//internal/collections",
-        "@gazelle//label",
+        "@com_github_bazelbuild_buildtools//build",
     ],
 )
 
 go_binary(
-    name = "conan",
-    embed = [":conan_lib"],
+    name = "bzlmod",
+    embed = [":bzlmod_lib"],
     visibility = ["//visibility:public"],
 )

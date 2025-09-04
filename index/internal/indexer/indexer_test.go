@@ -15,7 +15,6 @@
 package indexer
 
 import (
-	"log"
 	"testing"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
@@ -60,7 +59,7 @@ func TestIndexableIncludePaths(t *testing.T) {
 			target: Target{
 				Name: label.Label{Pkg: "pkg"},
 			},
-			expected: []string{"header.h", "pkg/header.h"},
+			expected: []string{"pkg/header.h"},
 		},
 		{
 			name:    "strip include prefix with package path",
@@ -78,7 +77,7 @@ func TestIndexableIncludePaths(t *testing.T) {
 				Name:     label.Label{Pkg: "pkg"},
 				Includes: collections.SetOf("include", "include/subdir"),
 			},
-			expected: []string{"include/subdir/header.h", "pkg/include/subdir/header.h", "subdir/header.h", "header.h"},
+			expected: []string{"pkg/include/subdir/header.h", "subdir/header.h", "header.h"},
 		}, {
 			name:    "includes dot allows raw header path",
 			hdrPath: "subdir/header.h",
@@ -124,7 +123,6 @@ func TestIndexableIncludePaths(t *testing.T) {
 				Includes: collections.SetOf("include", "include/a", "include/a/b", "include/a/b/c"),
 			},
 			expected: []string{
-				"include/a/b/c/header.h",
 				"a/b/c/header.h",
 				"b/c/header.h",
 				"c/header.h",
@@ -187,8 +185,7 @@ func TestIndexableIncludePaths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			log.Printf("\ntest %v", tt.name)
-			result := IndexableIncludePaths(tt.hdrPath, tt.target)
+			result := IndexableIncludePaths(label.Label{Name: tt.hdrPath}, tt.target)
 			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}
@@ -248,7 +245,7 @@ func TestCreateHeaderIndex(t *testing.T) {
 			modules: []Module{
 				{
 					Repository: "",
-					Targets: []*Target{
+					Targets: []Target{
 						{
 							Name: label.Label{Pkg: "pkg", Name: "lib"},
 							Hdrs: collections.SetOf(label.Label{Pkg: "pkg", Name: "header.h"}),
@@ -258,7 +255,6 @@ func TestCreateHeaderIndex(t *testing.T) {
 			},
 			expected: IndexingResult{
 				HeaderToRule: map[string]label.Label{
-					"header.h":     {Pkg: "pkg", Name: "lib"},
 					"pkg/header.h": {Pkg: "pkg", Name: "lib"},
 				},
 				Ambiguous: map[string][]label.Label{},
@@ -269,7 +265,7 @@ func TestCreateHeaderIndex(t *testing.T) {
 			modules: []Module{
 				{
 					Repository: "",
-					Targets: []*Target{
+					Targets: []Target{
 						{
 							Name:     label.Label{Pkg: "pkg1", Name: "lib1"},
 							Hdrs:     collections.SetOf(label.Label{Pkg: "pkg1", Name: "common.h"}),
