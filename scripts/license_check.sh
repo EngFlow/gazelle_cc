@@ -5,6 +5,7 @@ shopt -s extglob
 # Paths ignored when checking the headers
 IGNORE_PATHS=(
   "example/*"
+  "index/internal/bazel/proto/build.proto"
   "language/cc/testdata/*"
 )
 
