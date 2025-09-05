@@ -76,16 +76,12 @@ func CreateHeaderIndex(modules []Module) IndexingResult {
 			// Create a targetLabel for the target using the module repository.
 			// It's required to correctly map external module to sources found possibly in other rules
 			targetLabel := label.New(module.Repository, target.Name.Pkg, target.Name.Name)
-			if shouldExcludeTarget(targetLabel) {
-				continue
-			}
+			log.Printf("target: %v", targetLabel)
 
 			// Normalize headers and add to mapping
 			for hdr := range target.Hdrs {
-				if shouldExcludeTarget(hdr) {
-					continue
-				}
 				for _, normalizedPath := range IndexableIncludePaths(hdr, target) {
+					log.Printf("path: %v", normalizedPath)
 					if shouldExcludeHeader(normalizedPath) {
 						continue
 					}
@@ -175,18 +171,6 @@ func shouldExcludeHeader(path string) bool {
 			return true
 		}
 
-	}
-	return false
-}
-
-// shouldExcludeTarget determines if the given target (label) is possibly internal.
-func shouldExcludeTarget(label label.Label) bool {
-	// Check target's path segments: if any segment (split on non-word characters and filtered to letters)
-	for _, segment := range strings.Split(label.Pkg, string(filepath.Separator)) {
-		switch segment {
-		case "thirdparty", "third-party", "third_party", "3rd_party", "deps", "tests", "internal", "impl", "test":
-			return true
-		}
 	}
 	return false
 }

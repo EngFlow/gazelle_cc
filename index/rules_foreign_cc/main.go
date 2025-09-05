@@ -83,6 +83,7 @@ func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Modul
 		log.Printf("Failed to query for details for lib_source %v: %w", libSource, err)
 	} else {
 		for _, sourcesTarget := range sourcesQuery.GetTarget() {
+			log.Printf("found: %v : %v", sourcesTarget.GetRule().GetRuleClass(), sourcesTarget.GetRule().GetName())
 			switch sourcesTarget.GetRule().GetRuleClass() {
 			case "filegroup":
 				for _, src := range collections.FilterMap(bazel.GetNamedAttribute(sourcesTarget, "srcs").GetStringListValue(), tryParseLabel) {
@@ -107,11 +108,11 @@ func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Modul
 	} else {
 		for _, ccLib := range depsQuery.GetTarget() {
 			libName, err := label.Parse(ccLib.GetRule().GetName())
+			log.Printf("got cc_lib: %v, err: %v", libName, err)
 			if err != nil {
 				continue
 			}
 			targets = append(targets, indexer.Target{
-
 				Name: libName,
 				Hdrs: *hdrs.Join(
 					collections.ToSet(collections.FilterMap(

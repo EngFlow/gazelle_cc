@@ -214,26 +214,6 @@ func TestShouldExcludeHeader(t *testing.T) {
 	}
 }
 
-func TestShouldExcludeTarget(t *testing.T) {
-	tests := []struct {
-		name     string
-		label    label.Label
-		expected bool
-	}{
-		{"internal package", label.Label{Pkg: "internal/pkg"}, true},
-		{"impl package", label.Label{Pkg: "impl/pkg"}, true},
-		{"valid package", label.Label{Pkg: "pkg"}, false},
-		{"valid package with subdir", label.Label{Pkg: "pkg/subdir"}, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := shouldExcludeTarget(tt.label)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestCreateHeaderIndex(t *testing.T) {
 	tests := []struct {
 		name     string

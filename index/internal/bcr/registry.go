@@ -625,8 +625,8 @@ func (_ *BazelRegistry) resolveTargets(projectRoot string) ([]ModuleTarget, erro
 		if class == "alias" || class == "filegroup" || class == "expand_template" {
 			continue
 		}
-		nameLb, ok := parseLabel(rule.GetName())
-		if !ok {
+		ruleName, ok := parseLabel(rule.GetName())
+		if !ok || shouldExcludeTarget(ruleName) {
 			continue
 		}
 		// labels + expand filegroups/expand_template
@@ -635,15 +635,15 @@ func (_ *BazelRegistry) resolveTargets(projectRoot string) ([]ModuleTarget, erro
 			for _, s := range getLabelListAttr(t, attribute) {
 				if fg, ok := filegroups[s]; ok {
 					for _, f := range fg {
-						sources = append(sources, f.Rel(nameLb.Repo, nameLb.Pkg))
+						sources = append(sources, f.Rel(ruleName.Repo, ruleName.Pkg))
 					}
 					continue
 				}
 				if out, ok := expandTemplates[s]; ok {
-					sources = append(sources, out.Rel(nameLb.Repo, nameLb.Pkg))
+					sources = append(sources, out.Rel(ruleName.Repo, ruleName.Pkg))
 					continue
 				}
-				sources = append(sources, s.Rel(nameLb.Repo, nameLb.Pkg))
+				sources = append(sources, s.Rel(ruleName.Repo, ruleName.Pkg))
 			}
 			return sources
 		}
@@ -667,16 +667,16 @@ func (_ *BazelRegistry) resolveTargets(projectRoot string) ([]ModuleTarget, erro
 		// deps
 		deps := getLabelListAttr(t, "deps")
 		for i := range deps {
-			deps[i] = deps[i].Rel(nameLb.Repo, nameLb.Pkg)
+			deps[i] = deps[i].Rel(ruleName.Repo, ruleName.Pkg)
 		}
 		// alias (if any) pointing to this rule
 		var alias *label.Label
-		if a, ok := aliases[nameLb]; ok {
+		if a, ok := aliases[ruleName]; ok {
 			alias = &a
 		}
 
 		targets = append(targets, ModuleTarget{
-			Name: nameLb, Alias: alias,
+			Name: ruleName, Alias: alias,
 			Hdrs:     hdrs,
 			Sources:  srcs,
 			Includes: includes, StripIncludePrefix: strip, IncludePrefix: pref,
@@ -684,6 +684,18 @@ func (_ *BazelRegistry) resolveTargets(projectRoot string) ([]ModuleTarget, erro
 		})
 	}
 	return targets, nil
+}
+
+// shouldExcludeTarget determines if the given target (label) is possibly internal.
+func shouldExcludeTarget(label label.Label) bool {
+	// Check target's path segments: if any segment (split on non-word characters and filtered to letters)
+	for _, segment := range strings.Split(label.Pkg, string(filepath.Separator)) {
+		switch segment {
+		case "thirdparty", "third-party", "third_party", "3rd_party", "deps", "tests", "internal", "impl", "test":
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------- Attribute decoders ----------------------
