@@ -45,6 +45,8 @@ import (
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 )
 
+// Helper for interacting with Bazel Central Registry git repository
+// Allows to download sources of projects defined in BCR and perform query on their Bazel builds
 type BazelRegistry struct {
 	Config         BazelRegistryConfig
 	RepositoryPath string
@@ -67,7 +69,7 @@ func NewBazelRegistryConfig() BazelRegistryConfig {
 	}
 }
 
-func newBazelRegistryClient(config BazelRegistryConfig, repositoryPath string) BazelRegistry {
+func newBazelRegistry(config BazelRegistryConfig, repositoryPath string) BazelRegistry {
 	httpTransport := &http.Transport{
 		TLSHandshakeTimeout:   15 * time.Second,
 		ResponseHeaderTimeout: 30 * time.Second,
@@ -106,7 +108,7 @@ func CheckoutBazelRegistry(config BazelRegistryConfig) (BazelRegistry, error) {
 				return BazelRegistry{}, fmt.Errorf("git refresh failed: %w", err)
 			}
 		}
-		return newBazelRegistryClient(config, repoDir), nil
+		return newBazelRegistry(config, repoDir), nil
 	}
 
 	if err := os.MkdirAll(config.CacheDir, 0o755); err != nil {
@@ -118,19 +120,22 @@ func CheckoutBazelRegistry(config BazelRegistryConfig) (BazelRegistry, error) {
 	if err := cmd.Run(); err != nil {
 		return BazelRegistry{}, fmt.Errorf("git clone failed: %w", err)
 	}
-	return newBazelRegistryClient(config, repoDir), nil
+	return newBazelRegistry(config, repoDir), nil
 }
 
+// Download and prepares sources of project based on BCR metadata files for given version
+// Extracts informations about the project cc_library rules into `ModuleInfo`
+// If 'version' is empty it would gather information about the latest version
 func (bcr *BazelRegistry) ResolveModuleInfo(moduleName string, version string) ResolveModuleInfoResult {
 	modulesDir := filepath.Join(bcr.RepositoryPath, "modules")
 
 	metaPath := filepath.Join(modulesDir, moduleName, "metadata.json")
-	b, err := os.ReadFile(metaPath)
+	bytes, err := os.ReadFile(metaPath)
 	if err != nil {
 		return unresolved(moduleName, "No metadata.json")
 	}
 	var meta metadataJSON
-	if err := json.Unmarshal(b, &meta); err != nil || len(meta.Versions) == 0 {
+	if err := json.Unmarshal(bytes, &meta); err != nil || len(meta.Versions) == 0 {
 		return unresolved(moduleName, "Invalid metadata.json")
 	}
 
@@ -173,10 +178,10 @@ func (bcr *BazelRegistry) ResolveModuleInfo(moduleName string, version string) R
 	}
 
 	info := ModuleInfo{Module: mv, Targets: targets}
-	rr := ResolveModuleInfoResult{Info: &info}
-	bcr.saveMaybe(cacheFile, rr)
+	result := ResolveModuleInfoResult{Info: &info}
+	bcr.saveMaybe(cacheFile, result)
 
-	return rr
+	return result
 }
 
 // =====================================================================================
@@ -248,8 +253,6 @@ type ResolveModuleInfoResult struct {
 
 func (r ResolveModuleInfoResult) IsResolved() bool   { return r.Info != nil }
 func (r ResolveModuleInfoResult) IsUnresolved() bool { return r.Unresolved != nil }
-
-func normalizeRelativePath(s string) string { return strings.TrimLeft(strings.TrimSpace(s), "/") }
 
 type metadataJSON struct {
 	Repository     []string          `json:"repository"`
@@ -616,23 +619,25 @@ func (_ *BazelRegistry) resolveTargets(projectRoot string) ([]ModuleTarget, erro
 	// Second pass: accumulate cc_*library-like rules.
 	var targets []ModuleTarget
 	for i := range result.Target {
-		t := result.Target[i]
-		rule := t.GetRule()
+		target := result.Target[i]
+		rule := target.GetRule()
 		if rule == nil {
 			continue
 		}
 		class := rule.GetRuleClass()
 		if class == "alias" || class == "filegroup" || class == "expand_template" {
+			// needs to be handled elsewhere
 			continue
 		}
+
 		ruleName, ok := parseLabel(rule.GetName())
 		if !ok || shouldExcludeTarget(ruleName) {
 			continue
 		}
-		// labels + expand filegroups/expand_template
+		// sourceFiles labels + expand filegroups/expand_template
 		resolveSourceFiles := func(attribute string) []label.Label {
 			sources := []label.Label{}
-			for _, s := range getLabelListAttr(t, attribute) {
+			for _, s := range getLabelListAttr(target, attribute) {
 				if fg, ok := filegroups[s]; ok {
 					for _, f := range fg {
 						sources = append(sources, f.Rel(ruleName.Repo, ruleName.Pkg))
@@ -648,24 +653,23 @@ func (_ *BazelRegistry) resolveTargets(projectRoot string) ([]ModuleTarget, erro
 			return sources
 		}
 		hdrs := resolveSourceFiles("hdrs")
-		for i, hdr := range hdrs {
-			log.Printf("%d - %v", i, hdr)
-		}
 		srcs := resolveSourceFiles("srcs")
+
 		// includes / prefixes
-		includes := getStringListAttr(t, "includes")
-		var strip *string
-		if s, ok := getStringAttr(t, "strip_include_prefix"); ok && s != "" {
-			ss := normalizeRelativePath(s)
-			strip = &ss
+		includes := getStringListAttr(target, "includes")
+		var stripPrefix *string
+		if path, ok := getStringAttr(target, "strip_include_prefix"); ok && path != "" {
+			path = normalizeRelativePath(path)
+			stripPrefix = &path
 		}
-		var pref *string
-		if s, ok := getStringAttr(t, "include_prefix"); ok && s != "" {
-			ps := normalizeRelativePath(s)
-			pref = &ps
+		var prefix *string
+		if path, ok := getStringAttr(target, "include_prefix"); ok && path != "" {
+			path := normalizeRelativePath(path)
+			prefix = &path
 		}
+
 		// deps
-		deps := getLabelListAttr(t, "deps")
+		deps := getLabelListAttr(target, "deps")
 		for i := range deps {
 			deps[i] = deps[i].Rel(ruleName.Repo, ruleName.Pkg)
 		}
@@ -679,12 +683,14 @@ func (_ *BazelRegistry) resolveTargets(projectRoot string) ([]ModuleTarget, erro
 			Name: ruleName, Alias: alias,
 			Hdrs:     hdrs,
 			Sources:  srcs,
-			Includes: includes, StripIncludePrefix: strip, IncludePrefix: pref,
+			Includes: includes, StripIncludePrefix: stripPrefix, IncludePrefix: prefix,
 			Deps: deps,
 		})
 	}
 	return targets, nil
 }
+
+func normalizeRelativePath(s string) string { return strings.TrimLeft(strings.TrimSpace(s), "/") }
 
 // shouldExcludeTarget determines if the given target (label) is possibly internal.
 func shouldExcludeTarget(label label.Label) bool {
@@ -709,25 +715,25 @@ func parseLabel(s string) (label.Label, bool) {
 }
 
 func getStringAttr(t *qproto.Target, name string) (string, bool) {
-	a := bzl.GetNamedAttribute(t, name)
-	if a == nil {
+	attr := bzl.GetNamedAttribute(t, name)
+	if attr == nil {
 		return "", false
 	}
 
 	// Handle configurable values: prefer a default arm if present; else first non-empty.
-	if sl := a.GetSelectorList(); sl != nil {
+	if list := attr.GetSelectorList(); list != nil {
 		var fallback string
-		for _, sel := range sl.GetElements() {
-			for _, e := range sel.GetEntries() {
-				v := e.GetStringValue()
-				if v == "" {
+		for _, elements := range list.GetElements() {
+			for _, entry := range elements.GetEntries() {
+				value := entry.GetStringValue()
+				if value == "" {
 					continue
 				}
-				if e.GetIsDefaultValue() {
-					return v, true
+				if entry.GetIsDefaultValue() {
+					return value, true
 				}
 				if fallback == "" {
-					fallback = v
+					fallback = value
 				}
 			}
 		}
@@ -736,31 +742,31 @@ func getStringAttr(t *qproto.Target, name string) (string, bool) {
 		}
 		return "", false
 	}
-	v := a.GetStringValue()
-	if v == "" {
+	value := attr.GetStringValue()
+	if value == "" {
 		return "", false
 	}
-	return v, true
+	return value, true
 }
 
 func getStringListAttr(t *qproto.Target, name string) []string {
-	a := bzl.GetNamedAttribute(t, name)
-	if a == nil {
+	attr := bzl.GetNamedAttribute(t, name)
+	if attr == nil {
 		return nil
 	}
 
 	// Handle configurable lists: if a default arm exists and is non-empty, use only it.
 	// Otherwise union all non-empty arms.
-	if sl := a.GetSelectorList(); sl != nil {
+	if list := attr.GetSelectorList(); list != nil {
 		var out []string
 		var haveDefault bool
-		for _, sel := range sl.GetElements() {
-			for _, e := range sel.GetEntries() {
-				vals := e.GetStringListValue()
+		for _, elements := range list.GetElements() {
+			for _, entry := range elements.GetEntries() {
+				vals := entry.GetStringListValue()
 				if len(vals) == 0 {
 					continue
 				}
-				if e.GetIsDefaultValue() {
+				if entry.GetIsDefaultValue() {
 					out = append([]string(nil), vals...)
 					haveDefault = true
 					break
@@ -776,12 +782,12 @@ func getStringListAttr(t *qproto.Target, name string) []string {
 		}
 		return nil
 	}
-	if vals := a.GetStringListValue(); len(vals) > 0 {
+	if vals := attr.GetStringListValue(); len(vals) > 0 {
 		return append([]string(nil), vals...)
 	}
 	// Some attrs are scalar but you want list semantics.
-	if s := a.GetStringValue(); s != "" {
-		return []string{s}
+	if value := attr.GetStringValue(); value != "" {
+		return []string{value}
 	}
 	return nil
 }
@@ -795,9 +801,9 @@ func getLabelAttr(t *qproto.Target, name string) (label.Label, bool) {
 
 func getLabelListAttr(t *qproto.Target, name string) []label.Label {
 	var out []label.Label
-	for _, s := range getStringListAttr(t, name) {
-		if lb, ok := parseLabel(s); ok {
-			out = append(out, lb)
+	for _, value := range getStringListAttr(t, name) {
+		if label, ok := parseLabel(value); ok {
+			out = append(out, label)
 		}
 	}
 	return out
@@ -805,8 +811,8 @@ func getLabelListAttr(t *qproto.Target, name string) []label.Label {
 
 // For OUTPUT-like attrs (e.g., expand_template.out): still strings in this proto.
 func getOutputOrStringAttr(t *qproto.Target, name string) (label.Label, bool) {
-	if s, ok := getStringAttr(t, name); ok {
-		return parseLabel(s)
+	if value, ok := getStringAttr(t, name); ok {
+		return parseLabel(value)
 	}
 	return label.NoLabel, false
 }

@@ -55,17 +55,10 @@ func main() {
 		log.Fatalf("failed to resolve modules info: %v", err)
 	}
 
-	// if cfg.verbose {
-	// 	showModuleInfos(modules)
-	// }
 	index := indexer.CreateHeaderIndex(modules)
 	fmt.Printf("Direct mapping created for %d headers\n", len(index.HeaderToRule))
 	fmt.Printf("Ambigious header assignment for %d entries\n", len(index.Ambiguous))
-	// var exclCount int
-	// for _, v := range mapping.Excluded {
-	// 	exclCount += len(v)
-	// }
-	// fmt.Printf("Excluded %d headers in %d targets\n", exclCount, len(mapping.Excluded))
+
 	index.WriteToFile(cfg.outputPath)
 	if cfg.verbose {
 		log.Println(index.String())
@@ -109,15 +102,15 @@ func gatherModuleInfos(bcrClient bcr.BazelRegistry) ([]indexer.Module, error) {
 	worker := func() {
 		defer wg.Done()
 		for moduleName := range moduleNames {
-			rr := bcrClient.ResolveModuleInfo(moduleName, "") // implicitlly latest version
+			result := bcrClient.ResolveModuleInfo(moduleName, "") // implicitlly latest version
 			if bcrClient.Config.Verbose {
-				if rr.Info != nil {
-					fmt.Fprintf(os.Stderr, "%-50s: resolved - cc_libraries: %d\n", rr.Info.Module.String(), len(rr.Info.Targets))
+				if result.Info != nil {
+					fmt.Fprintf(os.Stderr, "%-50s: resolved - cc_libraries: %d\n", result.Info.Module.String(), len(result.Info.Targets))
 				} else {
-					fmt.Fprintf(os.Stderr, "%-50s: failed   - %s\n", rr.Unresolved.Module.String(), rr.Unresolved.Reason)
+					fmt.Fprintf(os.Stderr, "%-50s: failed   - %s\n", result.Unresolved.Module.String(), result.Unresolved.Reason)
 				}
 			}
-			moduleInfosResults <- rr
+			moduleInfosResults <- result
 		}
 	}
 
@@ -148,12 +141,16 @@ func gatherModuleInfos(bcrClient bcr.BazelRegistry) ([]indexer.Module, error) {
 	}
 	fmt.Printf("Found %d modules with non-empty cc_library defs\n", len(infos))
 	fmt.Printf("Failed to gather module information in %d modules\n", failed)
-	sort.Slice(infos, func(i, j int) bool {
-		if infos[i].Module.Name == infos[j].Module.Name {
-			return infos[i].Module.Version < infos[j].Module.Version
+
+	sort.Slice(infos, func(l, r int) bool {
+		left := infos[l].Module
+		right := infos[r].Module
+		if left.Name == right.Name {
+			return left.Version < right.Version
 		}
-		return infos[i].Module.Name < infos[j].Module.Name
+		return left.Name < left.Name
 	})
+
 	modules := collections.Map(infos, func(m bcr.ModuleInfo) indexer.Module {
 		return m.ToIndexerModule().WithAmbigiousTargetsResolved()
 	})

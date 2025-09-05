@@ -27,7 +27,6 @@ package indexer
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"maps"
 	"os"
 	"path"
@@ -76,12 +75,10 @@ func CreateHeaderIndex(modules []Module) IndexingResult {
 			// Create a targetLabel for the target using the module repository.
 			// It's required to correctly map external module to sources found possibly in other rules
 			targetLabel := label.New(module.Repository, target.Name.Pkg, target.Name.Name)
-			log.Printf("target: %v", targetLabel)
 
 			// Normalize headers and add to mapping
 			for hdr := range target.Hdrs {
 				for _, normalizedPath := range IndexableIncludePaths(hdr, target) {
-					log.Printf("path: %v", normalizedPath)
 					if shouldExcludeHeader(normalizedPath) {
 						continue
 					}
@@ -167,7 +164,6 @@ func shouldExcludeHeader(path string) bool {
 		segment = strings.ToLower(segment)
 		switch segment {
 		case "thirdparty", "third-party", "third_party", "3rd_party", "deps", "tests", "internal":
-			log.Printf("exclude %v, segment %v", path, segment)
 			return true
 		}
 

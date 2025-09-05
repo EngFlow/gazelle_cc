@@ -16,7 +16,10 @@ go_library(
 
 go_test(
     name = "indexer_test",
-    srcs = ["indexer_test.go"],
+    srcs = [
+        "ambigiouity_handling_test.go",
+        "indexer_test.go",
+    ],
     embed = [":indexer"],
     deps = [
         "//internal/collections",
