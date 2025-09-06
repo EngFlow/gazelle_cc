@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "gazelle_cc in example/bzlmod",
+      "type": "go",
+      "request": "launch",
+      "mode": "exec",
+      "program": "${workspaceFolder}/example/bzlmod/bazel-bin/gazelle_cc_/gazelle_cc",
+      "preLaunchTask": "bazel: build debuggable gazelle_cc in example/bzlmod",
+      "cwd": "${workspaceFolder}/example/bzlmod",
+      "substitutePath": [
+        /*
+          This is necessary due to the way Bazel sandboxes its build outputs. Source paths embedded in the debugging
+          metadata of compiled binaries may not match the actual file paths on disk.
+         */
+        {
+          "from": "${workspaceFolder}",
+          "to": "external/gazelle_cc+"
+        },
+        {
+          "from": "${workspaceFolder}/example/bzlmod/bazel-bzlmod/external/gazelle+",
+          "to": "external/gazelle+"
+        }
+      ]
+    }
+  ]
+}
