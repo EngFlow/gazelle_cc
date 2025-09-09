@@ -229,7 +229,7 @@ func (p *parser) parseIncludeDirective(_ string) (Directive, error) {
 		if err != nil {
 			return nil, fmt.Errorf("missing closing bracket: %v", err)
 		}
-		return IncludeDirective{Path: path, IsSystem: true}, nil
+		return IncludeDirective{Path: path, IsSystem: true, LineNumber: p.tr.lineNumber}, nil
 	default:
 		path := token
 		if !strings.HasPrefix(path, "\"") || !strings.HasSuffix(path, "\"") {
@@ -239,7 +239,7 @@ func (p *parser) parseIncludeDirective(_ string) (Directive, error) {
 		if strings.Contains(unquoted, "\"") {
 			return nil, errors.New("malformed include, quotes inside path")
 		}
-		return IncludeDirective{Path: unquoted, IsSystem: false}, nil
+		return IncludeDirective{Path: unquoted, IsSystem: false, LineNumber: p.tr.lineNumber}, nil
 	}
 }
 

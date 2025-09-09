@@ -40,18 +40,18 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 				#include <bar.h>
 			`,
 			wantAll: []IncludeDirective{
-				{Path: "stdio.h", IsSystem: true},
-				{Path: "foo.h"},
-				{Path: "bar.h", IsSystem: true},
+				{Path: "stdio.h", IsSystem: true, LineNumber: 2},
+				{Path: "foo.h", LineNumber: 3},
+				{Path: "bar.h", IsSystem: true, LineNumber: 4},
 			},
 			reachCases: []macrosCase{
 				{
 					name: "no macros",
 					env:  Environment{},
 					want: []IncludeDirective{
-						{Path: "stdio.h", IsSystem: true},
-						{Path: "foo.h"},
-						{Path: "bar.h", IsSystem: true},
+						{Path: "stdio.h", IsSystem: true, LineNumber: 2},
+						{Path: "foo.h", LineNumber: 3},
+						{Path: "bar.h", IsSystem: true, LineNumber: 4},
 					},
 				},
 			},
@@ -65,21 +65,21 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 				#include "always.h"
 			`,
 			wantAll: []IncludeDirective{
-				{Path: "foo.h"},
-				{Path: "always.h"},
+				{Path: "foo.h", LineNumber: 3},
+				{Path: "always.h", LineNumber: 5},
 			},
 			reachCases: []macrosCase{
 				{
 					name: "FOO undefined",
 					env:  Environment{},
-					want: []IncludeDirective{{Path: "always.h"}},
+					want: []IncludeDirective{{Path: "always.h", LineNumber: 5}},
 				},
 				{
 					name: "FOO defined",
 					env:  Environment{"FOO": 1},
 					want: []IncludeDirective{
-						{Path: "foo.h"},
-						{Path: "always.h"},
+						{Path: "foo.h", LineNumber: 3},
+						{Path: "always.h", LineNumber: 5},
 					},
 				},
 			},
@@ -96,25 +96,25 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 				#endif
 			`,
 			wantAll: []IncludeDirective{
-				{Path: "a.h"},
-				{Path: "b.h"},
-				{Path: "c.h"},
+				{Path: "a.h", LineNumber: 3},
+				{Path: "b.h", LineNumber: 5},
+				{Path: "c.h", LineNumber: 7},
 			},
 			reachCases: []macrosCase{
 				{
 					name: "A defined",
 					env:  Environment{"A": 1},
-					want: []IncludeDirective{{Path: "a.h"}},
+					want: []IncludeDirective{{Path: "a.h", LineNumber: 3}},
 				},
 				{
 					name: "B defined",
 					env:  Environment{"B": 1},
-					want: []IncludeDirective{{Path: "b.h"}},
+					want: []IncludeDirective{{Path: "b.h", LineNumber: 5}},
 				},
 				{
 					name: "none defined",
 					env:  Environment{},
-					want: []IncludeDirective{{Path: "c.h"}},
+					want: []IncludeDirective{{Path: "c.h", LineNumber: 7}},
 				},
 			},
 		},
@@ -131,14 +131,14 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 				#endif
 			`,
 			wantAll: []IncludeDirective{
-				{Path: "foo.h"},
-				{Path: "should_not_appear.h"},
+				{Path: "foo.h", LineNumber: 4},
+				{Path: "should_not_appear.h", LineNumber: 8},
 			},
 			reachCases: []macrosCase{
 				{
 					name: "no macros",
 					env:  Environment{},
-					want: []IncludeDirective{{Path: "foo.h"}},
+					want: []IncludeDirective{{Path: "foo.h", LineNumber: 4}},
 				},
 			},
 		},
@@ -154,31 +154,31 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 				#include "always.h"
 			`,
 			wantAll: []IncludeDirective{
-				{Path: "outer.h"},
-				{Path: "inner.h"},
-				{Path: "always.h"},
+				{Path: "outer.h", LineNumber: 3},
+				{Path: "inner.h", LineNumber: 5},
+				{Path: "always.h", LineNumber: 8},
 			},
 			reachCases: []macrosCase{
 				{
 					name: "none defined",
 					env:  Environment{},
-					want: []IncludeDirective{{Path: "always.h"}},
+					want: []IncludeDirective{{Path: "always.h", LineNumber: 8}},
 				},
 				{
 					name: "OUTER only",
 					env:  Environment{"OUTER": 1},
 					want: []IncludeDirective{
-						{Path: "outer.h"},
-						{Path: "always.h"},
+						{Path: "outer.h", LineNumber: 3},
+						{Path: "always.h", LineNumber: 8},
 					},
 				},
 				{
 					name: "OUTER and INNER",
 					env:  Environment{"OUTER": 1, "INNER": 1},
 					want: []IncludeDirective{
-						{Path: "outer.h"},
-						{Path: "inner.h"},
-						{Path: "always.h"},
+						{Path: "outer.h", LineNumber: 3},
+						{Path: "inner.h", LineNumber: 5},
+						{Path: "always.h", LineNumber: 8},
 					},
 				},
 			},
@@ -194,14 +194,14 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 				#endif
 			`,
 			wantAll: []IncludeDirective{
-				{Path: "two.h"},
-				{Path: "three.h"},
+				{Path: "two.h", LineNumber: 4},
+				{Path: "three.h", LineNumber: 6},
 			},
 			reachCases: []macrosCase{
 				{
 					name: "no macros",
 					env:  Environment{},
-					want: []IncludeDirective{{Path: "two.h"}},
+					want: []IncludeDirective{{Path: "two.h", LineNumber: 4}},
 				},
 			},
 		},
@@ -215,7 +215,7 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 				#endif
 			`,
 			wantAll: []IncludeDirective{
-				{Path: "foo.h"},
+				{Path: "foo.h", LineNumber: 5},
 			},
 			reachCases: []macrosCase{
 				{
