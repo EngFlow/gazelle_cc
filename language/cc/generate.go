@@ -72,7 +72,6 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 				sourceFile:      file,
 				lineNumber:      include.LineNumber,
 				path:            path.Clean(include.Path),
-				fromDirectory:   args.Rel,
 				isSystemInclude: include.IsSystem,
 			})
 		}

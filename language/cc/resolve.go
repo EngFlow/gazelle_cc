@@ -162,7 +162,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			var resolvedLabel = label.NoLabel
 			// 1. Try resolve using fully qualified path (repository-root relative)
 			if !include.isSystemInclude {
-				relPath := filepath.Join(include.fromDirectory, include.path)
+				relPath := filepath.Join(include.sourceDirectory(), include.path)
 				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
 			}
 			// 2. Try resolve using exact path - using the exact include directive

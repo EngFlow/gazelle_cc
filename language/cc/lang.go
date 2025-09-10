@@ -47,8 +47,6 @@ type (
 		lineNumber int
 		// Include path extracted from brackets or double quotes
 		path string
-		// Directory from which include is resolved
-		fromDirectory string
 		// True when include defined using brackets
 		isSystemInclude bool
 	}
@@ -61,6 +59,11 @@ type (
 	}
 	ccDependencyIndex map[string]label.Label
 )
+
+// Directory from which include is resolved
+func (include ccInclude) sourceDirectory() string {
+	return filepath.Dir(string(include.sourceFile))
+}
 
 const ccProtoLibraryFilesKey = "_protos"
 const ccTestRunnerDepKey = "_test_runner"
