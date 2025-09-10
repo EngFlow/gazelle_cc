@@ -16,9 +16,7 @@ package cc
 
 import (
 	"errors"
-	"fmt"
 	"log"
-	"maps"
 	"path"
 	"path/filepath"
 	"slices"
@@ -182,7 +180,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			}
 		}
 		if len(deps) > 0 {
-			r.SetAttr(attributeName, labelsSetToSlice(deps))
+			r.SetAttr(attributeName, deps.SortedValues(compareLabels))
 		}
 		return deps
 	}
@@ -212,18 +210,8 @@ func extractLabelsFromFindResults(results []resolve.FindResult) collections.Set[
 	return labels
 }
 
-func labelsSetToSlice(labels collections.Set[label.Label]) []label.Label {
-	return slices.SortedFunc(maps.Keys(labels), func(l, r label.Label) int {
-		return strings.Compare(l.String(), r.String())
-	})
-}
-
-func labelsToString(labels collections.Set[label.Label]) string {
-	labelStrings := make([]string, 0, len(labels))
-	for _, l := range labelsSetToSlice(labels) {
-		labelStrings = append(labelStrings, l.String())
-	}
-	return fmt.Sprintf("[%s]", strings.Join(labelStrings, ", "))
+func compareLabels(l, r label.Label) int {
+	return strings.Compare(l.String(), r.String())
 }
 
 func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec, include ccInclude) label.Label {
@@ -238,8 +226,8 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	for _, searchResult := range importedRules {
 		if !searchResult.IsSelfImport(from) {
 			if len(importedRules) > 1 {
-				ambiguousLabels := labelsToString(extractLabelsFromFindResults(importedRules))
-				log.Printf("%v: multiple rules found for #include %q at %s:%d: %s; using %v", from, importSpec.Imp, include.sourceFile, include.lineNumber, ambiguousLabels, searchResult.Label)
+				ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
+				log.Printf("%v: found ambiguous rules providing '#include %q' at %s:%d: %v; using %v", from, include.path, include.sourceFile, include.lineNumber, ambiguousLabels, searchResult.Label)
 			}
 			return searchResult.Label
 		}
