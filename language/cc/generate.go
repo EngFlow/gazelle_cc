@@ -69,6 +69,8 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 		sourceInfo := sourceInfos[file]
 		for _, include := range sourceInfo.CollectIncludes() {
 			*includes = append(*includes, ccInclude{
+				sourceFile:      file,
+				lineNumber:      include.LineNumber,
 				path:            path.Clean(include.Path),
 				fromDirectory:   args.Rel,
 				isSystemInclude: include.IsSystem,
