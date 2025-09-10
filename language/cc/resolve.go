@@ -216,7 +216,9 @@ func extractLabelsFromFindResults(results []resolve.FindResult) collections.Set[
 
 func labelsToString(labels collections.Set[label.Label]) string {
 	labelStrings := make([]string, 0, len(labels))
-	for l := range labels {
+	for _, l := range slices.SortedFunc(maps.Keys(labels), func(l, r label.Label) int {
+		return strings.Compare(l.String(), r.String())
+	}) {
 		labelStrings = append(labelStrings, l.String())
 	}
 	return fmt.Sprintf("[%s]", strings.Join(labelStrings, ", "))
