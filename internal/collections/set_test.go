@@ -15,6 +15,7 @@
 package collections
 
 import (
+	"cmp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -330,6 +331,37 @@ func TestSet_Values(t *testing.T) {
 			result := tt.set.Values()
 			// Sort the result since the order is not guaranteed
 			assert.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
+func TestSet_SortedValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		set      Set[int]
+		expected []int
+	}{
+		{
+			name:     "empty set",
+			set:      SetOf[int](),
+			expected: nil,
+		},
+		{
+			name:     "single element",
+			set:      SetOf(1),
+			expected: []int{1},
+		},
+		{
+			name:     "multiple elements",
+			set:      SetOf(1, 2, 3),
+			expected: []int{1, 2, 3},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.set.SortedValues(cmp.Compare)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
