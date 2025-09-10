@@ -16,6 +16,7 @@ package cc
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"maps"
 	"path"
@@ -205,6 +206,22 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	}
 }
 
+func extractLabelsFromFindResults(results []resolve.FindResult) collections.Set[label.Label] {
+	labels := make(collections.Set[label.Label])
+	for _, r := range results {
+		labels.Add(r.Label)
+	}
+	return labels
+}
+
+func labelsToString(labels collections.Set[label.Label]) string {
+	labelStrings := make([]string, 0, len(labels))
+	for l := range labels {
+		labelStrings = append(labelStrings, l.String())
+	}
+	return fmt.Sprintf("[%s]", strings.Join(labelStrings, ", "))
+}
+
 func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec, include ccInclude) label.Label {
 	conf := getCcConfig(c)
 	// Resolve the gazele:resolve overrides if defined
@@ -217,7 +234,8 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	for _, searchResult := range importedRules {
 		if !searchResult.IsSelfImport(from) {
 			if len(importedRules) > 1 {
-				log.Printf("%v: multiple rules found for #include %q at %s:%d, using %v", from, importSpec.Imp, include.sourceFile, include.lineNumber, searchResult.Label)
+				ambiguousLabels := labelsToString(extractLabelsFromFindResults(importedRules))
+				log.Printf("%v: multiple rules found for #include %q at %s:%d: %s; using %v", from, importSpec.Imp, include.sourceFile, include.lineNumber, ambiguousLabels, searchResult.Label)
 			}
 			return searchResult.Label
 		}
