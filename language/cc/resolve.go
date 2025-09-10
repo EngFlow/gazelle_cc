@@ -182,9 +182,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			}
 		}
 		if len(deps) > 0 {
-			r.SetAttr(attributeName, slices.SortedStableFunc(maps.Keys(deps), func(l, r label.Label) int {
-				return strings.Compare(l.String(), r.String())
-			}))
+			r.SetAttr(attributeName, labelsSetToSlice(deps))
 		}
 		return deps
 	}
@@ -214,11 +212,15 @@ func extractLabelsFromFindResults(results []resolve.FindResult) collections.Set[
 	return labels
 }
 
+func labelsSetToSlice(labels collections.Set[label.Label]) []label.Label {
+	return slices.SortedFunc(maps.Keys(labels), func(l, r label.Label) int {
+		return strings.Compare(l.String(), r.String())
+	})
+}
+
 func labelsToString(labels collections.Set[label.Label]) string {
 	labelStrings := make([]string, 0, len(labels))
-	for _, l := range slices.SortedFunc(maps.Keys(labels), func(l, r label.Label) int {
-		return strings.Compare(l.String(), r.String())
-	}) {
+	for _, l := range labelsSetToSlice(labels) {
 		labelStrings = append(labelStrings, l.String())
 	}
 	return fmt.Sprintf("[%s]", strings.Join(labelStrings, ", "))
