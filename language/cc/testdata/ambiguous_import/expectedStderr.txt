@@ -1,0 +1,1 @@
+gazelle: @test//mylib: multiple rules found for #include "ambiguous/header.h" at mylib/mylib.cc:2, using @test//ambiguous:rule1
