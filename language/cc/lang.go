@@ -65,6 +65,14 @@ func (include ccInclude) sourceDirectory() string {
 	return filepath.Dir(string(include.sourceFile))
 }
 
+func (include ccInclude) String() string {
+	if include.isSystemInclude {
+		return fmt.Sprintf("'#include <%s>' at %s:%d", include.path, include.sourceFile, include.lineNumber)
+	} else {
+		return fmt.Sprintf("'#include \"%s\"' at %s:%d", include.path, include.sourceFile, include.lineNumber)
+	}
+}
+
 const ccProtoLibraryFilesKey = "_protos"
 const ccTestRunnerDepKey = "_test_runner"
 

@@ -227,7 +227,7 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 		if !searchResult.IsSelfImport(from) {
 			if len(importedRules) > 1 {
 				ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
-				log.Printf("%v: found ambiguous rules providing '#include %q' at %s:%d: %v; using %v", from, include.path, include.sourceFile, include.lineNumber, ambiguousLabels, searchResult.Label)
+				log.Printf("%v: found ambiguous rules providing %v: %v; using %v", from, include, ambiguousLabels, searchResult.Label)
 			}
 			return searchResult.Label
 		}
@@ -250,7 +250,7 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 			if _, exists := lang.notFoundBzlModDeps[label.Repo]; !exists {
 				// Warn only once per missing module_dep
 				lang.notFoundBzlModDeps[label.Repo] = true
-				log.Printf("%v: Resolved mapping of '#include %v' to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, importSpec.Imp, label, label.Repo)
+				log.Printf("%v: Resolved mapping of %v to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, include, label, label.Repo)
 			}
 		}
 	}
