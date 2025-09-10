@@ -136,7 +136,7 @@ func (s Set[T]) Intersects(other Set[T]) bool {
 }
 
 // Values returns a slice containing all elements in the Set.
-// The order is not guaranteed.
+// The order is not guaranteed. For guaranteed order, use SortedValues.
 //
 // Example:
 //
@@ -144,4 +144,14 @@ func (s Set[T]) Intersects(other Set[T]) bool {
 //	vals := s.Values() => []string{"a", "b"} (order may vary)
 func (s Set[T]) Values() []T {
 	return slices.Collect(maps.Keys(s))
+}
+
+// SortedValues returns a sorted slice containing all elements in the Set.
+//
+// Example:
+//
+//	s := SetOf("a", "b")
+//	vals := s.SortedValues(strings.Compare) => []string{"a", "b"} (order guaranteed)
+func (s Set[T]) SortedValues(cmp func(l, r T) int) []T {
+	return slices.SortedFunc(maps.Keys(s), cmp)
 }

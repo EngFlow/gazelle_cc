@@ -28,9 +28,9 @@ type (
 	// IncludeDirective represents a `#include` or `#include_next` preprocessor directive.
 	// If IsSystem is true, angle brackets were used (<...>), otherwise quotes ("...").
 	IncludeDirective struct {
-		Path     string // Path of the included file
-		IsSystem bool   // True if system include (angle brackets), false if user include (quotes)
-
+		Path       string // Path of the included file
+		IsSystem   bool   // True if system include (angle brackets), false if user include (quotes)
+		LineNumber int    // Line number where this directive was found
 	}
 	// DefineDirective represents a `#define` preprocessor directive, including
 	// the macro name and any replacement tokens.

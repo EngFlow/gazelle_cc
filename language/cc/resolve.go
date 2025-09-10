@@ -17,7 +17,6 @@ package cc
 import (
 	"errors"
 	"log"
-	"maps"
 	"path"
 	"path/filepath"
 	"slices"
@@ -164,12 +163,12 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			// 1. Try resolve using fully qualified path (repository-root relative)
 			if !include.isSystemInclude {
 				relPath := filepath.Join(include.fromDirectory, include.path)
-				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: relPath})
+				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
 			}
 			// 2. Try resolve using exact path - using the exact include directive
 			if resolvedLabel == label.NoLabel {
 				// Retry to resolve is external dependency was defined using quotes instead of braces
-				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path})
+				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
 			}
 			if resolvedLabel == label.NoLabel {
 				// We typically can get here is given file does not exists or if is assigned to the resolved rule
@@ -181,9 +180,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			}
 		}
 		if len(deps) > 0 {
-			r.SetAttr(attributeName, slices.SortedStableFunc(maps.Keys(deps), func(l, r label.Label) int {
-				return strings.Compare(l.String(), r.String())
-			}))
+			r.SetAttr(attributeName, deps.SortedValues(compareLabels))
 		}
 		return deps
 	}
@@ -205,7 +202,19 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	}
 }
 
-func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec) label.Label {
+func extractLabelsFromFindResults(results []resolve.FindResult) collections.Set[label.Label] {
+	labels := make(collections.Set[label.Label])
+	for _, r := range results {
+		labels.Add(r.Label)
+	}
+	return labels
+}
+
+func compareLabels(l, r label.Label) int {
+	return strings.Compare(l.String(), r.String())
+}
+
+func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec, include ccInclude) label.Label {
 	conf := getCcConfig(c)
 	// Resolve the gazele:resolve overrides if defined
 	if resolvedLabel, ok := resolve.FindRuleWithOverride(c, importSpec, languageName); ok {
@@ -213,8 +222,13 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	}
 
 	// Resolve using imports registered in Imports
-	for _, searchResult := range ix.FindRulesByImportWithConfig(c, importSpec, languageName) {
+	importedRules := ix.FindRulesByImportWithConfig(c, importSpec, languageName)
+	for _, searchResult := range importedRules {
 		if !searchResult.IsSelfImport(from) {
+			if len(importedRules) > 1 {
+				ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
+				log.Printf("%v: found ambiguous rules providing '#include %q' at %s:%d: %v; using %v", from, include.path, include.sourceFile, include.lineNumber, ambiguousLabels, searchResult.Label)
+			}
 			return searchResult.Label
 		}
 	}
