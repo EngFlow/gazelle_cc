@@ -170,12 +170,17 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 				// Retry to resolve is external dependency was defined using quotes instead of braces
 				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
 			}
-			if resolvedLabel == from || (resolvedLabel == label.NoLabel && include.isSystemInclude) {
+			if resolvedLabel == from {
 				// Self-import or system include - ignore
 				continue
-			} else if resolvedLabel == label.NoLabel {
-				// TODO warn about unresolved include directive
-				continue
+			}
+			if resolvedLabel == label.NoLabel {
+				if include.isSystemInclude {
+					continue // ignore system deps
+				} else {
+					// TODO warn about unresolved include directive
+					continue
+				}
 			}
 			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
 			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
@@ -217,6 +222,16 @@ func compareLabels(l, r label.Label) int {
 	return strings.Compare(l.String(), r.String())
 }
 
+// Tries to resolve given importSpec using the following strategies:
+//  1. Using gazelle:resolve override if defined.
+//  2. Using imports registered in Imports.
+//  3. Using dependency indexes defined by gazelle:cc_indexfile.
+//  4. Using built-in bzlmod index if enabled by gazelle:cc_use_builtin_bzlmod_index.
+//
+// Returns:
+//   - label.NoLabel if the import could not be resolved
+//   - "from" label if the import is a self-import
+//   - resolved label otherwise
 func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec, include ccInclude) label.Label {
 	conf := getCcConfig(c)
 	// Resolve the gazele:resolve overrides if defined
