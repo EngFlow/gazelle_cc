@@ -170,9 +170,12 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 				// Retry to resolve is external dependency was defined using quotes instead of braces
 				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
 			}
-			if resolvedLabel == label.NoLabel {
-				// We typically can get here is given file does not exists or if is assigned to the resolved rule
-				continue // failed to resolve
+			if resolvedLabel == from || (resolvedLabel == label.NoLabel && include.isSystemInclude) {
+				// Self-import or system include - ignore
+				continue
+			} else if resolvedLabel == label.NoLabel {
+				// TODO warn about unresolved include directive
+				continue
 			}
 			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
 			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
@@ -222,15 +225,20 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	}
 
 	// Resolve using imports registered in Imports
-	importedRules := ix.FindRulesByImportWithConfig(c, importSpec, languageName)
-	for _, searchResult := range importedRules {
-		if !searchResult.IsSelfImport(from) {
-			if len(importedRules) > 1 {
-				ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
-				log.Printf("%v: found ambiguous rules providing %v: %v; using %v", from, include, ambiguousLabels, searchResult.Label)
+	if importedRules := ix.FindRulesByImportWithConfig(c, importSpec, languageName); len(importedRules) > 0 {
+		// Any self-import is always preferred
+		for _, searchResult := range importedRules {
+			if searchResult.IsSelfImport(from) {
+				return from
 			}
-			return searchResult.Label
 		}
+
+		result := importedRules[0].Label
+		if len(importedRules) > 1 {
+			ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
+			log.Printf("%v: found ambiguous rules providing %v: %v; using %v", from, include, ambiguousLabels, result)
+		}
+		return result
 	}
 
 	for _, index := range conf.dependencyIndexes {
