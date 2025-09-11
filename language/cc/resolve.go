@@ -35,8 +35,7 @@ import (
 )
 
 // resolve.Resolver methods
-func (c *ccLanguage) Name() string                                        { return languageName }
-func (c *ccLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
+func (c *ccLanguage) Name() string { return languageName }
 
 func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	var imports []resolve.ImportSpec

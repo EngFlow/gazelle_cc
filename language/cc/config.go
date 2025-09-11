@@ -16,7 +16,6 @@ package cc
 
 import (
 	"errors"
-	"flag"
 	"log"
 	"path"
 	"path/filepath"
@@ -27,10 +26,6 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language/proto"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
-
-// config.Configurer methods
-func (*ccLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config) {}
-func (*ccLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error          { return nil }
 
 const (
 	cc_group                    = "cc_group"

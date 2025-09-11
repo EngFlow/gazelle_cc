@@ -24,7 +24,6 @@ import (
 
 	"maps"
 
-	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
@@ -34,6 +33,7 @@ const languageName = "cc"
 
 type (
 	ccLanguage struct {
+		language.BaseLang
 		// Index of header includes parsed from Bazel Central Registry
 		bzlmodBuiltInIndex ccDependencyIndex
 		// Set of missing bazel_dep modules referenced in includes but not defined
@@ -146,7 +146,6 @@ func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rul
 		},
 	}
 }
-func (*ccLanguage) Fix(c *config.Config, f *rule.File) {}
 
 var sourceExtensions = []string{".c", ".cc", ".cpp", ".cxx", ".c++", ".S"}
 var headerExtensions = []string{".h", ".hh", ".hpp", ".hxx"}
