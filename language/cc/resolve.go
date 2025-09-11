@@ -162,7 +162,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			var resolvedLabel = label.NoLabel
 			// 1. Try resolve using fully qualified path (repository-root relative)
 			if !include.isSystemInclude {
-				relPath := filepath.Join(include.fromDirectory, include.path)
+				relPath := filepath.Join(include.sourceDirectory(), include.path)
 				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
 			}
 			// 2. Try resolve using exact path - using the exact include directive
@@ -170,9 +170,17 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 				// Retry to resolve is external dependency was defined using quotes instead of braces
 				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
 			}
+			if resolvedLabel == from {
+				// Self-import or system include - ignore
+				continue
+			}
 			if resolvedLabel == label.NoLabel {
-				// We typically can get here is given file does not exists or if is assigned to the resolved rule
-				continue // failed to resolve
+				if include.isSystemInclude {
+					continue // ignore system deps
+				} else {
+					// TODO warn about unresolved include directive
+					continue
+				}
 			}
 			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
 			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
@@ -214,6 +222,16 @@ func compareLabels(l, r label.Label) int {
 	return strings.Compare(l.String(), r.String())
 }
 
+// Tries to resolve given importSpec using the following strategies:
+//  1. Using gazelle:resolve override if defined.
+//  2. Using imports registered in Imports.
+//  3. Using dependency indexes defined by gazelle:cc_indexfile.
+//  4. Using built-in bzlmod index if enabled by gazelle:cc_use_builtin_bzlmod_index.
+//
+// Returns:
+//   - label.NoLabel if the import could not be resolved
+//   - "from" label if the import is a self-import
+//   - resolved label otherwise
 func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec, include ccInclude) label.Label {
 	conf := getCcConfig(c)
 	// Resolve the gazele:resolve overrides if defined
@@ -222,15 +240,20 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 	}
 
 	// Resolve using imports registered in Imports
-	importedRules := ix.FindRulesByImportWithConfig(c, importSpec, languageName)
-	for _, searchResult := range importedRules {
-		if !searchResult.IsSelfImport(from) {
-			if len(importedRules) > 1 {
-				ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
-				log.Printf("%v: found ambiguous rules providing '#include %q' at %s:%d: %v; using %v", from, include.path, include.sourceFile, include.lineNumber, ambiguousLabels, searchResult.Label)
+	if importedRules := ix.FindRulesByImportWithConfig(c, importSpec, languageName); len(importedRules) > 0 {
+		// Any self-import is always preferred
+		for _, searchResult := range importedRules {
+			if searchResult.IsSelfImport(from) {
+				return from
 			}
-			return searchResult.Label
 		}
+
+		result := importedRules[0].Label
+		if len(importedRules) > 1 {
+			ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
+			log.Printf("%v: found ambiguous rules providing %v: %v; using %v", from, include, ambiguousLabels, result)
+		}
+		return result
 	}
 
 	for _, index := range conf.dependencyIndexes {
@@ -250,7 +273,7 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 			if _, exists := lang.notFoundBzlModDeps[label.Repo]; !exists {
 				// Warn only once per missing module_dep
 				lang.notFoundBzlModDeps[label.Repo] = true
-				log.Printf("%v: Resolved mapping of '#include %v' to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, importSpec.Imp, label, label.Repo)
+				log.Printf("%v: Resolved mapping of %v to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, include, label, label.Repo)
 			}
 		}
 	}
