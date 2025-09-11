@@ -7,6 +7,7 @@ cc_library(
         "//prefix",
         "//self",
         "//stripped_prefix_abs",
+        "//stripped_prefix_and_prefix",
         "//stripped_prefix_rel",
     ],
     visibility = ["//visibility:public"],
