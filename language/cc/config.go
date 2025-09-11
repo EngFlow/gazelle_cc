@@ -140,7 +140,6 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 			}
 		case cc_unresolved_deps:
 			selectDirectiveChoice(&conf.unresolvedDepsMode, unresolvedDepsModes, d)
-			log.Printf("applying %v='%v' in @%v//%v\n", d.Key, conf.unresolvedDepsMode, config.RepoName, f.Pkg) // TODO remove debug log
 		}
 	}
 }
