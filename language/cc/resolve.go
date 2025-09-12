@@ -170,32 +170,34 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	// Returns a set of successfully assigned labels, allowing to exclude them in following invocations
 	resolveIncludes := func(includes []ccInclude, attributeName string, excluded collections.Set[label.Label], deps collections.Set[label.Label]) collections.Set[label.Label] {
 		for _, include := range includes {
-			var resolvedLabel = label.NoLabel
+			resolvedLabel := label.NoLabel
+			err := errResolveErrorUnresolved
+
 			// 1. Try resolve using fully qualified path (repository-root relative)
 			if !include.isSystemInclude {
 				relPath := filepath.Join(include.sourceDirectory(), include.path)
-				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
+				resolvedLabel, err = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
 			}
+
 			// 2. Try resolve using exact path - using the exact include directive
-			if resolvedLabel == label.NoLabel {
+			if err == errResolveErrorUnresolved {
 				// Retry to resolve is external dependency was defined using quotes instead of braces
-				resolvedLabel = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
+				resolvedLabel, err = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
 			}
-			if resolvedLabel == from {
-				// Self-import or system include - ignore
-				continue
-			}
-			if resolvedLabel == label.NoLabel {
-				if include.isSystemInclude {
-					continue // ignore system deps
-				} else {
+
+			switch err {
+			case errResolveErrorSelfImport, errResolveErrorMissingModuleDependency:
+				// Ignore: the rule exists, but it should not be added as a dependency
+			case errResolveErrorUnresolved:
+				// Warn about unresolved non-system include directives
+				if !include.isSystemInclude {
 					lang.handleUnresolvedIncludeDirective(getCcConfig(c).unresolvedDepsMode, from, include)
-					continue
 				}
-			}
-			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
-			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
-				deps.Add(resolvedLabel)
+			case nil:
+				resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
+				if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
+					deps.Add(resolvedLabel)
+				}
 			}
 		}
 		if len(deps) > 0 {
@@ -233,29 +235,32 @@ func compareLabels(l, r label.Label) int {
 	return strings.Compare(l.String(), r.String())
 }
 
-// Tries to resolve given importSpec using the following strategies:
+var (
+	errResolveErrorUnresolved              = errors.New("could not resolve the given importSpec")
+	errResolveErrorSelfImport              = errors.New("importSpec was resolved as a self-import")
+	errResolveErrorMissingModuleDependency = errors.New("importSpec was resolved to an external dependency unmentioned in MODULE.bazel")
+)
+
+// Tries to resolve given importSpec, looking for an external rule other than the source "from" label, using the following strategies:
 //  1. Using gazelle:resolve override if defined.
 //  2. Using imports registered in Imports.
 //  3. Using dependency indexes defined by gazelle:cc_indexfile.
 //  4. Using built-in bzlmod index if enabled by gazelle:cc_use_builtin_bzlmod_index.
 //
-// Returns:
-//   - label.NoLabel if the import could not be resolved
-//   - "from" label if the import is a self-import
-//   - resolved label otherwise
-func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec, include ccInclude) label.Label {
+// Returns the resolved label or one of 'errResolveError*' errors if the import could not be resolved.
+func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec, include ccInclude) (label.Label, error) {
 	conf := getCcConfig(c)
 	// Resolve the gazele:resolve overrides if defined
 	if resolvedLabel, ok := resolve.FindRuleWithOverride(c, importSpec, languageName); ok {
-		return resolvedLabel
+		return resolvedLabel, nil
 	}
 
 	// Resolve using imports registered in Imports
 	if importedRules := ix.FindRulesByImportWithConfig(c, importSpec, languageName); len(importedRules) > 0 {
-		// Any self-import is always preferred
+		// Any self-import should immediately stop the resolution
 		for _, searchResult := range importedRules {
 			if searchResult.IsSelfImport(from) {
-				return from
+				return label.NoLabel, errResolveErrorSelfImport
 			}
 		}
 
@@ -264,32 +269,33 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 			ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
 			log.Printf("%v: found ambiguous rules providing %v: %v; using %v", from, include, ambiguousLabels, result)
 		}
-		return result
+		return result, nil
 	}
 
 	for _, index := range conf.dependencyIndexes {
-		if label, exists := index[importSpec.Imp]; exists {
-			return label
+		if result, exists := index[importSpec.Imp]; exists {
+			return result, nil
 		}
 	}
 
 	if conf.useBuiltinBzlmodIndex {
-		if label, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists && label.Repo != c.RepoName {
-			apparantName := c.ModuleToApparentName(label.Repo)
+		if result, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists && result.Repo != c.RepoName {
+			apparentName := c.ModuleToApparentName(result.Repo)
 			// Empty apparentName means that there is no such a repository added by bazel_dep
-			if apparantName != "" {
-				label.Repo = apparantName
-				return label
+			if apparentName != "" {
+				result.Repo = apparentName
+				return result, nil
 			}
-			if _, exists := lang.notFoundBzlModDeps[label.Repo]; !exists {
+			if _, exists := lang.notFoundBzlModDeps[result.Repo]; !exists {
 				// Warn only once per missing module_dep
-				lang.notFoundBzlModDeps[label.Repo] = true
-				log.Printf("%v: Resolved mapping of %v to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, include, label, label.Repo)
+				lang.notFoundBzlModDeps[result.Repo] = true
+				log.Printf("%v: Resolved mapping of %v to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, include, result, result.Repo)
 			}
+			return label.NoLabel, errResolveErrorMissingModuleDependency
 		}
 	}
 
-	return label.NoLabel
+	return label.NoLabel, errResolveErrorUnresolved
 }
 
 // collectStringsAttr collects the values of the given attribute from the rule.
