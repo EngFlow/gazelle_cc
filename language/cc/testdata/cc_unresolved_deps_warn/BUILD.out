@@ -1,0 +1,8 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+# gazelle:cc_unresolved_deps warn
+
+cc_binary(
+    name = "main",
+    srcs = ["main.cc"],
+)

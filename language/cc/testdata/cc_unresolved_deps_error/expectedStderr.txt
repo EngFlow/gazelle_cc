@@ -1,0 +1,3 @@
+gazelle: Found 2 unresolved #include directive(s):
+gazelle:   //:main: could not resolve '#include "unknown_local_header1.h"' at main.cc:2
+gazelle:   //:main: could not resolve '#include "unknown_local_header2.h"' at main.cc:3
