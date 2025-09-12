@@ -59,7 +59,7 @@ func main() {
 }
 
 func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Module {
-	targets := []*indexer.Target{}
+	targets := []indexer.Target{}
 	libSource := bazel.GetNamedAttribute(foreignDefn, "lib_source").GetStringValue()
 	includeDir := bazel.GetNamedAttribute(foreignDefn, "out_include_dir").GetStringValue()
 	if *cli.Verbose {
@@ -83,6 +83,7 @@ func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Modul
 		log.Printf("Failed to query for details for lib_source %v: %w", libSource, err)
 	} else {
 		for _, sourcesTarget := range sourcesQuery.GetTarget() {
+			log.Printf("found: %v : %v", sourcesTarget.GetRule().GetRuleClass(), sourcesTarget.GetRule().GetName())
 			switch sourcesTarget.GetRule().GetRuleClass() {
 			case "filegroup":
 				for _, src := range collections.FilterMap(bazel.GetNamedAttribute(sourcesTarget, "srcs").GetStringListValue(), tryParseLabel) {
@@ -107,15 +108,19 @@ func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Modul
 	} else {
 		for _, ccLib := range depsQuery.GetTarget() {
 			libName, err := label.Parse(ccLib.GetRule().GetName())
+			log.Printf("got cc_lib: %v, err: %v", libName, err)
 			if err != nil {
 				continue
 			}
-			targets = append(targets, &indexer.Target{
+			targets = append(targets, indexer.Target{
 				Name: libName,
 				Hdrs: *hdrs.Join(
 					collections.ToSet(collections.FilterMap(
 						bazel.GetNamedAttribute(ccLib, "hdrs").GetStringListValue(),
 						tryParseLabel))),
+				Sources: collections.ToSet(collections.FilterMap(
+					bazel.GetNamedAttribute(ccLib, "srcs").GetStringListValue(),
+					tryParseLabel)),
 				Includes: collections.SetOf(includeDir),
 				Deps: collections.ToSet(collections.FilterMap(
 					bazel.GetNamedAttribute(ccLib, "deps").StringListValue,
