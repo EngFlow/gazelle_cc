@@ -15,14 +15,14 @@
 package cc
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"maps"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -39,6 +39,8 @@ type (
 		// Set of missing bazel_dep modules referenced in includes but not defined
 		// Used for deduplication of missing modul_dep warnings
 		notFoundBzlModDeps map[string]bool
+		// List of unresolved include directives after processing all files
+		unresolvedIncludes []ccUnresolvedInclude
 	}
 	ccInclude struct {
 		// File where this include was found
@@ -57,7 +59,13 @@ type (
 		srcIncludes []ccInclude
 		// TODO: module imports / exports
 	}
-	ccDependencyIndex map[string]label.Label
+	ccDependencyIndex   map[string]label.Label
+	ccUnresolvedInclude struct {
+		// #include directive whose corresponding Bazel rule could not be resolved
+		include ccInclude
+		// Rule from which the include was referenced
+		from label.Label
+	}
 )
 
 // Directory from which include is resolved
@@ -206,3 +214,8 @@ func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {
 	}
 	return index, nil
 }
+
+// language.LifecycleManager methods
+var _ language.LifecycleManager = (*ccLanguage)(nil) // ensure ccLanguage implements LifecycleManager
+func (*ccLanguage) Before(context.Context)           {}
+func (*ccLanguage) DoneGeneratingRules()             {}

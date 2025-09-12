@@ -15,8 +15,10 @@
 package cc
 
 import (
+	"context"
 	"errors"
 	"log"
+	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -148,14 +150,24 @@ func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel stri
 	return cleanRel
 }
 
-func (lang *ccLanguage) handleUnresolvedIncludeDirective(mode unresolvedDepsMode, from label.Label, include ccInclude) {
+func (lang *ccLanguage) handleUnresolvedIncludeDirective(mode unresolvedDepsMode, unresolved ccUnresolvedInclude) {
 	switch mode {
 	case warnAboutUnresolvedDeps:
-		log.Printf("%v: could not resolve %v", from, include)
+		log.Printf("%v: could not resolve %v", unresolved.from, unresolved.include)
 	case failImmediatelyOnUnresolvedDeps:
-		log.Fatalf("%v: could not resolve %v", from, include)
+		log.Fatalf("%v: could not resolve %v", unresolved.from, unresolved.include)
 	case failEventuallyOnUnresolvedDeps:
-		// TODO: collect and report at the end of processing
+		lang.unresolvedIncludes = append(lang.unresolvedIncludes, unresolved)
+	}
+}
+
+func (c *ccLanguage) AfterResolvingDeps(context.Context) {
+	if len(c.unresolvedIncludes) > 0 {
+		log.Printf("Found %d unresolved #include directive(s):", len(c.unresolvedIncludes))
+		for _, unresolved := range c.unresolvedIncludes {
+			log.Printf("  %v: could not resolve %v", unresolved.from, unresolved.include)
+		}
+		os.Exit(1)
 	}
 }
 
@@ -191,7 +203,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			case errResolveErrorUnresolved:
 				// Warn about unresolved non-system include directives
 				if !include.isSystemInclude {
-					lang.handleUnresolvedIncludeDirective(getCcConfig(c).unresolvedDepsMode, from, include)
+					lang.handleUnresolvedIncludeDirective(getCcConfig(c).unresolvedDepsMode, ccUnresolvedInclude{include, from})
 				}
 			case nil:
 				resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
