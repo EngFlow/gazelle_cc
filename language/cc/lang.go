@@ -81,6 +81,10 @@ func (include ccInclude) String() string {
 	}
 }
 
+func (unresolved ccUnresolvedInclude) String() string {
+	return fmt.Sprintf("%v: could not resolve %v", unresolved.from, unresolved.include)
+}
+
 const ccProtoLibraryFilesKey = "_protos"
 const ccTestRunnerDepKey = "_test_runner"
 

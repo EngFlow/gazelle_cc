@@ -153,9 +153,9 @@ func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel stri
 func (lang *ccLanguage) handleUnresolvedIncludeDirective(mode unresolvedDepsMode, unresolved ccUnresolvedInclude) {
 	switch mode {
 	case warnAboutUnresolvedDeps:
-		log.Printf("%v: could not resolve %v", unresolved.from, unresolved.include)
+		log.Print(unresolved)
 	case failImmediatelyOnUnresolvedDeps:
-		log.Fatalf("%v: could not resolve %v", unresolved.from, unresolved.include)
+		log.Fatal(unresolved)
 	case failEventuallyOnUnresolvedDeps:
 		lang.unresolvedIncludes = append(lang.unresolvedIncludes, unresolved)
 	}
@@ -165,7 +165,7 @@ func (c *ccLanguage) AfterResolvingDeps(context.Context) {
 	if len(c.unresolvedIncludes) > 0 {
 		log.Printf("Found %d unresolved #include directive(s):", len(c.unresolvedIncludes))
 		for _, unresolved := range c.unresolvedIncludes {
-			log.Printf("  %v: could not resolve %v", unresolved.from, unresolved.include)
+			log.Printf("  %v", unresolved)
 		}
 		os.Exit(1)
 	}
