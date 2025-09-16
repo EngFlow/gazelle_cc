@@ -15,10 +15,8 @@
 package cc
 
 import (
-	"context"
 	"errors"
 	"log"
-	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -158,16 +156,6 @@ func (lang *ccLanguage) handleUnresolvedIncludeDirective(mode unresolvedDepsMode
 		log.Fatal(unresolved)
 	case failEventuallyOnUnresolvedDeps:
 		lang.unresolvedIncludes = append(lang.unresolvedIncludes, unresolved)
-	}
-}
-
-func (c *ccLanguage) AfterResolvingDeps(context.Context) {
-	if len(c.unresolvedIncludes) > 0 {
-		log.Printf("Found %d unresolved #include directive(s):", len(c.unresolvedIncludes))
-		for _, unresolved := range c.unresolvedIncludes {
-			log.Printf("  %v", unresolved)
-		}
-		os.Exit(1)
 	}
 }
 

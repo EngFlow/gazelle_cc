@@ -19,6 +19,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log"
 	"maps"
 	"os"
 	"path/filepath"
@@ -220,6 +221,14 @@ func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {
 }
 
 // language.LifecycleManager methods
-var _ language.LifecycleManager = (*ccLanguage)(nil) // ensure ccLanguage implements LifecycleManager
-func (*ccLanguage) Before(context.Context)           {}
-func (*ccLanguage) DoneGeneratingRules()             {}
+func (*ccLanguage) Before(context.Context) {}
+func (*ccLanguage) DoneGeneratingRules()   {}
+func (c *ccLanguage) AfterResolvingDeps(context.Context) {
+	if len(c.unresolvedIncludes) > 0 {
+		log.Printf("Found %d unresolved #include directive(s):", len(c.unresolvedIncludes))
+		for _, unresolved := range c.unresolvedIncludes {
+			log.Printf("  %v", unresolved)
+		}
+		os.Exit(1)
+	}
+}
