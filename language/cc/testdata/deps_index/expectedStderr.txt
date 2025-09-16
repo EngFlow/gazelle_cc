@@ -1,3 +1,3 @@
 gazelle: gazelle_cc: failed to load cc dependencies index: %WORKSPACEPATH%/invalid.ccIndex, it would be ignored. Reason: open %WORKSPACEPATH%/invalid.ccIndex: no such file or directory
-gazelle: //erase: could not resolve '#include "first/lib/interface.h"' at erase/lib.cpp:1
-gazelle: //:deps_index: could not resolve '#include "second/lib/utils.h"' at app.cc:4
+gazelle: //erase: could not find a library providing header - '#include "first/lib/interface.h"' at erase/lib.cpp:1
+gazelle: //:deps_index: could not find a library providing header - '#include "second/lib/utils.h"' at app.cc:4

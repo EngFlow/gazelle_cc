@@ -1,1 +1,1 @@
-gazelle: //mylib: found ambiguous rules providing '#include "ambiguous/header.h"' at mylib/mylib.cc:2: [//ambiguous:rule1 //ambiguous:rule2]; using //ambiguous:rule1
+gazelle: //mylib: multiple libraries provide the same header - '#include "ambiguous/header.h"' at mylib/mylib.cc:2 resolved to [//ambiguous:rule1 //ambiguous:rule2]; using //ambiguous:rule1
