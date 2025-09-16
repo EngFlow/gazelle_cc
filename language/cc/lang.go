@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -39,7 +40,7 @@ type (
 		bzlmodBuiltInIndex ccDependencyIndex
 		// Set of missing bazel_dep modules referenced in includes but not defined
 		// Used for deduplication of missing modul_dep warnings
-		notFoundBzlModDeps map[string]bool
+		notFoundBzlModDeps collections.Set[string]
 		// List of unresolved include directives after processing all files
 		unresolvedIncludes []ccUnresolvedInclude
 	}
@@ -92,7 +93,7 @@ const ccTestRunnerDepKey = "_test_runner"
 func NewLanguage() language.Language {
 	return &ccLanguage{
 		bzlmodBuiltInIndex: loadBuiltInBzlModDependenciesIndex(),
-		notFoundBzlModDeps: make(map[string]bool),
+		notFoundBzlModDeps: make(collections.Set[string]),
 	}
 }
 

@@ -286,9 +286,9 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 				result.Repo = apparentName
 				return result, nil
 			}
-			if _, exists := lang.notFoundBzlModDeps[result.Repo]; !exists {
+			if !lang.notFoundBzlModDeps.Contains(result.Repo) {
 				// Warn only once per missing module_dep
-				lang.notFoundBzlModDeps[result.Repo] = true
+				lang.notFoundBzlModDeps.Add(result.Repo)
 				log.Printf("%v: Resolved mapping of %v to %v, but 'bazel_dep(name = \"%v\")' is missing in MODULE.bazel", from, include, result, result.Repo)
 			}
 			return label.NoLabel, errResolveErrorMissingModuleDependency
