@@ -41,8 +41,8 @@ type (
 		// Set of missing bazel_dep modules referenced in includes but not defined
 		// Used for deduplication of missing modul_dep warnings
 		notFoundBzlModDeps collections.Set[string]
-		// List of unresolved include directives after processing all files
-		unresolvedIncludes []ccUnresolvedInclude
+		// List of collected errors, reported together at once after the dependency resolution
+		collectedErrors []error
 	}
 	ccInclude struct {
 		// File where this include was found
@@ -61,13 +61,7 @@ type (
 		srcIncludes []ccInclude
 		// TODO: module imports / exports
 	}
-	ccDependencyIndex   map[string]label.Label
-	ccUnresolvedInclude struct {
-		// #include directive whose corresponding Bazel rule could not be resolved
-		include ccInclude
-		// Rule from which the include was referenced
-		from label.Label
-	}
+	ccDependencyIndex map[string]label.Label
 )
 
 // Directory from which include is resolved
@@ -81,10 +75,6 @@ func (include ccInclude) String() string {
 	} else {
 		return fmt.Sprintf("'#include \"%s\"' at %s:%d", include.path, include.sourceFile, include.lineNumber)
 	}
-}
-
-func (unresolved ccUnresolvedInclude) String() string {
-	return fmt.Sprintf("%v: could not resolve %v", unresolved.from, unresolved.include)
 }
 
 const ccProtoLibraryFilesKey = "_protos"
@@ -225,10 +215,10 @@ func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {
 func (*ccLanguage) Before(context.Context) {}
 func (*ccLanguage) DoneGeneratingRules()   {}
 func (c *ccLanguage) AfterResolvingDeps(context.Context) {
-	if len(c.unresolvedIncludes) > 0 {
-		log.Printf("Found %d unresolved #include directive(s):", len(c.unresolvedIncludes))
-		for _, unresolved := range c.unresolvedIncludes {
-			log.Printf("  %v", unresolved)
+	if len(c.collectedErrors) > 0 {
+		log.Printf("Found %d error(s):", len(c.collectedErrors))
+		for _, err := range c.collectedErrors {
+			log.Printf("  %v", err)
 		}
 		os.Exit(1)
 	}
