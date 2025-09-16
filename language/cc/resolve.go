@@ -191,7 +191,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			case errResolveErrorUnresolved:
 				// Warn about unresolved non-system include directives
 				if !include.isSystemInclude {
-					lang.handleUnresolvedIncludeDirective(getCcConfig(c).unresolvedDepsMode, ccUnresolvedInclude{include, from})
+					lang.handleUnresolvedIncludeDirective(getCcConfig(c).unresolvedDepsMode, ccUnresolvedInclude{include: include, from: from})
 				}
 			case nil:
 				resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
