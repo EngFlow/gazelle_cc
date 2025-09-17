@@ -1,0 +1,1 @@
+gazelle: //:cc_generate: could not find a library providing header - '#include "disabled/disabled.h"' at foo.h:2

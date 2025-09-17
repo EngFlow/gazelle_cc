@@ -1,0 +1,1 @@
+gazelle: //:main: could not find a library providing header - '#include "unknown_local_header1.h"' at main.cc:2

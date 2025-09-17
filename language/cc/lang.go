@@ -15,15 +15,17 @@
 package cc
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"maps"
-
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -38,7 +40,9 @@ type (
 		bzlmodBuiltInIndex ccDependencyIndex
 		// Set of missing bazel_dep modules referenced in includes but not defined
 		// Used for deduplication of missing modul_dep warnings
-		notFoundBzlModDeps map[string]bool
+		notFoundBzlModDeps collections.Set[string]
+		// List of collected errors, reported together at once after the dependency resolution
+		collectedErrors []error
 	}
 	ccInclude struct {
 		// File where this include was found
@@ -79,7 +83,7 @@ const ccTestRunnerDepKey = "_test_runner"
 func NewLanguage() language.Language {
 	return &ccLanguage{
 		bzlmodBuiltInIndex: loadBuiltInBzlModDependenciesIndex(),
-		notFoundBzlModDeps: make(map[string]bool),
+		notFoundBzlModDeps: make(collections.Set[string]),
 	}
 }
 
@@ -205,4 +209,17 @@ func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {
 		}
 	}
 	return index, nil
+}
+
+// language.LifecycleManager methods
+func (*ccLanguage) Before(context.Context) {}
+func (*ccLanguage) DoneGeneratingRules()   {}
+func (c *ccLanguage) AfterResolvingDeps(context.Context) {
+	if len(c.collectedErrors) > 0 {
+		log.Printf("Found %d error(s):", len(c.collectedErrors))
+		for _, err := range c.collectedErrors {
+			log.Printf("  %v", err)
+		}
+		os.Exit(1)
+	}
 }
