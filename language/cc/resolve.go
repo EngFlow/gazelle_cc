@@ -172,7 +172,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	resolveIncludes := func(includes []ccInclude, attributeName string, excluded collections.Set[label.Label], deps collections.Set[label.Label]) collections.Set[label.Label] {
 		for _, include := range includes {
 			resolvedLabel := label.NoLabel
-			err := errResolveErrorUnresolved
+			err := errUnresolved
 
 			// 1. Try resolve using fully qualified path (repository-root relative)
 			if !include.isSystemInclude {
@@ -181,26 +181,26 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			}
 
 			// 2. Try resolve using exact path - using the exact include directive
-			if errors.Is(err, errResolveErrorUnresolved) {
+			if errors.Is(err, errUnresolved) {
 				// Retry to resolve is external dependency was defined using quotes instead of braces
 				resolvedLabel, err = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
 			}
 
 			switch {
-			case errors.Is(err, errResolveErrorAmbiguousImport):
+			case errors.Is(err, errAmbiguousImport):
 				// Warn about ambiguous imports, but still add one of the candidates
 				log.Print(err)
-			case errors.Is(err, errResolveErrorMissingModuleDependency):
+			case errors.Is(err, errMissingModuleDependency):
 				if !lang.notFoundBzlModDeps.Contains(resolvedLabel.Repo) {
 					// Warn only once per missing module_dep
 					lang.notFoundBzlModDeps.Add(resolvedLabel.Repo)
 					log.Print(err)
 				}
 				continue
-			case errors.Is(err, errResolveErrorSelfImport):
+			case errors.Is(err, errSelfImport):
 				// Ignore: the rule exists, but it should not be added as a dependency
 				continue
-			case errors.Is(err, errResolveErrorUnresolved):
+			case errors.Is(err, errUnresolved):
 				// Warn about unresolved non-system include directives
 				if !include.isSystemInclude {
 					lang.handleUnresolvedIncludeDirective(getCcConfig(c).unresolvedDepsMode, err)
@@ -250,10 +250,10 @@ func compareLabels(l, r label.Label) int {
 }
 
 var (
-	errResolveErrorAmbiguousImport         = errors.New("multiple libraries provide the same header")
-	errResolveErrorMissingModuleDependency = errors.New("header file found in external library not declared in MODULE.bazel")
-	errResolveErrorSelfImport              = errors.New("library includes itself")
-	errResolveErrorUnresolved              = errors.New("could not find a library providing header")
+	errAmbiguousImport         = errors.New("multiple libraries provide the same header")
+	errMissingModuleDependency = errors.New("header file found in external library not declared in MODULE.bazel")
+	errSelfImport              = errors.New("library includes itself")
+	errUnresolved              = errors.New("could not find a library providing header")
 )
 
 // Tries to resolve given importSpec, looking for an external rule other than the source "from" label, using the following strategies:
@@ -262,8 +262,8 @@ var (
 //  3. Using dependency indexes defined by gazelle:cc_indexfile.
 //  4. Using built-in bzlmod index if enabled by gazelle:cc_use_builtin_bzlmod_index.
 //
-// Returns the resolved label, optionally with a wrapped one of 'errResolveError*' errors.
-// For errResolveErrorUnresolved the returned label is label.NoLabel.
+// Returns the resolved label, optionally with a wrapped one of 'err*' errors.
+// For errUnresolved the returned label is label.NoLabel.
 func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec, include ccInclude) (label.Label, error) {
 	conf := getCcConfig(c)
 	// Resolve the gazele:resolve overrides if defined
@@ -276,13 +276,13 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 		// Any self-import should immediately stop the resolution
 		for _, searchResult := range importedRules {
 			if searchResult.IsSelfImport(from) {
-				return from, fmt.Errorf("%v: %w - %v", from, errResolveErrorSelfImport, include)
+				return from, fmt.Errorf("%v: %w - %v", from, errSelfImport, include)
 			}
 		}
 
 		if result := importedRules[0].Label; len(importedRules) > 1 {
 			ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
-			return result, fmt.Errorf("%v: %w - %v resolved to %v; using %v", from, errResolveErrorAmbiguousImport, include, ambiguousLabels, result)
+			return result, fmt.Errorf("%v: %w - %v resolved to %v; using %v", from, errAmbiguousImport, include, ambiguousLabels, result)
 		} else {
 			return result, nil
 		}
@@ -301,12 +301,12 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 				result.Repo = apparentName
 				return result, nil
 			} else {
-				return result, fmt.Errorf("%v: %w - %v resolved to %v, but 'bazel_dep(name = \"%v\")' is missing", from, errResolveErrorMissingModuleDependency, include, result, result.Repo)
+				return result, fmt.Errorf("%v: %w - %v resolved to %v, but 'bazel_dep(name = \"%v\")' is missing", from, errMissingModuleDependency, include, result, result.Repo)
 			}
 		}
 	}
 
-	return label.NoLabel, fmt.Errorf("%v: %w - %v", from, errResolveErrorUnresolved, include)
+	return label.NoLabel, fmt.Errorf("%v: %w - %v", from, errUnresolved, include)
 }
 
 // collectStringsAttr collects the values of the given attribute from the rule.
