@@ -32,4 +32,5 @@ use_repo(
     "com_github_bmatcuk_doublestar_v4",
     "com_github_stretchr_testify",
     "org_golang_google_protobuf",
+    "com_github_tree_sitter_tree_sitter_cpp",
 )

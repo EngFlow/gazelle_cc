@@ -8,10 +8,11 @@ go_library(
         "macros.go",
         "parser.go",
         "source_info.go",
-        "token_reader.go"
+        "token_reader.go",
     ],
     importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc/parser",
     visibility = ["//language:__subpackages__"],
+    deps = ["@com_github_tree_sitter_tree_sitter_cpp//bindings/go"],
 )
 
 go_test(

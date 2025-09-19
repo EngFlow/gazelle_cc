@@ -31,6 +31,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	ts_cpp "github.com/tree-sitter/tree-sitter-cpp/bindings/go"
 )
 
 // ParseSource runs the extractor on an in‑memory buffer.
@@ -273,6 +275,9 @@ type parser struct {
 
 // parse reads and parses C/C++ source from an io.Reader, returning structured SourceInfo.
 func parse(input io.Reader) (SourceInfo, error) {
+	// TODO not used yet, only to verify that the tree-sitter library is linked correctly
+	_ = ts_cpp.Language()
+
 	p := &parser{tr: newTokenReader(input)}
 	directives, err := p.parseDirectivesUntil(func(_ string) bool { return p.tr.atEOF })
 	p.sourceInfo.Directives = directives
