@@ -12,6 +12,16 @@ bazel_dep(name = "rules_proto", version = "4.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.5.0")
 bazel_dep(name = "package_metadata", version = "0.0.5")
 
+bazel_dep(name = "rules_cc", version = "0.2.8")
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "tree-sitter",
+    url = "https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v0.25.9.tar.gz",
+    strip_prefix = "tree-sitter-0.25.9",
+    sha256 = "024a2478579acebbb8882d7c2c0f0e07fc0aa19a459b48d10469e4abb96cf16e",
+    build_file = "@gazelle_cc//patches:tree-sitter.BUILD",
+)
+
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(version = "1.24.0")
 
