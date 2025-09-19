@@ -1,0 +1,43 @@
+--- /dev/null
++++ BUILD.bazel
+@@ -0,0 +1,16 @@
++load("@rules_cc//cc:defs.bzl", "cc_library")
++
++cc_library(
++    name = "tree-sitter-cpp",
++    srcs = glob([
++        "src/*.c",
++        "src/tree_sitter/*.h",
++    ]),
++    hdrs = ["bindings/c/tree-sitter-cpp.h"],
++    copts = [
++        "-std=c11",
++        "-fPIC",
++    ],
++    strip_include_prefix = "bindings/c",
++    visibility = ["//visibility:public"],
++)
+
+--- bindings/go/BUILD.bazel
++++ bindings/go/BUILD.bazel
+@@ -3,6 +3,7 @@
+ go_library(
+     name = "go",
+     srcs = ["binding.go"],
++    cdeps = ["//:tree-sitter-cpp"],
+     cgo = True,
+     copts = ["-std=c11 -fPIC"],
+     importpath = "github.com/tree-sitter/tree-sitter-cpp/bindings/go",
+
+--- bindings/go/binding.go
++++ bindings/go/binding.go
+@@ -1,8 +1,7 @@
+ package tree_sitter_cpp
+
+ // #cgo CFLAGS: -std=c11 -fPIC
+-// #include "../../src/parser.c"
+-// #include "../../src/scanner.c"
++// #include "tree-sitter-cpp.h"
+ import "C"
+
+ import "unsafe"
