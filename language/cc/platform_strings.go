@@ -25,15 +25,15 @@ import (
 
 // Represents bzl.Expr build from concatenation of []string and select expressions.
 // Similar to @gazelle//language/go PlatformStrings but is decoupled from it's go specific constraints
-type CcPlatformStrings struct {
+type ccPlatformStrings struct {
 	Generic     rule.SortedStrings         // always‑active strings
 	Constrained rule.SelectStringListValue // keyed by constraint label
 }
 
-var _ rule.BzlExprValue = CcPlatformStrings{}
-var _ rule.Merger = CcPlatformStrings{}
+var _ rule.BzlExprValue = ccPlatformStrings{}
+var _ rule.Merger = ccPlatformStrings{}
 
-func (ps CcPlatformStrings) BzlExpr() bzl.Expr {
+func (ps ccPlatformStrings) BzlExpr() bzl.Expr {
 	var parts []bzl.Expr
 
 	if len(ps.Generic) > 0 {
@@ -63,7 +63,7 @@ func (ps CcPlatformStrings) BzlExpr() bzl.Expr {
 	}
 }
 
-func (ps CcPlatformStrings) Merge(other bzl.Expr) bzl.Expr {
+func (ps ccPlatformStrings) Merge(other bzl.Expr) bzl.Expr {
 	otherPS := parseCcPlatformStrings(other)
 
 	// Merge generic list via rule helper
@@ -103,14 +103,14 @@ func (ps CcPlatformStrings) Merge(other bzl.Expr) bzl.Expr {
 		}
 	}
 
-	return CcPlatformStrings{
+	return ccPlatformStrings{
 		Generic:     genericStrings,
 		Constrained: mergedConstrained,
 	}.BzlExpr()
 }
 
 // Strings flattens Generic + all constrained lists (in that order).
-func (ps CcPlatformStrings) Strings() []string {
+func (ps ccPlatformStrings) Strings() []string {
 	out := slices.Clone(ps.Generic)
 	for _, grp := range ps.Constrained {
 		out = append(out, grp...)
@@ -118,8 +118,8 @@ func (ps CcPlatformStrings) Strings() []string {
 	return out
 }
 
-func parseCcPlatformStrings(expr bzl.Expr) CcPlatformStrings {
-	ps := CcPlatformStrings{
+func parseCcPlatformStrings(expr bzl.Expr) ccPlatformStrings {
+	ps := ccPlatformStrings{
 		Constrained: map[string][]string{},
 		Generic:     []string{},
 	}

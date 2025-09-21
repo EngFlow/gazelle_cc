@@ -441,8 +441,8 @@ func (b *platformDepsBuilder) addConstrained(condition label.Label, dependency l
 	}
 	deps.Add(dependency)
 }
-func (b *platformDepsBuilder) build() CcPlatformStrings {
-	platformStrings := CcPlatformStrings{Generic: []string{}, Constrained: map[string][]string{}}
+func (b *platformDepsBuilder) build() ccPlatformStrings {
+	platformStrings := ccPlatformStrings{Generic: []string{}, Constrained: map[string][]string{}}
 	toStringsSlice := func(labels collections.Set[label.Label]) []string {
 		return collections.Map(labels.Values(), func(label label.Label) string { return label.String() })
 	}
