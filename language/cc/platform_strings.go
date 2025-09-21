@@ -30,6 +30,9 @@ type CcPlatformStrings struct {
 	Constrained rule.SelectStringListValue // keyed by constraint label
 }
 
+var _ rule.BzlExprValue = CcPlatformStrings{}
+var _ rule.Merger = CcPlatformStrings{}
+
 func (ps CcPlatformStrings) BzlExpr() bzl.Expr {
 	var parts []bzl.Expr
 
