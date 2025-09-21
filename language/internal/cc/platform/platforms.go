@@ -36,7 +36,7 @@ import (
 
 // Pair of OS/Arch combination identifing a given platform
 type Platform struct {
-	OS   Os
+	OS   OS
 	Arch Arch
 }
 
@@ -73,36 +73,36 @@ func Parse(value string) (Platform, error) {
 
 // Operating system string identifier matching constraint value names defined in '@platforms//os'.
 // Should match one the values defined in https://github.com/bazelbuild/platforms/blob/1.0.0/os/BUILD
-type Os string
+type OS string
 
 const (
-	android    Os = "android"
-	chromiumos Os = "chromiumos"
-	emscripten Os = "emscripten"
-	freebsd    Os = "freebsd"
-	fuchsia    Os = "fuchsia"
-	haiku      Os = "haiku"
-	ios        Os = "ios"
-	linux      Os = "linux"
-	netbsd     Os = "netbsd"
-	nixos      Os = "nixos"
-	none       Os = "none" // bare-metal
-	openbsd    Os = "openbsd"
-	osx        Os = "osx"
-	qnx        Os = "qnx"
-	tvos       Os = "tvos"
-	uefi       Os = "uefi"
-	visionos   Os = "visionos"
-	vxworks    Os = "vxworks"
-	wasi       Os = "wasi"
-	watchos    Os = "watchos"
-	windows    Os = "windows"
+	android    OS = "android"
+	chromiumos OS = "chromiumos"
+	emscripten OS = "emscripten"
+	freebsd    OS = "freebsd"
+	fuchsia    OS = "fuchsia"
+	haiku      OS = "haiku"
+	ios        OS = "ios"
+	linux      OS = "linux"
+	netbsd     OS = "netbsd"
+	nixos      OS = "nixos"
+	none       OS = "none" // bare-metal
+	openbsd    OS = "openbsd"
+	osx        OS = "osx"
+	qnx        OS = "qnx"
+	tvos       OS = "tvos"
+	uefi       OS = "uefi"
+	visionos   OS = "visionos"
+	vxworks    OS = "vxworks"
+	wasi       OS = "wasi"
+	watchos    OS = "watchos"
+	windows    OS = "windows"
 )
 
-var osAlias = map[string]Os{
+var osAlias = map[string]OS{
 	"macos": osx,
 }
-var allKnownOs = []Os{
+var allKnownOs = []OS{
 	android, chromiumos, emscripten, freebsd, fuchsia, haiku, ios,
 	linux, netbsd, nixos, none, openbsd, osx, qnx, tvos,
 	uefi, visionos, vxworks, wasi, watchos, windows,
@@ -188,7 +188,7 @@ func init() {
 	addMacro("__CHROMEOS__", osArchPlatforms(chromiumos, chromeArchs))
 
 	// Apple does not define unix even though it's unix like os
-	unixOS := []Os{linux, android, chromiumos, nixos, freebsd, netbsd, openbsd, haiku, qnx}
+	unixOS := []OS{linux, android, chromiumos, nixos, freebsd, netbsd, openbsd, haiku, qnx}
 	addMacros(
 		[]string{"unix", "__unix", "__unix__"},
 		platformsMatrix(unixOS, allKnownArch),
@@ -198,19 +198,19 @@ func init() {
 	//  WebAssembly (Emscripten & WASI)
 	//----------------------------------------------------------------------
 	wasmArchs := []Arch{wasm32, wasm64}
-	addMacro("__EMSCRIPTEN__", platformsMatrix([]Os{emscripten}, wasmArchs))
-	addMacro("__wasi__", platformsMatrix([]Os{wasi}, wasmArchs))
-	addMacro("__wasm__", platformsMatrix([]Os{emscripten, wasi}, wasmArchs))
-	addMacro("__wasm32__", platformsMatrix([]Os{emscripten, wasi}, []Arch{wasm32}))
-	addMacro("__wasm64__", platformsMatrix([]Os{emscripten, wasi}, []Arch{wasm64}))
+	addMacro("__EMSCRIPTEN__", platformsMatrix([]OS{emscripten}, wasmArchs))
+	addMacro("__wasi__", platformsMatrix([]OS{wasi}, wasmArchs))
+	addMacro("__wasm__", platformsMatrix([]OS{emscripten, wasi}, wasmArchs))
+	addMacro("__wasm32__", platformsMatrix([]OS{emscripten, wasi}, []Arch{wasm32}))
+	addMacro("__wasm64__", platformsMatrix([]OS{emscripten, wasi}, []Arch{wasm64}))
 
 	//----------------------------------------------------------------------
 	//  BSD family
 	//----------------------------------------------------------------------
 	bsdArchs := []Arch{i386, x86_64, aarch64, riscv64, ppc64le}
-	addMacro("__FreeBSD__", platformsMatrix([]Os{freebsd}, bsdArchs))
-	addMacro("__NetBSD__", platformsMatrix([]Os{netbsd}, bsdArchs))
-	addMacro("__OpenBSD__", platformsMatrix([]Os{openbsd}, bsdArchs))
+	addMacro("__FreeBSD__", platformsMatrix([]OS{freebsd}, bsdArchs))
+	addMacro("__NetBSD__", platformsMatrix([]OS{netbsd}, bsdArchs))
+	addMacro("__OpenBSD__", platformsMatrix([]OS{openbsd}, bsdArchs))
 
 	//----------------------------------------------------------------------
 	//  QNX, Haiku, Fuchsia, VxWorks, UEFI
@@ -285,7 +285,7 @@ func init() {
 	)
 	addMacros(
 		[]string{"__arm64e__", "__arm64e"},
-		archOsPlatforms(arm64e, []Os{osx, ios}),
+		archOsPlatforms(arm64e, []OS{osx, ios}),
 	)
 
 	// Fine-grained Arm (mostly bare-metal)
@@ -300,7 +300,7 @@ func init() {
 	//----------------------------------------------------------------------
 	//  PowerPC
 	//----------------------------------------------------------------------
-	powerPCOS := []Os{linux, freebsd, netbsd, openbsd, qnx, vxworks}
+	powerPCOS := []OS{linux, freebsd, netbsd, openbsd, qnx, vxworks}
 	addMacro("__powerpc__", archOsPlatforms(ppc32, powerPCOS))
 	addMacro("__PPC__", archOsPlatforms(ppc32, powerPCOS))
 	addMacro("__powerpc64__", archOsPlatforms(ppc64le, powerPCOS))
@@ -309,7 +309,7 @@ func init() {
 	//----------------------------------------------------------------------
 	//  MIPS
 	//----------------------------------------------------------------------
-	mipsOS := []Os{linux, netbsd, openbsd, qnx, vxworks}
+	mipsOS := []OS{linux, netbsd, openbsd, qnx, vxworks}
 	addMacro("__mips64", archOsPlatforms(mips64, mipsOS))
 
 	//----------------------------------------------------------------------
@@ -321,7 +321,7 @@ func init() {
 	//----------------------------------------------------------------------
 	//  RISC-V
 	//----------------------------------------------------------------------
-	riscvOS := []Os{linux, freebsd, netbsd, openbsd, qnx, vxworks, android, chromiumos, fuchsia, nixos}
+	riscvOS := []OS{linux, freebsd, netbsd, openbsd, qnx, vxworks, android, chromiumos, fuchsia, nixos}
 	addMacro("__riscv", archOsPlatforms(riscv64, riscvOS))
 }
 
@@ -348,18 +348,18 @@ func addMacros(macro []string, platforms []Platform) {
 	}
 }
 
-func osArchPlatform(os Os, arch Arch) []Platform {
+func osArchPlatform(os OS, arch Arch) []Platform {
 	return []Platform{{os, arch}}
 }
-func osArchPlatforms(os Os, arch []Arch) []Platform {
-	return append(platformsMatrix([]Os{os}, arch), Platform{OS: os})
+func osArchPlatforms(os OS, arch []Arch) []Platform {
+	return append(platformsMatrix([]OS{os}, arch), Platform{OS: os})
 }
 
-func archOsPlatforms(arch Arch, os []Os) []Platform {
+func archOsPlatforms(arch Arch, os []OS) []Platform {
 	return append(platformsMatrix(os, []Arch{arch}), Platform{Arch: arch})
 }
 
-func platformsMatrix(os []Os, arch []Arch) []Platform {
+func platformsMatrix(os []OS, arch []Arch) []Platform {
 	result := []Platform{}
 	for _, os := range os {
 		for _, arch := range arch {
