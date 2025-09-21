@@ -64,12 +64,9 @@ func (ps CcPlatformStrings) Merge(other bzl.Expr) bzl.Expr {
 	otherPS := parseCcPlatformStrings(other)
 
 	// Merge generic list via rule helper
-	genericStrings := []string{}
-	mergedGeneric := rule.MergeList(
-		rule.ExprFromValue(ps.Generic).(*bzl.ListExpr),
-		rule.ExprFromValue(otherPS.Generic).(*bzl.ListExpr),
-	)
-	if mergedGeneric != nil {
+	genericStrings := ps.Generic
+	if len(otherPS.Generic) > 0 {
+		mergedGeneric := ps.Generic.Merge(otherPS.Generic.BzlExpr())
 		genericStrings = bzl.Strings(mergedGeneric)
 	}
 
@@ -119,7 +116,10 @@ func (ps CcPlatformStrings) Strings() []string {
 }
 
 func parseCcPlatformStrings(expr bzl.Expr) CcPlatformStrings {
-	ps := CcPlatformStrings{Constrained: make(map[string][]string)}
+	ps := CcPlatformStrings{
+		Constrained: map[string][]string{},
+		Generic:     []string{},
+	}
 
 	switch e := expr.(type) {
 	case *bzl.ListExpr:
