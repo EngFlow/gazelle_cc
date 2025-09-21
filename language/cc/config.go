@@ -155,25 +155,28 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				continue
 			}
 			args := strings.Fields(d.Value)
-			if len(args) < 2 {
-				log.Printf("gazelle_cc: invalid %v input: %v - %v", d.Key, d.Value)
+			if len(args) < 3 {
+				log.Printf("gazelle_cc: invalid %v input: '%v', requires <os> <arch> <constraint> values", d.Key, d.Value)
 				continue
 			}
-			for i := range args {
-				args[i] = strings.Trim(args[i], "\"")
+			for _, arg := range args[:2] {
+				if strings.Contains(arg, "\"") || strings.Contains(arg, "'") {
+					log.Printf("gazelle_cc: invalid %v input for platform identifier '%v': OS and Arch identifiers should not be quoted", d.Key, d.Value)
+					continue
+				}
 			}
-			platformId, err := platform.Parse(args[0])
+			platformId, err := platform.Create(platform.OS(args[0]), platform.Arch(args[1]))
 			if err != nil {
-				log.Printf("gazelle_cc: invalid %v input for platform identifier '%v': %v", d.Key, args[0], err)
+				log.Printf("gazelle_cc: invalid %v input for platform identifier '%v %v': %v", d.Key, args[0], args[1], err)
 				continue
 			}
-			constraintLabel, err := label.Parse(args[1])
+			constraintLabel, err := label.Parse(args[2])
 			if err != nil {
 				log.Printf("gazelle_cc: invalid %v input for constraint label '%v': %v", d.Key, args[1], err)
 				continue
 			}
 
-			macros, err := parser.ParseMacros(args[2:])
+			macros, err := parser.ParseMacros(args[3:])
 			if err != nil {
 				log.Printf("gazelle_cc: invalid %v input for platform macro definition '%v': %v", d.Key, d.Value, err)
 			}

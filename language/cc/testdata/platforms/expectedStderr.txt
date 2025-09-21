@@ -1,2 +1,2 @@
-gazelle: gazelle_cc: invalid cc_platform input for platform identifier 'linux': malformed platform string: linux, expected <os>/<arch>
-gazelle: gazelle_cc: invalid cc_platform input for platform identifier 'x86_64': malformed platform string: x86_64, expected <os>/<arch>
+gazelle: gazelle_cc: invalid cc_platform input: 'linux //platforms/linux_x86', requires <os> <arch> <constraint> values
+gazelle: gazelle_cc: invalid cc_platform input: 'x86_64 //platforms/linux_x86', requires <os> <arch> <constraint> values

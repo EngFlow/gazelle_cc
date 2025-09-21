@@ -29,7 +29,6 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 )
@@ -52,15 +51,10 @@ func Compare(a, b Platform) int {
 	return cmp.Compare(a.Arch, b.Arch)
 }
 
-// Parses string value into Platform, returns error in case of not known os/arch or if input does not follow <os>/<arch> format
-func Parse(value string) (Platform, error) {
-	fields := strings.FieldsFunc(value, func(r rune) bool { return r == '/' })
-	if len(fields) != 2 {
-		return Platform{}, fmt.Errorf("malformed platform string: %v, expected <os>/<arch>", value)
-	}
+func Create(os OS, arch Arch) (Platform, error) {
 	platform := Platform{
-		OS:   dealias(fields[0], osAlias),
-		Arch: dealias(fields[1], archAlias),
+		OS:   dealias(os, osAlias),
+		Arch: dealias(arch, archAlias),
 	}
 	if !slices.Contains(allKnownOs, platform.OS) {
 		return platform, fmt.Errorf("unknown OS %v, expected one of known values %v or an alias %v", platform.OS, allKnownOs, osAlias)
@@ -369,8 +363,8 @@ func platformsMatrix(os []OS, arch []Arch) []Platform {
 	return result
 }
 
-func dealias[T ~string](value string, aliases map[string]T) T {
-	if dealiased, exists := aliases[value]; exists {
+func dealias[T ~string](value T, aliases map[string]T) T {
+	if dealiased, exists := aliases[string(value)]; exists {
 		return dealiased
 	}
 	return T(value)
