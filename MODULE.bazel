@@ -31,6 +31,14 @@ go_deps.module_override(
     path = "github.com/tree-sitter/tree-sitter-cpp",
     patches = ["@gazelle_cc//patches:tree-sitter-cpp.patch"],
 )
+go_deps.module_override(
+    path = "github.com/tree-sitter/go-tree-sitter",
+    patches = ["@gazelle_cc//patches:go-tree-sitter.patch"],
+)
+go_deps.gazelle_override(
+    path = "github.com/tree-sitter/go-tree-sitter",
+    build_file_generation = "off",
+)
 use_repo(
     go_deps,
     "com_github_bmatcuk_doublestar_v4",
@@ -39,3 +47,4 @@ use_repo(
     "com_github_tree_sitter_tree_sitter_cpp",
     "com_github_tree_sitter_go_tree_sitter",
 )
+inject_repo(go_deps, "tree-sitter")

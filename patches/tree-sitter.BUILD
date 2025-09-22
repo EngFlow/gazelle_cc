@@ -36,4 +36,5 @@ cc_library(
         "_DEFAULT_SOURCE",
     ],
     strip_include_prefix = "lib/include",
+    visibility = ["@com_github_tree_sitter_go_tree_sitter//:__pkg__"],
 )
