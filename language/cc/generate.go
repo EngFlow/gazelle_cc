@@ -80,28 +80,18 @@ func extractImports(args language.GenerateArgs, files []sourceFile, sourceInfos 
 				platformIncludes[include.Path] = append(platformIncludes[include.Path], platform)
 			}
 		}
-		// Returns platforms that are known to use given #include
-		platformsForInclude := func(include parser.IncludeDirective) []platform.Platform {
-			usedByPlatforms, exists := platformIncludes[include.Path]
-			if len(usedByPlatforms) == len(platformEnvs) {
-				// Reachable by all platforms, return to mark it as shared
-				return nil // shared
-			}
-			if !exists {
-				// Not reachable by any platform, explicitly create empty splice to distniguish from nil
-				return []platform.Platform{}
-			}
-			return usedByPlatforms
-		}
 
 		// Assign all includes found in the directives
 		for _, include := range sourceInfo.CollectIncludes() {
+			usedByPlatforms := platformIncludes[include.Path]
+			isPlatformSpecific := len(usedByPlatforms) != len(platformEnvs)
 			*includes = append(*includes, ccInclude{
-				sourceFile:      file,
-				lineNumber:      include.LineNumber,
-				path:            path.Clean(include.Path),
-				isSystemInclude: include.IsSystem,
-				platforms:       platformsForInclude(include),
+				sourceFile:         file,
+				lineNumber:         include.LineNumber,
+				path:               path.Clean(include.Path),
+				isSystemInclude:    include.IsSystem,
+				isPlatformSpecific: isPlatformSpecific,
+				platforms:          usedByPlatforms,
 			})
 		}
 	}

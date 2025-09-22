@@ -215,7 +215,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
 			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
 				switch {
-				case include.platforms == nil:
+				case !include.isPlatformSpecific:
 					builder.addGeneric(resolvedLabel)
 				case len(include.platforms) == 0:
 					builder.addConstrained(label.New("", "conditions", "default"), resolvedLabel)

@@ -54,7 +54,9 @@ type (
 		path string
 		// True when include defined using brackets
 		isSystemInclude bool
-		// List of platforms that matched the include #if condition. nil if include is not guarded by preprocessor definitions
+		// Indicates whether include is shared by all platforms or is restricted to specific ones
+		isPlatformSpecific bool
+		// List of platforms that matched the include #if condition. Empty when shared by all platforms or unreachable by any configured platform
 		platforms []platform.Platform
 	}
 	ccImports struct {
