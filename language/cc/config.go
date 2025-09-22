@@ -156,7 +156,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 			}
 			args := strings.Fields(d.Value)
 			if len(args) < 3 {
-				log.Printf("gazelle_cc: invalid %v input: '%v', requires <os> <arch> <constraint> values", d.Key, d.Value)
+				log.Printf("gazelle_cc: invalid %v input: '%v', requires <os> <arch> <constraint> [macro=value...]", d.Key, d.Value)
 				continue
 			}
 			for _, arg := range args[:2] {
