@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -53,6 +54,10 @@ type (
 		path string
 		// True when include defined using brackets
 		isSystemInclude bool
+		// Indicates whether include is shared by all platforms or is restricted to specific ones
+		isPlatformSpecific bool
+		// List of platforms that matched the include #if condition. Empty when shared by all platforms or unreachable by any configured platform
+		platforms []platform.Platform
 	}
 	ccImports struct {
 		// #include directives found in header files

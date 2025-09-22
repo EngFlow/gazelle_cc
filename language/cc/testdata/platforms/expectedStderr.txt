@@ -1,0 +1,2 @@
+gazelle: gazelle_cc: invalid cc_platform input: 'linux //platforms/linux_x86', requires <os> <arch> <constraint> [macro=value...]
+gazelle: gazelle_cc: invalid cc_platform input: 'x86_64 //platforms/linux_x86', requires <os> <arch> <constraint> [macro=value...]

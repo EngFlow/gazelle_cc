@@ -132,6 +132,51 @@ Controls how to react in case of unresolved `#include` directive (see [Dependenc
 - `error_fast`: Raise an error on the first encountered unresolved `#include` and immediately stop further processing with a non-zero return code; `BUILD` files won't be changed then
 - `error`: Raise an error after collecting all unresolved `#include` directives and stop further processing with a non-zero return code; `BUILD` files won't be changed then
 
+### `# gazelle:cc_platform <os> <arch> <constraint_label> [<macro>=<value> …]`
+
+Tells gazelle_cc to emit a platform-aware `select()` statement for header dependencies whose `#include` directives are wrapped in pre-processor conditions (`#if`, `#ifdef`, etc).
+
+| Parameter            | Description                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<os>`        | Operating-system that identifies the platform (e.g. `linux`, `darwin`).<br>Valid values follow the constraint settings in [`@platforms//os`](https://github.com/bazelbuild/platforms/blob/1.0.0/os/BUILD).<br>This value combined with `<arch>` is also used to setup default, well known platform specific macro definitions, e.g. `_WIN32`, `__APPLE__`, `__unix__` |
+| `<arch>`        | The CPU architecture that identifies the platform (e.g. `amd64`, `aarch64`).Valid values follow the constraint settings in  [`@platforms//cpu`](https://github.com/bazelbuild/platforms/blob/1.0.0/cpu/BUILD). |
+| `<constraint_label>` | A Bazel label that will be used inside the generated `select()` for this platform.                                                                                                               |
+| `[<macro>=<value>]`  | Optional compile-time macros that are **always** true on this platform.<br>Only integer literals are allowed. A bare identifier (e.g. `TARGET_OS_MAC`) is treated as `<macro>=1`.                |
+
+Example:
+
+```bazel
+# BUILD.bazel
+# gazelle:cc_platform windows x86_64 @platforms//os:windows
+# gazelle:cc_platform osx aarch64 //platforms/macos_arm USING_MAC USING_ARM64=1
+```
+
+```c
+// source.cc
+#include "shared.h"
+#if defined(_WIN32)
+   #include "win_impl.h"
+#elif USING_MAC
+   #include "mac_impl.h"
+#else
+   #include "unix_impl.h"
+#endif
+```
+
+Running the `gazelle_cc` would emit
+
+```bazel
+cc_library(
+   name = "source",
+   srcs = ["source.cc"],
+   implementation_deps = [":shared"] + select({
+      "@platforms//os:windows": [":win_impl"],
+      "//platforms:macos_arm":  [":mac_impl"],
+      "//conditions:default":   [":unix_impl"],
+   })
+)
+```
+
 ## Rules for target rule selection
 
 The extension automatically selects the appropriate rule type based on the following criteria:
