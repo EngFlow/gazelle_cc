@@ -275,7 +275,7 @@ type parser struct {
 
 // parse reads and parses C/C++ source from an io.Reader, returning structured SourceInfo.
 func parse(input io.Reader) (SourceInfo, error) {
-	allowList := lexer.NewTokenTypeSet(lexer.TokenType_Symbol, lexer.TokenType_Newline, lexer.TokenType_StringLiteral, lexer.TokenType_Word)
+	allowList := lexer.TokenTypeSet(lexer.TokenType_Symbol | lexer.TokenType_Newline | lexer.TokenType_StringLiteral | lexer.TokenType_Word)
 	p := &parser{lexer: lexer.NewBufferedLexer(lexer.NewFilteredLexer(lexer.NewLexer(input), allowList))}
 	directives, err := p.parseDirectivesUntil(func(_ string) bool { return false })
 	p.sourceInfo.Directives = directives

@@ -164,7 +164,7 @@ func TestFilteredLexer(t *testing.T) {
 	}{
 		{
 			testCaseName: "string literals",
-			allowList:    NewTokenTypeSet(TokenType_Symbol, TokenType_SingleLineComment, TokenType_StringLiteral, TokenType_RawStringLiteral, TokenType_Word),
+			allowList:    TokenTypeSet(TokenType_Symbol | TokenType_SingleLineComment | TokenType_StringLiteral | TokenType_RawStringLiteral | TokenType_Word),
 			input:        embedInput_stringLiterals,
 			expectedTokens: []Token{
 				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 1}, Content: "#include"},
@@ -208,7 +208,7 @@ func TestFilteredLexer(t *testing.T) {
 		{
 			testCaseName: "mbedtls config with long comments",
 			input:        embedInput_mbedtlsConfig,
-			allowList:    NewTokenTypeSet(TokenType_Symbol, TokenType_Word),
+			allowList:    TokenTypeSet(TokenType_Symbol | TokenType_Word),
 			expectedTokens: []Token{
 				{Type: TokenType_Word, Location: Cursor{Line: 52, Column: 1}, Content: "#define"},
 				{Type: TokenType_Word, Location: Cursor{Line: 52, Column: 9}, Content: "MBEDTLS_HAVE_ASM"},
