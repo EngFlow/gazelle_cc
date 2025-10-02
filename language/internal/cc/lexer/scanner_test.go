@@ -184,6 +184,10 @@ func TestExtractToken(t *testing.T) {
 			expectedOk: nil,
 		},
 		{
+			input:       chunk{data: []byte("\\ abc\n")},
+			expectedErr: ErrContinueLineInvalid,
+		},
+		{
 			input:      chunk{data: []byte("// This is a single line comment\nint main()"), complete: true},
 			expectedOk: []byte("// This is a single line comment"),
 		},

@@ -35,7 +35,8 @@ type chunk struct {
 	complete bool   // whether there is no more data to be read after this chunk
 }
 
-// determine token type basing on the first few characters of the chunk
+// Determine token type basing on the first few characters of the chunk.
+// This is only a preliminary classification, the actual token extraction may still fail.
 func prequalifyToken(ch chunk) TokenType {
 	if len(ch.data) == 0 {
 		return TokenType_Incomplete
@@ -133,6 +134,16 @@ func extractWhitespaceToken(ch chunk) []byte {
 func extractContinueLineToken(ch chunk) ([]byte, error) {
 	// ignore characters between the backslash and the newline; whitespace characters usually trigger warnings in compilers
 	if newline := bytes.IndexByte(ch.data, '\n'); newline >= 0 {
+		// ensure that there are only whitespace characters between the backslash and the newline
+		for _, ch := range ch.data[1:newline] {
+			switch ch {
+			case '\t', '\v', '\f', '\r', ' ':
+				// ok
+			default:
+				return nil, ErrContinueLineInvalid
+			}
+		}
+
 		return ch.data[:newline+1], nil
 	}
 
