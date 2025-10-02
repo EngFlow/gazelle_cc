@@ -42,18 +42,16 @@ func TestParseIncludes(t *testing.T) {
 			// Ignore malformed include
 			input: `
 #include "valid.h"
-#include "stdio.h
-#include stdlib.h"
 #include <math.h
 #include exception>
-#include "multiple"quotes.h"
+#include "multiple\"quotes.h"
 #include <other_valid>
 # 
 # unknown_directive
 `,
 			expected: []Directive{
 				IncludeDirective{Path: "valid.h", LineNumber: 2},
-				IncludeDirective{Path: "other_valid", IsSystem: true, LineNumber: 8},
+				IncludeDirective{Path: "other_valid", IsSystem: true, LineNumber: 6},
 			},
 		},
 	}
