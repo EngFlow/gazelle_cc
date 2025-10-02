@@ -107,7 +107,7 @@ func extractSymbolToken(ch chunk) []byte {
 
 // applicable for tokens where one character class is repeated one or more times (like in regex "[abc]+")
 func extractDynamicSizedToken(ch chunk, expected TokenType) []byte {
-	for i := 1; i < len(ch.data); i++ {
+	for i := range ch.data {
 		lookAheadType := prequalifyToken(chunk{data: ch.data[i:], complete: ch.complete})
 		if lookAheadType == TokenType_Incomplete {
 			return nil
