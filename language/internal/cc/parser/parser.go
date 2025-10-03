@@ -31,8 +31,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/EngFlow/gazelle_cc/language/internal/cc/lexer"
 )
 
 // ParseSource runs the extractor on an in‑memory buffer.
@@ -121,17 +119,17 @@ func (p *parser) parseExprPrecedence(minPrecedence precedence) (Expr, error) {
 	}
 
 	for {
-		token, ok := p.lexer.Peek()
+		token, ok := p.tr.peek()
 		if !ok {
 			return result, nil // end of input
 		}
 
-		rule, exists := exprKeywordsPrecedence[token.Content]
+		rule, exists := exprKeywordsPrecedence[token]
 		if !exists || rule.precedence < minPrecedence {
 			return result, nil // current operator binds less – stop and return
 		}
-		p.lexer.MustConsume(token.Content)
-		result, err = rule.infixParser(p, token.Content, result)
+		p.tr.mustConsume(token)
+		result, err = rule.infixParser(p, token, result)
 		if err != nil {
 			return nil, err
 		}
@@ -175,15 +173,15 @@ func parseBinaryApplyOperator(p *parser, _ string, lhs Expr) (Expr, error) {
 
 	args := []Expr{}
 	for {
-		token, ok := p.lexer.Peek()
+		token, ok := p.tr.peek()
 		switch {
-		case !ok || token.Type == lexer.TokenType_Newline:
+		case !ok || token == EOL:
 			return nil, fmt.Errorf("unexpected end of input while parsing apply operator %q", ident)
-		case token.Content == ",":
-			p.lexer.MustConsume(token.Content)
+		case token == ",":
+			p.tr.mustConsume(token)
 			continue
-		case token.Content == ")":
-			p.lexer.MustConsume(token.Content)
+		case token == ")":
+			p.tr.mustConsume(token)
 			return Apply{Name: ident, Args: args}, nil
 		default:
 			arg, err := p.parseExprPrecedence(precedenceLowest)
@@ -208,7 +206,7 @@ func parseUnaryOpenParenthesis(p *parser, tok string) (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.lexer.Consume(")"); err != nil {
+	if err := p.tr.consume(")"); err != nil {
 		return nil, err
 	}
 	return expr, nil
@@ -216,24 +214,24 @@ func parseUnaryOpenParenthesis(p *parser, tok string) (Expr, error) {
 
 // parseIncludeDirective parses an #include or #include_next directive, extracting its path and kind (system/user).
 func (p *parser) parseIncludeDirective(_ string) (Directive, error) {
-	token, ok := p.lexer.Read()
+	token, ok := p.tr.next()
 	if !ok {
-		return nil, p.lexer.Err()
+		return nil, nil
 	}
 
-	switch token.Content {
+	switch token {
 	case "<":
 		path, err := p.nextToken()
 		if err != nil {
 			return nil, err
 		}
-		err = p.lexer.Consume(">")
+		err = p.tr.consume(">")
 		if err != nil {
 			return nil, fmt.Errorf("missing closing bracket: %v", err)
 		}
-		return IncludeDirective{Path: path, IsSystem: true, LineNumber: token.Location.Line}, nil
+		return IncludeDirective{Path: path, IsSystem: true, LineNumber: p.tr.lineNumber}, nil
 	default:
-		path := token.Content
+		path := token
 		if !strings.HasPrefix(path, "\"") || !strings.HasSuffix(path, "\"") {
 			return nil, errors.New("malformed include, missing quotes")
 		}
@@ -241,7 +239,7 @@ func (p *parser) parseIncludeDirective(_ string) (Directive, error) {
 		if strings.Contains(unquoted, "\"") {
 			return nil, errors.New("malformed include, quotes inside path")
 		}
-		return IncludeDirective{Path: unquoted, IsSystem: false, LineNumber: token.Location.Line}, nil
+		return IncludeDirective{Path: unquoted, IsSystem: false, LineNumber: p.tr.lineNumber}, nil
 	}
 }
 
@@ -250,13 +248,13 @@ func parseDefinedExpr(p *parser, op string) (Expr, error) {
 	var name Ident
 	var err error
 	switch {
-	case p.lexer.LookAheadIs("("):
-		p.lexer.MustConsume("(")
+	case p.tr.lookAheadIs("("):
+		p.tr.mustConsume("(")
 		name, err = p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
-		if err := p.lexer.Consume(")"); err != nil {
+		if err := p.tr.consume(")"); err != nil {
 			return nil, err
 		}
 	default:
@@ -269,15 +267,14 @@ func parseDefinedExpr(p *parser, op string) (Expr, error) {
 }
 
 type parser struct {
-	lexer      *lexer.BufferedLexer // Lexer for source
-	sourceInfo SourceInfo           // Accumulated parser state
+	tr         *tokenReader // Token reader for source
+	sourceInfo SourceInfo   // Accumulated parser state
 }
 
 // parse reads and parses C/C++ source from an io.Reader, returning structured SourceInfo.
 func parse(input io.Reader) (SourceInfo, error) {
-	allowList := lexer.TokenTypeSet(lexer.TokenType_Symbol | lexer.TokenType_Newline | lexer.TokenType_StringLiteral | lexer.TokenType_Word)
-	p := &parser{lexer: lexer.NewBufferedLexer(lexer.NewFilteredLexer(lexer.NewLexer(input), allowList))}
-	directives, err := p.parseDirectivesUntil(func(_ string) bool { return false })
+	p := &parser{tr: newTokenReader(input)}
+	directives, err := p.parseDirectivesUntil(func(_ string) bool { return p.tr.atEOF })
 	p.sourceInfo.Directives = directives
 	return p.sourceInfo, err
 }
@@ -287,44 +284,45 @@ func parse(input io.Reader) (SourceInfo, error) {
 func (p *parser) parseDirectivesUntil(shouldStop func(token string) bool) ([]Directive, error) {
 	directives := []Directive{}
 	for {
-		token, ok := p.lexer.Peek()
+		prev := p.tr.lastToken
+		token, ok := p.tr.peek()
 		if !ok {
-			return directives, p.lexer.Err()
+			return directives, p.tr.scanner.Err()
 		}
 
-		if shouldStop(token.Content) {
+		if shouldStop(token) {
 			return directives, nil
 		}
-		p.lexer.MustConsume(token.Content)
+		p.tr.mustConsume(token)
 
 		switch {
-		case strings.HasPrefix(token.Content, "#"):
-			if token.Content == "#" {
+		case strings.HasPrefix(token, "#"):
+			if token == "#" {
 				// `# directive` syntax, read and merge with next token
 				directiveKind, err := p.nextToken()
 				if err != nil {
 					skipped, _ := p.readUntilEOL() // skip remaining part of directive
 					if debug {
-						log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token.Content, err, skipped)
+						log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token, err, skipped)
 					}
 					break
 				}
 				// parseDirective assumes full directive name including '#' prefix
-				token.Content = "#" + directiveKind
+				token = "#" + directiveKind
 			}
-			directive, err := p.parseDirective(token.Content)
+			directive, err := p.parseDirective(token)
 			if err != nil {
 				skipped, _ := p.readUntilEOL() // skip remaining part of directive
 				if debug {
-					log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token.Content, err, skipped)
+					log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", token, err, skipped)
 				}
 				break
 			}
 			directives = append(directives, directive)
 
-		case token.Content == "int":
-			if next, exists := p.lexer.Read(); exists && next.Content == "main" {
-				if next, exists := p.lexer.Read(); exists && next.Content == "(" {
+		case token == "main":
+			if next, exists := p.tr.next(); exists && next == "(" {
+				if prev == "int" {
 					p.sourceInfo.HasMain = true
 				}
 			}
@@ -339,41 +337,44 @@ func (p *parser) parseExpr() (Expr, error) {
 
 // nextToken returns the next token or an error if EOF is reached.
 func (p *parser) nextToken() (string, error) {
-	token, ok := p.lexer.Read()
+	token, ok := p.tr.next()
 	if !ok {
 		return "", errors.New("expected identifier, found EOF")
 	}
-	if token.Type == lexer.TokenType_Newline {
+	if token == EOL {
 		return "", errors.New("expected token, found EOL")
 	}
-	return token.Content, nil
+	return token, nil
 }
 
 // readUntilEOL skips all tokens until the end of the line, returning all read tokens as a slice.
 func (p *parser) readUntilEOL() ([]string, error) {
 	tokens := []string{}
+	if p.tr.lastToken == EOL {
+		return tokens, nil
+	}
 	for {
-		token, ok := p.lexer.Read()
+		token, ok := p.tr.next()
 		if !ok {
-			return tokens, p.lexer.Err()
+			return tokens, p.tr.scanner.Err()
 		}
-		if token.Type == lexer.TokenType_Newline {
+		if token == EOL {
 			return tokens, nil
 		}
-		tokens = append(tokens, token.Content)
+		tokens = append(tokens, token)
 	}
 }
 
 // parseIdent reads the next identifier token.
 func (p *parser) parseIdent() (Ident, error) {
-	token, ok := p.lexer.Read()
+	token, ok := p.tr.next()
 	if !ok {
 		return "", fmt.Errorf("expected identifier, found EOF")
 	}
-	if token.Type == lexer.TokenType_Newline {
+	if token == EOL {
 		return "", fmt.Errorf("expected identifier, found EOL")
 	}
-	return Ident(token.Content), nil
+	return Ident(token), nil
 }
 
 // isEndOfIfBranch checks if a token marks the end or transition of a #if block branch.
@@ -436,22 +437,22 @@ func (p *parser) parseIfBlock(startDirective string) (IfBlock, error) {
 	branches = append(branches, firstBranch)
 
 	for {
-		token, ok := p.lexer.Peek()
+		token, ok := p.tr.peek()
 		if !ok {
-			return IfBlock{}, p.lexer.Err()
+			return IfBlock{}, p.tr.scanner.Err()
 		}
 
-		switch token.Content {
+		switch token {
 		case "#elif", "#elifdef", "#elifndef":
-			p.lexer.MustConsume(token.Content)
-			branch, err := p.parseIfBranch(token.Content, ElifBranch)
+			p.tr.mustConsume(token)
+			branch, err := p.parseIfBranch(token, ElifBranch)
 			if err != nil {
 				return IfBlock{}, err
 			}
 			branches = append(branches, branch)
 
 		case "#else":
-			p.lexer.MustConsume(token.Content)
+			p.tr.mustConsume(token)
 			body, err := p.parseDirectivesUntil(func(tok string) bool { return tok == "#endif" })
 			if err != nil {
 				return IfBlock{}, err
@@ -463,7 +464,7 @@ func (p *parser) parseIfBlock(startDirective string) (IfBlock, error) {
 			})
 
 		case "#endif":
-			p.lexer.MustConsume(token.Content)
+			p.tr.mustConsume(token)
 			return IfBlock{Branches: branches}, nil
 
 		default:
@@ -479,8 +480,8 @@ func (p *parser) parseDefineDirective() (DefineDirective, error) {
 		return DefineDirective{}, err
 	}
 	defineArgs := []string{}
-	if p.lexer.LookAheadIs("(") {
-		p.lexer.MustConsume("(")
+	if p.tr.lookAheadIs("(") {
+		p.tr.mustConsume("(")
 		// Function-like macro definition
 	parseArgs:
 		for {
