@@ -25,8 +25,8 @@ func TestParseIncludes(t *testing.T) {
 		input    string
 		expected []Directive
 	}{
-		// Parses valid source code
 		{
+			// Parses valid source code
 			input: `
 #include <stdio.h>
 #include "myheader.h"
@@ -54,6 +54,64 @@ func TestParseIncludes(t *testing.T) {
 			expected: []Directive{
 				IncludeDirective{Path: "valid.h", LineNumber: 2},
 				IncludeDirective{Path: "other_valid", IsSystem: true, LineNumber: 8},
+			},
+		},
+		{
+			// Handle very long multiline comments
+			input: `
+/*
+ * Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec egestas bibendum sollicitudin. Sed eros dui, accumsan
+ * tempor accumsan et, vehicula ac magna. Morbi interdum ipsum est, at mollis nulla pellentesque id. Aliquam elementum
+ * quam blandit faucibus posuere. Curabitur fermentum tellus dolor, in molestie ex consequat vel. Nam iaculis ornare
+ * odio. Pellentesque quis felis mauris. Nullam vestibulum consequat malesuada. Pellentesque quis porta urna, eget
+ * pellentesque ipsum. Phasellus luctus luctus orci ut convallis. Etiam venenatis lectus id neque pellentesque, eu
+ * tincidunt mauris sollicitudin. Vivamus posuere, lectus ut ultrices pharetra, libero sem aliquam mauris, finibus
+ * tincidunt felis orci id turpis.
+ * 
+ * Donec in eleifend odio. Pellentesque sit amet malesuada lacus, sit amet varius nulla. Sed sem sapien, ullamcorper id
+ * urna ut, consequat posuere sem. Mauris vitae est nulla. Morbi venenatis metus non elit dictum faucibus et id purus.
+ * Nulla euismod posuere dolor. Aliquam vel diam orci.
+ * 
+ * Nulla porta tortor quis velit iaculis elementum. Morbi fermentum egestas augue eget scelerisque. Donec fermentum arcu
+ * a justo congue, eu sagittis risus interdum. Pellentesque interdum cursus ex vitae imperdiet. Nunc at dolor mauris.
+ * Suspendisse varius, eros sed luctus eleifend, lorem augue tempus lacus, venenatis blandit sem ante sit amet lacus.
+ * Mauris feugiat dolor eget nunc hendrerit cursus. Nunc vestibulum arcu ipsum, sed dapibus ipsum elementum a. Aliquam
+ * erat volutpat. Phasellus congue, odio id euismod mollis, dolor lorem euismod enim, quis fermentum odio urna efficitur
+ * arcu. Nulla vestibulum dui sit amet nulla lacinia, at tincidunt nisi tincidunt. Sed metus nunc, tempor at aliquam
+ * tempor, dictum pulvinar mauris.
+ * 
+ * Vivamus auctor hendrerit auctor. Duis vehicula faucibus consequat. Nulla sit amet lobortis libero. Vivamus rhoncus
+ * lorem sed lectus imperdiet fermentum. Quisque laoreet elit id condimentum congue. Donec scelerisque, augue eget
+ * egestas lobortis, nisl ligula ultricies leo, vitae sollicitudin purus nulla at arcu. Maecenas eget massa eget libero
+ * venenatis rutrum vel eu nisl. Nunc scelerisque nunc at pharetra finibus. Donec ac ultrices erat, non aliquam nisi.
+ * Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+ * 
+ * Sed ut nibh erat. Cras sed velit at urna porttitor bibendum. Mauris imperdiet, lacus id viverra elementum, orci nulla
+ * egestas mauris, quis ultrices ligula sem sit amet urna. Orci varius natoque penatibus et magnis dis parturient
+ * montes, nascetur ridiculus mus. Nam dictum iaculis orci a sagittis. Nullam mauris mi, vestibulum quis erat vel,
+ * sollicitudin bibendum justo. Pellentesque euismod, nibh et condimentum lobortis, erat magna scelerisque ex, vel
+ * condimentum nisl sapien eget magna. Morbi in est blandit, egestas augue sit amet, luctus massa. Proin ultricies
+ * rutrum semper. Aenean luctus in arcu nec porttitor. Maecenas a varius ligula.
+ * 
+ * Nulla id quam iaculis, rutrum nisl id, luctus massa. Duis ultricies odio at sapien porttitor gravida. In enim tellus,
+ * pulvinar vel blandit at, luctus vel mauris. Morbi dictum, nisi ut finibus elementum, turpis orci vehicula purus, ut
+ * lobortis turpis magna id risus. Phasellus vel purus pulvinar, gravida metus ut, lacinia erat. Integer tempus dictum
+ * neque eu dictum. In condimentum at dolor at faucibus. Fusce mattis metus sodales accumsan consectetur. Proin eu
+ * aliquam eros. Pellentesque tincidunt vehicula magna, a ornare leo sollicitudin a. Fusce nunc arcu, venenatis commodo
+ * metus id, auctor commodo ligula. Praesent facilisis risus id leo ultrices, sed finibus metus tristique. Mauris
+ * feugiat vestibulum orci a tristique.
+ * 
+ * Sed nec commodo dui. Nulla posuere sem erat, in imperdiet lectus efficitur eget. Etiam a enim hendrerit, tincidunt
+ * dui quis, ultricies nisi. Integer arcu ipsum, commodo non vehicula eget, sodales et dui. Curabitur luctus magna a leo
+ * condimentum auctor eu ac ex. Nulla velit urna, luctus eu vestibulum quis, varius id urna. Integer interdum quam
+ * metus, sed maximus leo pharetra id. Donec viverra vulputate velit, vitae faucibus massa tempus sit amet. Cras
+ * tristique ullamcorper erat ac mi.
+ * \,
+ */
+#define MACRO
+`,
+			expected: []Directive{
+				DefineDirective{Name: "MACRO", Args: []string{}, Body: []string{}},
 			},
 		},
 	}
