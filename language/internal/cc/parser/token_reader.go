@@ -17,6 +17,7 @@ package parser
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"unicode"
@@ -56,12 +57,23 @@ func tokenizer(data []byte, atEOF bool, signalEOL func()) (advance int, token []
 			}
 		// Skip block comments
 		case bytes.HasPrefix(data[i:], []byte("/*")):
+			endOfCommentFound := false
 			for i += 2; i < len(data)-1; i++ {
 				if isEOL(data[i]) {
 					signalEOL()
 				} else if bytes.HasPrefix(data[i:], []byte("*/")) {
 					i += 2
+					endOfCommentFound = true
 					break
+				}
+			}
+
+			if !endOfCommentFound {
+				if atEOF {
+					return 0, nil, errors.New("unterminated multi-line comment")
+				} else {
+					// request for more data
+					return 0, nil, nil
 				}
 			}
 		// Skip whitespace
