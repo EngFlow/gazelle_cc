@@ -207,6 +207,15 @@ func TestTokenize(t *testing.T) {
 			},
 			expectedError: ErrMultiLineCommentUnterminated,
 		},
+		{
+			input: []byte("/*😎*/ // This starts at column 7"),
+			expectedTokens: []Token{
+				{Type: TokenType_MultiLineComment, Location: Cursor{Line: 1, Column: 1}, Content: "/*😎*/"},
+				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 6}, Content: " "},
+				{Type: TokenType_SingleLineComment, Location: Cursor{Line: 1, Column: 7}, Content: "// This starts at column 7"},
+			},
+			expectedError: nil,
+		},
 	}
 
 	for _, tc := range testCases {

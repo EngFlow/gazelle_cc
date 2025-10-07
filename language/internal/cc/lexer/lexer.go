@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package lexer provides a lexical analyzer for the C/C++ source code. It breaks the input into a sequence of tokens,
-// which can then be processed wby a parser.
+// which can then be processed by a parser.
 //
 // Lexer classifies tokens into several types (for e.g., easier filtering comments or whitespace) and tracks their
 // location in the source code (for accurate error reporting).
