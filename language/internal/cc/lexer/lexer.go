@@ -12,165 +12,155 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package lexer provides a lexical analyzer for the C/C++ source code. It breaks the input into a sequence of tokens,
+// which can then be processed wby a parser.
+//
+// Lexer classifies tokens into several types (for e.g., easier filtering comments or whitespace) and tracks their
+// location in the source code (for accurate error reporting).
 package lexer
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
 	"io"
-	"iter"
+	"regexp"
 )
 
-type Lexer interface {
-	// Reads the next token from the input. Returns false when there are no more tokens, either by reaching the end of the input or an error.
-	Read() (Token, bool)
+// Represents a way of matching a specific token type using a regular expression.
+type matcher struct {
+	// Type assigned to a token when this matcher matches.
+	matchedType TokenType
 
-	// First non-EOF error that was encountered by the Lexer.
-	Err() error
+	// Regular expression used to match the full token content.
+	matchingRe *regexp.Regexp
+
+	// Optional. If set and matches, the matcher will treat matchingRe as obligatory and none of the other matchers will
+	// be considered. This is useful for reporting incomplete tokens, e.g. unterminated multi-line comments.
+	checkedPrefix string
+
+	// Optional. Error to return if the checkedPrefix is set and matches, but the full regex does not match.
+	checkedPrefixFailure error
 }
 
-// Returns an iterator that yields the tokens in order.
-func AllTokens(l Lexer) iter.Seq[Token] {
-	return func(yield func(Token) bool) {
-		for {
-			token, ok := l.Read()
-			if !ok || !yield(token) {
-				return
+// Matching logic for all token types apart from TokenType_Word which is the default fallback type when no other
+// matchers apply.
+var matchers = []matcher{
+	{
+		matchedType: TokenType_Symbol,
+		matchingRe:  regexp.MustCompile(`(?:[!=<>]=?|&&?|\|\|?|[(){}\[\],;])`),
+	},
+	{
+		matchedType: TokenType_PreprocessorDirective,
+		matchingRe:  regexp.MustCompile(`#[\t\v\f\r ]*\w+`),
+	},
+	{
+		matchedType: TokenType_Newline,
+		matchingRe:  regexp.MustCompile(`\n`),
+	},
+	{
+		matchedType: TokenType_Whitespace,
+		matchingRe:  regexp.MustCompile(`[\t\v\f\r ]+`),
+	},
+	{
+		matchedType:          TokenType_ContinueLine,
+		matchingRe:           regexp.MustCompile(`\\[\t\v\f\r ]*\n`),
+		checkedPrefix:        `\`,
+		checkedPrefixFailure: ErrContinueLineInvalid,
+	},
+	{
+		matchedType: TokenType_SingleLineComment,
+		matchingRe:  regexp.MustCompile(`//[^\n]*`),
+	},
+	{
+		matchedType:          TokenType_MultiLineComment,
+		matchingRe:           regexp.MustCompile(`(?s)/\*.*?\*/`),
+		checkedPrefix:        "/*",
+		checkedPrefixFailure: ErrMultiLineCommentUnterminated,
+	},
+}
+
+type Lexer struct {
+	dataLeft []byte
+	cursor   Cursor
+}
+
+func NewLexer(sourceCode []byte) *Lexer {
+	return &Lexer{
+		dataLeft: sourceCode,
+		cursor:   CursorInit,
+	}
+}
+
+// Wrap an error with the current cursor location for better context.
+func (lx *Lexer) makeError(err error) error {
+	return fmt.Errorf("%v: %w", lx.cursor, err)
+}
+
+// Update the lexer state accordingly to the extracted token.
+func (lx *Lexer) consume(token *Token) {
+	lx.dataLeft = lx.dataLeft[len(token.Content):]
+	lx.cursor = lx.cursor.AdvancedBy(token.Content)
+}
+
+// Return the next token extracted from the beginning of the input data left to process.
+func (lx *Lexer) NextToken() (token Token, err error) {
+	defer lx.consume(&token)
+
+	if len(lx.dataLeft) == 0 {
+		err = lx.makeError(io.EOF)
+		return
+	}
+
+	// If none of matchers apply, the token is qualified as TokenType_Word which ends at the beginning of the next token
+	// recognized by one of matchers.
+	wordEnd := len(lx.dataLeft)
+
+	for _, m := range matchers {
+		match := m.matchingRe.FindIndex(lx.dataLeft)
+
+		// Prefix matches but the full token does not match.
+		if len(m.checkedPrefix) > 0 && bytes.HasPrefix(lx.dataLeft, []byte(m.checkedPrefix)) && (match == nil || match[0] != 0) {
+			err = lx.makeError(m.checkedPrefixFailure)
+			return
+		}
+
+		if match == nil {
+			continue
+		}
+
+		tokenBegin := match[0]
+		tokenEnd := match[1]
+		if tokenBegin == 0 {
+			token = Token{
+				Type:     m.matchedType,
+				Location: lx.cursor,
+				Content:  string(lx.dataLeft[tokenBegin:tokenEnd]),
 			}
+			return
 		}
-	}
-}
 
-type lexer struct {
-	scanner *bufio.Scanner
-	cursor  Cursor
-}
-
-func NewLexer(r io.Reader) Lexer {
-	return &lexer{
-		scanner: newScanner(r),
-		cursor:  CursorInit,
-	}
-}
-
-func (l *lexer) Read() (Token, bool) {
-	if !l.scanner.Scan() {
-		return Token{}, false
+		wordEnd = min(wordEnd, tokenBegin)
 	}
 
-	content := l.scanner.Bytes()
-	token := Token{
-		Type:     prequalifyToken(chunk{data: content, complete: true}),
-		Location: l.cursor,
-		Content:  string(content),
+	// Fallback to TokenType_Word.
+	token = Token{
+		Type:     TokenType_Word,
+		Location: lx.cursor,
+		Content:  string(lx.dataLeft[:wordEnd]),
 	}
-
-	if token.Type == TokenType_Incomplete {
-		panic(fmt.Errorf("internal error: lexer produced incomplete token at %v: %q", l.cursor, content))
-	}
-
-	l.cursor = l.cursor.AdvanceBy(string(content))
-	return token, true
+	return
 }
 
-func (l *lexer) Err() error {
-	if err := l.scanner.Err(); err != nil {
-		return fmt.Errorf("%v: %w", l.cursor, l.scanner.Err())
-	} else {
-		return nil
-	}
-}
-
-type filteredLexer struct {
-	inner     Lexer
-	allowList TokenTypeSet
-}
-
-func NewFilteredLexer(inner Lexer, allowList TokenTypeSet) Lexer {
-	return &filteredLexer{
-		inner:     inner,
-		allowList: allowList,
-	}
-}
-
-func (l *filteredLexer) Read() (Token, bool) {
-	for token := range AllTokens(l.inner) {
-		if l.allowList.Contains(token.Type) {
-			return token, true
+// Return all tokens extracted from the input data. If an error occurs during tokenization, returns the tokens extracted
+// so far along with the error.
+func (lx *Lexer) Tokenize() ([]Token, error) {
+	var tokens []Token
+	for len(lx.dataLeft) > 0 {
+		token, err := lx.NextToken()
+		if err != nil {
+			return tokens, err
 		}
+		tokens = append(tokens, token)
 	}
-
-	return Token{}, false
-}
-
-func (l *filteredLexer) Err() error {
-	return l.inner.Err()
-}
-
-type BufferedLexer struct {
-	inner     Lexer
-	lookAhead *Token
-}
-
-func NewBufferedLexer(inner Lexer) *BufferedLexer {
-	return &BufferedLexer{
-		inner:     inner,
-		lookAhead: nil,
-	}
-}
-
-func (l *BufferedLexer) Read() (Token, bool) {
-	if l.lookAhead != nil {
-		token := *l.lookAhead
-		l.lookAhead = nil
-		return token, true
-	}
-
-	return l.inner.Read()
-}
-
-func (l *BufferedLexer) Peek() (Token, bool) {
-	if l.lookAhead != nil {
-		return *l.lookAhead, true
-	}
-
-	token, ok := l.inner.Read()
-	if !ok {
-		return Token{}, false
-	}
-
-	l.lookAhead = &token
-	return token, true
-}
-
-// Returns true if the next token is exactly 'expected'.
-func (l *BufferedLexer) LookAheadIs(expected string) bool {
-	token, ok := l.Peek()
-	return ok && token.Content == expected
-}
-
-// Reads the next token and checks it matches 'expected', returning error otherwise.
-func (l *BufferedLexer) Consume(expected string) error {
-	token, ok := l.Read()
-	if !ok {
-		if l.Err() != nil {
-			return fmt.Errorf("%v: expected '%v' but encountered error: %w", token.Location, expected, l.Err())
-		}
-		return fmt.Errorf("%v: expected '%v' but reached end of input", token.Location, expected)
-	}
-	if token.Content != expected {
-		return fmt.Errorf("%v: expected '%v' but found '%v'", token.Location, expected, token.Content)
-	}
-	return nil
-}
-
-// MustConsume is like Consume but panics on error (use for parser-internal invariants).
-func (l *BufferedLexer) MustConsume(expected string) {
-	if err := l.Consume(expected); err != nil {
-		panic(err)
-	}
-}
-
-func (l *BufferedLexer) Err() error {
-	return l.inner.Err()
+	return tokens, nil
 }

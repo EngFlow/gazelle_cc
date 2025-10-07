@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "cursor.go",
         "lexer.go",
-        "scanner.go",
         "token.go",
     ],
     importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc/lexer",
@@ -14,14 +13,7 @@ go_library(
 
 go_test(
     name = "lexer_test",
-    srcs = [
-        "lexer_test.go",
-        "scanner_test.go",
-    ],
+    srcs = ["lexer_test.go"],
     embed = [":lexer"],
-    embedsrcs = [
-        "testdata/mbedtls_config.h",
-        "testdata/string_literals.cpp",
-    ],
     deps = ["@com_github_stretchr_testify//assert"],
 )

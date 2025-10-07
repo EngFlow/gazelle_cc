@@ -14,19 +14,39 @@
 
 package lexer
 
+import "errors"
+
 type TokenType int
 
 const (
-	TokenType_Incomplete        TokenType = 1 << iota // Token is too short to unambiguously determine its type.
-	TokenType_Symbol                                  // One of predefined fixed-size sequences of characters, e.g. '(', '==', ';', '&&'.
-	TokenType_Newline                                 // Single newline character '\n'.
-	TokenType_Whitespace                              // One or more whitespace characters, other than newlines.
-	TokenType_ContinueLine                            // Line continuation sequence, a backslash '\' followed by a newline character '\n'.
-	TokenType_SingleLineComment                       // Single-line comment, starting with // and ending at the end of the line.
-	TokenType_MultiLineComment                        // Multi-line comment, starting with /* and ending with */.
-	TokenType_StringLiteral                           // String literal, starting and ending with ". May contain escape sequences.
-	TokenType_RawStringLiteral                        // Raw string literal, starting with R"delimiter( and ending with )delimiter". May contain any characters except the closing sequence.
-	TokenType_Word                                    // Every complete token that is not one of the other types, e.g. identifiers, keywords.
+	// Every complete token that is not one of the other types, e.g. identifiers, keywords.
+	TokenType_Word TokenType = 1 << iota
+
+	// One of predefined fixed-size sequences of characters, e.g. '(', '==', ';', '&&'.
+	TokenType_Symbol
+
+	// Preprocessor directive, a hash '#' followed by the directive name (with optional whitespace characters between).
+	TokenType_PreprocessorDirective
+
+	// Single newline character '\n'. Newlines require special handling because they mark the end of a preprocessor directive.
+	TokenType_Newline
+
+	// One or more whitespace characters, other than newlines.
+	TokenType_Whitespace
+
+	// Line continuation sequence, a backslash '\' followed by a newline character '\n' (with optional whitespace characters between).
+	TokenType_ContinueLine
+
+	// Single-line comment, starting with // and ending at the end of the line.
+	TokenType_SingleLineComment
+
+	// Multi-line comment, starting with /* and ending with */.
+	TokenType_MultiLineComment
+)
+
+var (
+	ErrContinueLineInvalid          = errors.New("invalid characters after line continuation backslash")
+	ErrMultiLineCommentUnterminated = errors.New("unterminated multi-line comment")
 )
 
 type TokenTypeSet TokenType

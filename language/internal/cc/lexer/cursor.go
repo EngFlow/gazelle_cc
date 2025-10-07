@@ -32,7 +32,11 @@ func (c Cursor) String() string {
 	return fmt.Sprintf("%d:%d", c.Line, c.Column)
 }
 
-func (c Cursor) AdvanceBy(lookAhead string) Cursor {
+// Return a new Cursor advanced by the given lookAhead string. Assumes the current cursor points at the beginning of
+// lookAhead and returns the cursor position right after lookAhead.
+//
+// Newlines in lookAhead increment the line number and reset the column; other characters increment the column.
+func (c Cursor) AdvancedBy(lookAhead string) Cursor {
 	newlinesCount := strings.Count(lookAhead, "\n")
 	tailBegin := 1 + strings.LastIndex(lookAhead, "\n")
 	tailLength := utf8.RuneCountInString(lookAhead[tailBegin:])
