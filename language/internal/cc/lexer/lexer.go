@@ -116,30 +116,34 @@ func (lx *Lexer) NextToken() (token Token, err error) {
 	wordEnd := len(lx.dataLeft)
 
 	for _, m := range matchers {
-		match := m.matchingRe.FindIndex(lx.dataLeft)
+		// Check full match.
+		if match := m.matchingRe.FindIndex(lx.dataLeft); match != nil {
+			tokenBegin := match[0]
+			tokenEnd := match[1]
 
-		// Prefix matches but the full token does not match.
-		if len(m.checkedPrefix) > 0 && bytes.HasPrefix(lx.dataLeft, []byte(m.checkedPrefix)) && (match == nil || match[0] != 0) {
-			err = lx.makeError(m.checkedPrefixFailure)
-			return
-		}
-
-		if match == nil {
-			continue
-		}
-
-		tokenBegin := match[0]
-		tokenEnd := match[1]
-		if tokenBegin == 0 {
-			token = Token{
-				Type:     m.matchedType,
-				Location: lx.cursor,
-				Content:  string(lx.dataLeft[tokenBegin:tokenEnd]),
+			if tokenBegin == 0 {
+				token = Token{
+					Type:     m.matchedType,
+					Location: lx.cursor,
+					Content:  string(lx.dataLeft[tokenBegin:tokenEnd]),
+				}
+				return
+			} else {
+				wordEnd = min(wordEnd, tokenBegin)
 			}
-			return
 		}
 
-		wordEnd = min(wordEnd, tokenBegin)
+		// Check optional checkedPrefix if present.
+		if m.checkedPrefix != "" {
+			prefixBegin := bytes.Index(lx.dataLeft, []byte(m.checkedPrefix))
+			if prefixBegin == 0 {
+				// The checkedPrefix matches at the beginning, but the full regex does not match.
+				err = lx.makeError(m.checkedPrefixFailure)
+				return
+			} else if prefixBegin > 0 {
+				wordEnd = min(wordEnd, prefixBegin)
+			}
+		}
 	}
 
 	// Fallback to TokenType_Word.

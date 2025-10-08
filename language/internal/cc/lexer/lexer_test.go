@@ -208,6 +208,13 @@ func TestTokenize(t *testing.T) {
 			expectedError: ErrMultiLineCommentUnterminated,
 		},
 		{
+			input: []byte("word/*unterminated comment"),
+			expectedTokens: []Token{
+				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 1}, Content: "word"},
+			},
+			expectedError: ErrMultiLineCommentUnterminated,
+		},
+		{
 			input: []byte("/*😎*/ // This starts at column 7"),
 			expectedTokens: []Token{
 				{Type: TokenType_MultiLineComment, Location: Cursor{Line: 1, Column: 1}, Content: "/*😎*/"},
