@@ -15,7 +15,6 @@
 package lexer
 
 import (
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,115 +22,147 @@ import (
 
 func TestNextToken(t *testing.T) {
 	testCases := []struct {
-		input           []byte
-		expectedType    TokenType
-		expectedContent string
-		expectedError   error
+		input    []byte
+		expected Token
 	}{
 		{
-			input:         []byte(""),
-			expectedError: io.EOF,
+			input:    []byte(""),
+			expected: TokenEmpty,
 		},
 		{
-			input:           []byte("&&"),
-			expectedType:    TokenType_Symbol,
-			expectedContent: "&&",
+			input: []byte("&&"),
+			expected: Token{
+				Type:     TokenType_Symbol,
+				Location: CursorInit,
+				Content:  "&&",
+			},
 		},
 		{
-			input:           []byte("#include \"file.h\""),
-			expectedType:    TokenType_PreprocessorDirective,
-			expectedContent: "#include",
+			input: []byte("#include \"file.h\""),
+			expected: Token{
+				Type:     TokenType_PreprocessorDirective,
+				Location: CursorInit,
+				Content:  "#include",
+			},
 		},
 		{
-			input:           []byte("#   define VARIABLE 123"),
-			expectedType:    TokenType_PreprocessorDirective,
-			expectedContent: "#   define",
+			input: []byte("#   define VARIABLE 123"),
+			expected: Token{
+				Type:     TokenType_PreprocessorDirective,
+				Location: CursorInit,
+				Content:  "#   define",
+			},
 		},
 		{
-			input:           []byte("\n\n"),
-			expectedType:    TokenType_Newline,
-			expectedContent: "\n",
+			input: []byte("\n\n"),
+			expected: Token{
+				Type:     TokenType_Newline,
+				Location: CursorInit,
+				Content:  "\n",
+			},
 		},
 		{
-			input:           []byte("\t\t abc"),
-			expectedType:    TokenType_Whitespace,
-			expectedContent: "\t\t ",
+			input: []byte("\t\t abc"),
+			expected: Token{
+				Type:     TokenType_Whitespace,
+				Location: CursorInit,
+				Content:  "\t\t ",
+			},
 		},
 		{
-			input:           []byte("\\\n MACRO_CONTINUED"),
-			expectedType:    TokenType_ContinueLine,
-			expectedContent: "\\\n",
+			input: []byte("\\\n MACRO_CONTINUED"),
+			expected: Token{
+				Type:     TokenType_ContinueLine,
+				Location: CursorInit,
+				Content:  "\\\n",
+			},
 		},
 		{
-			input:           []byte("\\    \n MACRO_CONTINUED"),
-			expectedType:    TokenType_ContinueLine,
-			expectedContent: "\\    \n",
+			input: []byte("\\    \n MACRO_CONTINUED"),
+			expected: Token{
+				Type:     TokenType_ContinueLine,
+				Location: CursorInit,
+				Content:  "\\    \n",
+			},
 		},
 		{
-			input:         []byte("\\ unexpected \n MACRO_CONTINUED"),
-			expectedError: ErrContinueLineInvalid,
+			input: []byte("\\ unexpected \n MACRO_CONTINUED"),
+			expected: Token{
+				Type:     TokenType_Word,
+				Location: CursorInit,
+				Content:  "\\",
+			},
 		},
 		{
-			input:         []byte("\\ unexpected \n MACRO_CONTINUED \\\n MACRO_CONTINUED_AGAIN"),
-			expectedError: ErrContinueLineInvalid,
+			input: []byte("// This is a single line comment"),
+			expected: Token{
+				Type:     TokenType_SingleLineComment,
+				Location: CursorInit,
+				Content:  "// This is a single line comment",
+			},
 		},
 		{
-			input:           []byte("// This is a single line comment"),
-			expectedType:    TokenType_SingleLineComment,
-			expectedContent: "// This is a single line comment",
+			input: []byte("// This is a single line comment\nint main()"),
+			expected: Token{
+				Type:     TokenType_SingleLineComment,
+				Location: CursorInit,
+				Content:  "// This is a single line comment",
+			},
 		},
 		{
-			input:           []byte("// This is a single line comment\nint main()"),
-			expectedType:    TokenType_SingleLineComment,
-			expectedContent: "// This is a single line comment",
-		},
-		{
-			input:           []byte("/*\n  This is a multi line comment\n*/\nint main()"),
-			expectedType:    TokenType_MultiLineComment,
-			expectedContent: "/*\n  This is a multi line comment\n*/",
+			input: []byte("/*\n  This is a multi line comment\n*/\nint main()"),
+			expected: Token{
+				Type:     TokenType_MultiLineComment,
+				Location: CursorInit,
+				Content:  "/*\n  This is a multi line comment\n*/",
+			},
 		},
 		{
 			// TODO handle string literals as whole tokens
-			input:           []byte(`"This is a string literal"`),
-			expectedType:    TokenType_Word,
-			expectedContent: `"This`,
+			input: []byte(`"This is a string literal"`),
+			expected: Token{
+				Type:     TokenType_Word,
+				Location: CursorInit,
+				Content:  `"This`,
+			},
 		},
 		{
 			// TODO handle raw string literals as whole tokens
-			input:           []byte(`R"(abc)" fake-end)"`),
-			expectedType:    TokenType_Word,
-			expectedContent: `R"`,
+			input: []byte(`R"(abc)" fake-end)"`),
+			expected: Token{
+				Type:     TokenType_Word,
+				Location: CursorInit,
+				Content:  `R"`,
+			},
 		},
 		{
-			input:           []byte("identifier123;"),
-			expectedType:    TokenType_Word,
-			expectedContent: "identifier123",
+			input: []byte("identifier123;"),
+			expected: Token{
+				Type:     TokenType_Word,
+				Location: CursorInit,
+				Content:  "identifier123",
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		lx := NewLexer(tc.input)
-		token, err := lx.NextToken()
-		assert.Equal(t, tc.expectedType, token.Type, "unexpected type for input: %q", tc.input)
-		assert.Equal(t, tc.expectedContent, token.Content, "unexpected content for input: %q", tc.input)
-		assert.ErrorIs(t, err, tc.expectedError, "unexpected error for input: %q", tc.input)
+		assert.Equal(t, tc.expected, lx.NextToken(), "input: %q", tc.input)
 	}
 }
 
 func TestTokenize(t *testing.T) {
 	testCases := []struct {
-		input          []byte
-		expectedTokens []Token
-		expectedError  error
+		input    []byte
+		expected []Token
 	}{
 		{
-			input:          []byte(""),
-			expectedTokens: nil,
-			expectedError:  nil,
+			input:    []byte(""),
+			expected: nil,
 		},
 		{
 			input: []byte("int main() { return 0; }"),
-			expectedTokens: []Token{
+			expected: []Token{
 				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 1}, Content: "int"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 4}, Content: " "},
 				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 5}, Content: "main"},
@@ -147,11 +178,10 @@ func TestTokenize(t *testing.T) {
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 23}, Content: " "},
 				{Type: TokenType_Symbol, Location: Cursor{Line: 1, Column: 24}, Content: "}"},
 			},
-			expectedError: nil,
 		},
 		{
 			input: []byte("/*\nint main() { return 0; }\n*/\nint main() { return 0; }"),
-			expectedTokens: []Token{
+			expected: []Token{
 				{Type: TokenType_MultiLineComment, Location: Cursor{Line: 1, Column: 1}, Content: "/*\nint main() { return 0; }\n*/"},
 				{Type: TokenType_Newline, Location: Cursor{Line: 3, Column: 3}, Content: "\n"},
 				{Type: TokenType_Word, Location: Cursor{Line: 4, Column: 1}, Content: "int"},
@@ -169,11 +199,10 @@ func TestTokenize(t *testing.T) {
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 4, Column: 23}, Content: " "},
 				{Type: TokenType_Symbol, Location: Cursor{Line: 4, Column: 24}, Content: "}"},
 			},
-			expectedError: nil,
 		},
 		{
 			input: []byte("#define SQUARE(x)\\\n((x)*(x))"),
-			expectedTokens: []Token{
+			expected: []Token{
 				{Type: TokenType_PreprocessorDirective, Location: Cursor{Line: 1, Column: 1}, Content: "#define"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 8}, Content: " "},
 				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 9}, Content: "SQUARE"},
@@ -191,11 +220,10 @@ func TestTokenize(t *testing.T) {
 				{Type: TokenType_Symbol, Location: Cursor{Line: 2, Column: 8}, Content: ")"},
 				{Type: TokenType_Symbol, Location: Cursor{Line: 2, Column: 9}, Content: ")"},
 			},
-			expectedError: nil,
 		},
 		{
-			input: []byte("int main() { /*\n return 0; }"),
-			expectedTokens: []Token{
+			input: []byte("int main() { /*\n"),
+			expected: []Token{
 				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 1}, Content: "int"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 4}, Content: " "},
 				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 5}, Content: "main"},
@@ -204,31 +232,30 @@ func TestTokenize(t *testing.T) {
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 11}, Content: " "},
 				{Type: TokenType_Symbol, Location: Cursor{Line: 1, Column: 12}, Content: "{"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 13}, Content: " "},
+				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 14}, Content: "/*"},
+				{Type: TokenType_Newline, Location: Cursor{Line: 1, Column: 16}, Content: "\n"},
 			},
-			expectedError: ErrMultiLineCommentUnterminated,
 		},
 		{
 			input: []byte("word/*unterminated comment"),
-			expectedTokens: []Token{
-				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 1}, Content: "word"},
+			expected: []Token{
+				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 1}, Content: "word/*unterminated"},
+				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 19}, Content: " "},
+				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 20}, Content: "comment"},
 			},
-			expectedError: ErrMultiLineCommentUnterminated,
 		},
 		{
 			input: []byte("/*😎*/ // This starts at column 7"),
-			expectedTokens: []Token{
+			expected: []Token{
 				{Type: TokenType_MultiLineComment, Location: Cursor{Line: 1, Column: 1}, Content: "/*😎*/"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 6}, Content: " "},
 				{Type: TokenType_SingleLineComment, Location: Cursor{Line: 1, Column: 7}, Content: "// This starts at column 7"},
 			},
-			expectedError: nil,
 		},
 	}
 
 	for _, tc := range testCases {
 		lx := NewLexer(tc.input)
-		tokens, err := lx.Tokenize()
-		assert.Equal(t, tc.expectedTokens, tokens, "unexpected tokens for input: %q", tc.input)
-		assert.ErrorIs(t, err, tc.expectedError, "unexpected error for input: %q", tc.input)
+		assert.Equal(t, tc.expected, lx.Tokenize(), "input: %q", tc.input)
 	}
 }

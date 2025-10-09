@@ -19,64 +19,24 @@
 // location in the source code (for accurate error reporting).
 package lexer
 
-import (
-	"bytes"
-	"fmt"
-	"io"
-	"regexp"
-)
+import "regexp"
 
 // Represents a way of matching a specific token type using a regular expression.
 type matcher struct {
-	// Type assigned to a token when this matcher matches.
 	matchedType TokenType
-
-	// Regular expression used to match the full token content.
-	matchingRe *regexp.Regexp
-
-	// Optional. If set and matches, the matcher will treat matchingRe as obligatory and none of the other matchers will
-	// be considered. This is useful for reporting incomplete tokens, e.g. unterminated multi-line comments.
-	checkedPrefix []byte
-
-	// Optional. Error to return if the checkedPrefix is set and matches, but the full regex does not match.
-	checkedPrefixFailure error
+	matchingRe  *regexp.Regexp
 }
 
 // Matching logic for all token types apart from TokenType_Word which is the default fallback type when no other
 // matchers apply.
 var matchers = []matcher{
-	{
-		matchedType: TokenType_Symbol,
-		matchingRe:  regexp.MustCompile(`(?:[!=<>]=?|&&?|\|\|?|[(){}\[\],;])`),
-	},
-	{
-		matchedType: TokenType_PreprocessorDirective,
-		matchingRe:  regexp.MustCompile(`#[\t\v\f\r ]*\w+`),
-	},
-	{
-		matchedType: TokenType_Newline,
-		matchingRe:  regexp.MustCompile(`\n`),
-	},
-	{
-		matchedType: TokenType_Whitespace,
-		matchingRe:  regexp.MustCompile(`[\t\v\f\r ]+`),
-	},
-	{
-		matchedType:          TokenType_ContinueLine,
-		matchingRe:           regexp.MustCompile(`\\[\t\v\f\r ]*\n`),
-		checkedPrefix:        []byte(`\`),
-		checkedPrefixFailure: ErrContinueLineInvalid,
-	},
-	{
-		matchedType: TokenType_SingleLineComment,
-		matchingRe:  regexp.MustCompile(`//[^\n]*`),
-	},
-	{
-		matchedType:          TokenType_MultiLineComment,
-		matchingRe:           regexp.MustCompile(`(?s)/\*.*?\*/`),
-		checkedPrefix:        []byte("/*"),
-		checkedPrefixFailure: ErrMultiLineCommentUnterminated,
-	},
+	{matchedType: TokenType_Symbol, matchingRe: regexp.MustCompile(`(?:[!=<>]=?|&&?|\|\|?|[(){}\[\],;])`)},
+	{matchedType: TokenType_PreprocessorDirective, matchingRe: regexp.MustCompile(`#[\t\v\f\r ]*\w+`)},
+	{matchedType: TokenType_Newline, matchingRe: regexp.MustCompile(`\n`)},
+	{matchedType: TokenType_Whitespace, matchingRe: regexp.MustCompile(`[\t\v\f\r ]+`)},
+	{matchedType: TokenType_ContinueLine, matchingRe: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
+	{matchedType: TokenType_SingleLineComment, matchingRe: regexp.MustCompile(`//[^\n]*`)},
+	{matchedType: TokenType_MultiLineComment, matchingRe: regexp.MustCompile(`(?s)/\*.*?\*/`)},
 }
 
 type Lexer struct {
@@ -85,15 +45,7 @@ type Lexer struct {
 }
 
 func NewLexer(sourceCode []byte) *Lexer {
-	return &Lexer{
-		dataLeft: sourceCode,
-		cursor:   CursorInit,
-	}
-}
-
-// Wrap an error with the current cursor location for better context.
-func (lx *Lexer) makeError(err error) error {
-	return fmt.Errorf("%v: %w", lx.cursor, err)
+	return &Lexer{dataLeft: sourceCode, cursor: CursorInit}
 }
 
 // Update the lexer state accordingly to the extracted token content.
@@ -102,10 +54,11 @@ func (lx *Lexer) consume(content string) {
 	lx.cursor = lx.cursor.AdvancedBy(content)
 }
 
-// Return the next token extracted from the beginning of the input data left to process.
-func (lx *Lexer) NextToken() (Token, error) {
+// Return the next token extracted from the beginning of the input data left to process. If no more tokens are left,
+// returns TokenEmpty.
+func (lx *Lexer) NextToken() Token {
 	if len(lx.dataLeft) == 0 {
-		return Token{}, io.EOF
+		return TokenEmpty
 	}
 
 	// If none of matchers apply, the token is qualified as TokenType_Word which ends at the beginning of the next token
@@ -125,20 +78,9 @@ func (lx *Lexer) NextToken() (Token, error) {
 					Content:  string(lx.dataLeft[tokenBegin:tokenEnd]),
 				}
 				lx.consume(token.Content)
-				return token, nil
+				return token
 			} else {
 				wordEnd = min(wordEnd, tokenBegin)
-			}
-		}
-
-		// Check optional checkedPrefix if present.
-		if m.checkedPrefix != nil {
-			prefixBegin := bytes.Index(lx.dataLeft, m.checkedPrefix)
-			if prefixBegin == 0 {
-				// The checkedPrefix matches at the beginning, but the full regex does not match.
-				return Token{}, lx.makeError(m.checkedPrefixFailure)
-			} else if prefixBegin > 0 {
-				wordEnd = min(wordEnd, prefixBegin)
 			}
 		}
 	}
@@ -150,19 +92,14 @@ func (lx *Lexer) NextToken() (Token, error) {
 		Content:  string(lx.dataLeft[:wordEnd]),
 	}
 	lx.consume(token.Content)
-	return token, nil
+	return token
 }
 
-// Return all tokens extracted from the input data. If an error occurs during tokenization, returns the tokens extracted
-// so far along with the error.
-func (lx *Lexer) Tokenize() ([]Token, error) {
+// Return all tokens extracted from the input data.
+func (lx *Lexer) Tokenize() []Token {
 	var tokens []Token
 	for len(lx.dataLeft) > 0 {
-		token, err := lx.NextToken()
-		if err != nil {
-			return tokens, err
-		}
-		tokens = append(tokens, token)
+		tokens = append(tokens, lx.NextToken())
 	}
-	return tokens, nil
+	return tokens
 }

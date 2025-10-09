@@ -14,8 +14,6 @@
 
 package lexer
 
-import "errors"
-
 type TokenType int
 
 const (
@@ -44,13 +42,10 @@ const (
 	TokenType_MultiLineComment
 )
 
-var (
-	ErrContinueLineInvalid          = errors.New("invalid characters after line continuation backslash")
-	ErrMultiLineCommentUnterminated = errors.New("unterminated multi-line comment")
-)
-
 type Token struct {
 	Type     TokenType
 	Location Cursor
 	Content  string
 }
+
+var TokenEmpty = Token{}
