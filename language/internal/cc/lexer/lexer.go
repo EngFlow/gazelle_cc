@@ -36,7 +36,7 @@ type matcher struct {
 
 	// Optional. If set and matches, the matcher will treat matchingRe as obligatory and none of the other matchers will
 	// be considered. This is useful for reporting incomplete tokens, e.g. unterminated multi-line comments.
-	checkedPrefix string
+	checkedPrefix []byte
 
 	// Optional. Error to return if the checkedPrefix is set and matches, but the full regex does not match.
 	checkedPrefixFailure error
@@ -64,7 +64,7 @@ var matchers = []matcher{
 	{
 		matchedType:          TokenType_ContinueLine,
 		matchingRe:           regexp.MustCompile(`\\[\t\v\f\r ]*\n`),
-		checkedPrefix:        `\`,
+		checkedPrefix:        []byte(`\`),
 		checkedPrefixFailure: ErrContinueLineInvalid,
 	},
 	{
@@ -74,7 +74,7 @@ var matchers = []matcher{
 	{
 		matchedType:          TokenType_MultiLineComment,
 		matchingRe:           regexp.MustCompile(`(?s)/\*.*?\*/`),
-		checkedPrefix:        "/*",
+		checkedPrefix:        []byte("/*"),
 		checkedPrefixFailure: ErrMultiLineCommentUnterminated,
 	},
 }
@@ -96,19 +96,16 @@ func (lx *Lexer) makeError(err error) error {
 	return fmt.Errorf("%v: %w", lx.cursor, err)
 }
 
-// Update the lexer state accordingly to the extracted token.
-func (lx *Lexer) consume(token *Token) {
-	lx.dataLeft = lx.dataLeft[len(token.Content):]
-	lx.cursor = lx.cursor.AdvancedBy(token.Content)
+// Update the lexer state accordingly to the extracted token content.
+func (lx *Lexer) consume(content string) {
+	lx.dataLeft = lx.dataLeft[len(content):]
+	lx.cursor = lx.cursor.AdvancedBy(content)
 }
 
 // Return the next token extracted from the beginning of the input data left to process.
-func (lx *Lexer) NextToken() (token Token, err error) {
-	defer lx.consume(&token)
-
+func (lx *Lexer) NextToken() (Token, error) {
 	if len(lx.dataLeft) == 0 {
-		err = lx.makeError(io.EOF)
-		return
+		return Token{}, io.EOF
 	}
 
 	// If none of matchers apply, the token is qualified as TokenType_Word which ends at the beginning of the next token
@@ -122,24 +119,24 @@ func (lx *Lexer) NextToken() (token Token, err error) {
 			tokenEnd := match[1]
 
 			if tokenBegin == 0 {
-				token = Token{
+				token := Token{
 					Type:     m.matchedType,
 					Location: lx.cursor,
 					Content:  string(lx.dataLeft[tokenBegin:tokenEnd]),
 				}
-				return
+				lx.consume(token.Content)
+				return token, nil
 			} else {
 				wordEnd = min(wordEnd, tokenBegin)
 			}
 		}
 
 		// Check optional checkedPrefix if present.
-		if m.checkedPrefix != "" {
-			prefixBegin := bytes.Index(lx.dataLeft, []byte(m.checkedPrefix))
+		if m.checkedPrefix != nil {
+			prefixBegin := bytes.Index(lx.dataLeft, m.checkedPrefix)
 			if prefixBegin == 0 {
 				// The checkedPrefix matches at the beginning, but the full regex does not match.
-				err = lx.makeError(m.checkedPrefixFailure)
-				return
+				return Token{}, lx.makeError(m.checkedPrefixFailure)
 			} else if prefixBegin > 0 {
 				wordEnd = min(wordEnd, prefixBegin)
 			}
@@ -147,12 +144,13 @@ func (lx *Lexer) NextToken() (token Token, err error) {
 	}
 
 	// Fallback to TokenType_Word.
-	token = Token{
+	token := Token{
 		Type:     TokenType_Word,
 		Location: lx.cursor,
 		Content:  string(lx.dataLeft[:wordEnd]),
 	}
-	return
+	lx.consume(token.Content)
+	return token, nil
 }
 
 // Return all tokens extracted from the input data. If an error occurs during tokenization, returns the tokens extracted

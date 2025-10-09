@@ -20,7 +20,7 @@ type TokenType int
 
 const (
 	// Every complete token that is not one of the other types, e.g. identifiers, keywords.
-	TokenType_Word TokenType = 1 << iota
+	TokenType_Word TokenType = iota
 
 	// One of predefined fixed-size sequences of characters, e.g. '(', '==', ';', '&&'.
 	TokenType_Symbol
@@ -48,12 +48,6 @@ var (
 	ErrContinueLineInvalid          = errors.New("invalid characters after line continuation backslash")
 	ErrMultiLineCommentUnterminated = errors.New("unterminated multi-line comment")
 )
-
-type TokenTypeSet TokenType
-
-func (s TokenTypeSet) Contains(t TokenType) bool {
-	return (s & TokenTypeSet(t)) != 0
-}
 
 type Token struct {
 	Type     TokenType
