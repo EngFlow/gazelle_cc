@@ -30,118 +30,62 @@ func TestNextToken(t *testing.T) {
 			expected: TokenEmpty,
 		},
 		{
-			input: []byte("&&"),
-			expected: Token{
-				Type:     TokenType_Symbol,
-				Location: CursorInit,
-				Content:  "&&",
-			},
+			input:    []byte("&&"),
+			expected: Token{Type: TokenType_Symbol, Location: CursorInit, Content: "&&"},
 		},
 		{
-			input: []byte("#include \"file.h\""),
-			expected: Token{
-				Type:     TokenType_PreprocessorDirective,
-				Location: CursorInit,
-				Content:  "#include",
-			},
+			input:    []byte("#include \"file.h\""),
+			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#include"},
 		},
 		{
-			input: []byte("#   define VARIABLE 123"),
-			expected: Token{
-				Type:     TokenType_PreprocessorDirective,
-				Location: CursorInit,
-				Content:  "#   define",
-			},
+			input:    []byte("#   define VARIABLE 123"),
+			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#   define"},
 		},
 		{
-			input: []byte("\n\n"),
-			expected: Token{
-				Type:     TokenType_Newline,
-				Location: CursorInit,
-				Content:  "\n",
-			},
+			input:    []byte("\n\n"),
+			expected: Token{Type: TokenType_Newline, Location: CursorInit, Content: "\n"},
 		},
 		{
-			input: []byte("\t\t abc"),
-			expected: Token{
-				Type:     TokenType_Whitespace,
-				Location: CursorInit,
-				Content:  "\t\t ",
-			},
+			input:    []byte("\t\t abc"),
+			expected: Token{Type: TokenType_Whitespace, Location: CursorInit, Content: "\t\t "},
 		},
 		{
-			input: []byte("\\\n MACRO_CONTINUED"),
-			expected: Token{
-				Type:     TokenType_ContinueLine,
-				Location: CursorInit,
-				Content:  "\\\n",
-			},
+			input:    []byte("\\\n MACRO_CONTINUED"),
+			expected: Token{Type: TokenType_ContinueLine, Location: CursorInit, Content: "\\\n"},
 		},
 		{
-			input: []byte("\\    \n MACRO_CONTINUED"),
-			expected: Token{
-				Type:     TokenType_ContinueLine,
-				Location: CursorInit,
-				Content:  "\\    \n",
-			},
+			input:    []byte("\\    \n MACRO_CONTINUED"),
+			expected: Token{Type: TokenType_ContinueLine, Location: CursorInit, Content: "\\    \n"},
 		},
 		{
-			input: []byte("\\ unexpected \n MACRO_CONTINUED"),
-			expected: Token{
-				Type:     TokenType_Word,
-				Location: CursorInit,
-				Content:  "\\",
-			},
+			input:    []byte("\\ unexpected \n MACRO_CONTINUED"),
+			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: "\\"},
 		},
 		{
-			input: []byte("// This is a single line comment"),
-			expected: Token{
-				Type:     TokenType_SingleLineComment,
-				Location: CursorInit,
-				Content:  "// This is a single line comment",
-			},
+			input:    []byte("// This is a single line comment"),
+			expected: Token{Type: TokenType_SingleLineComment, Location: CursorInit, Content: "// This is a single line comment"},
 		},
 		{
-			input: []byte("// This is a single line comment\nint main()"),
-			expected: Token{
-				Type:     TokenType_SingleLineComment,
-				Location: CursorInit,
-				Content:  "// This is a single line comment",
-			},
+			input:    []byte("// This is a single line comment\nint main()"),
+			expected: Token{Type: TokenType_SingleLineComment, Location: CursorInit, Content: "// This is a single line comment"},
 		},
 		{
-			input: []byte("/*\n  This is a multi line comment\n*/\nint main()"),
-			expected: Token{
-				Type:     TokenType_MultiLineComment,
-				Location: CursorInit,
-				Content:  "/*\n  This is a multi line comment\n*/",
-			},
+			input:    []byte("/*\n  This is a multi line comment\n*/\nint main()"),
+			expected: Token{Type: TokenType_MultiLineComment, Location: CursorInit, Content: "/*\n  This is a multi line comment\n*/"},
 		},
 		{
 			// TODO handle string literals as whole tokens
-			input: []byte(`"This is a string literal"`),
-			expected: Token{
-				Type:     TokenType_Word,
-				Location: CursorInit,
-				Content:  `"This`,
-			},
+			input:    []byte(`"This is a string literal"`),
+			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: `"This`},
 		},
 		{
 			// TODO handle raw string literals as whole tokens
-			input: []byte(`R"(abc)" fake-end)"`),
-			expected: Token{
-				Type:     TokenType_Word,
-				Location: CursorInit,
-				Content:  `R"`,
-			},
+			input:    []byte(`R"(abc)" fake-end)"`),
+			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: `R"`},
 		},
 		{
-			input: []byte("identifier123;"),
-			expected: Token{
-				Type:     TokenType_Word,
-				Location: CursorInit,
-				Content:  "identifier123",
-			},
+			input:    []byte("identifier123;"),
+			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: "identifier123"},
 		},
 	}
 

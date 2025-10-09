@@ -61,38 +61,30 @@ func (lx *Lexer) NextToken() Token {
 		return TokenEmpty
 	}
 
-	// If none of matchers apply, the token is qualified as TokenType_Word which ends at the beginning of the next token
-	// recognized by one of matchers.
-	wordEnd := len(lx.dataLeft)
-
+	// Try each matcher looking for the earliest match.
+	tokenBegin := len(lx.dataLeft)
+	tokenEnd := len(lx.dataLeft)
+	tokenType := TokenType_Word
 	for _, m := range matchers {
-		// Check full match.
-		if match := m.matchingRe.FindIndex(lx.dataLeft); match != nil {
-			tokenBegin := match[0]
-			tokenEnd := match[1]
-
-			if tokenBegin == 0 {
-				token := Token{
-					Type:     m.matchedType,
-					Location: lx.cursor,
-					Content:  string(lx.dataLeft[tokenBegin:tokenEnd]),
-				}
-				lx.consume(token.Content)
-				return token
-			} else {
-				wordEnd = min(wordEnd, tokenBegin)
-			}
+		if match := m.matchingRe.FindIndex(lx.dataLeft); match != nil && match[0] < tokenBegin {
+			tokenBegin = match[0]
+			tokenEnd = match[1]
+			tokenType = m.matchedType
 		}
 	}
 
-	// Fallback to TokenType_Word.
-	token := Token{
-		Type:     TokenType_Word,
-		Location: lx.cursor,
-		Content:  string(lx.dataLeft[:wordEnd]),
+	var result Token
+	if tokenBegin == 0 {
+		// Something matched at the beginning, so return that token.
+		result = Token{Type: tokenType, Location: lx.cursor, Content: string(lx.dataLeft[tokenBegin:tokenEnd])}
+	} else {
+		// If nothing matched at the beginning of the text, return a word token up to the next match. If nothing matched
+		// anywhere, use the rest of the text.
+		result = Token{Type: TokenType_Word, Location: lx.cursor, Content: string(lx.dataLeft[:tokenBegin])}
 	}
-	lx.consume(token.Content)
-	return token
+
+	lx.consume(result.Content)
+	return result
 }
 
 // Return all tokens extracted from the input data.
