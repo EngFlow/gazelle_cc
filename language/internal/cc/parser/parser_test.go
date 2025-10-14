@@ -114,6 +114,11 @@ func TestParseIncludes(t *testing.T) {
 				DefineDirective{Name: "MACRO", Args: []string{}, Body: []string{}},
 			},
 		},
+		{
+			// Malformed input
+			input:    "\\,\n",
+			expected: []Directive{},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -174,6 +179,24 @@ func TestParseConditionalIncludes(t *testing.T) {
 						},
 					}},
 					IncludeDirective{Path: "last.h", LineNumber: 13},
+				},
+			},
+		},
+		// whitespace between '#' and directive keyword
+		{
+			input: `
+		# ifdef _WIN32
+		# endif
+		`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Defined{Ident("_WIN32")},
+							Body:      []Directive{},
+						},
+					}},
 				},
 			},
 		},
