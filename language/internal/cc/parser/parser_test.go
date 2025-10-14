@@ -117,7 +117,7 @@ func TestParseIncludes(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
@@ -609,7 +609,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
@@ -698,7 +698,7 @@ func TestParseSourceHasMain(t *testing.T) {
 	}
 
 	for idx, tc := range testCases {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
