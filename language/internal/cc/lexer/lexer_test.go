@@ -35,11 +35,11 @@ func TestNextToken(t *testing.T) {
 		},
 		{
 			input:    []byte("#include \"file.h\""),
-			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#include"},
+			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#include", SubContent: "include"},
 		},
 		{
 			input:    []byte("#   define VARIABLE 123"),
-			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#   define"},
+			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#   define", SubContent: "define"},
 		},
 		{
 			input:    []byte("\n\n"),
@@ -147,7 +147,7 @@ func TestTokenize(t *testing.T) {
 		{
 			input: []byte("#define SQUARE(x)\\\n((x)*(x))"),
 			expected: []Token{
-				{Type: TokenType_PreprocessorDirective, Location: Cursor{Line: 1, Column: 1}, Content: "#define"},
+				{Type: TokenType_PreprocessorDirective, Location: Cursor{Line: 1, Column: 1}, Content: "#define", SubContent: "define"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 8}, Content: " "},
 				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 9}, Content: "SQUARE"},
 				{Type: TokenType_Symbol, Location: Cursor{Line: 1, Column: 15}, Content: "("},

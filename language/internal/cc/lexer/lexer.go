@@ -31,7 +31,7 @@ type matcher struct {
 // matchers apply.
 var matchers = []matcher{
 	{matchedType: TokenType_Symbol, matchingRe: regexp.MustCompile(`(?:[!=<>]=?|&&?|\|\|?|[(){}\[\],;])`)},
-	{matchedType: TokenType_PreprocessorDirective, matchingRe: regexp.MustCompile(`#[\t\v\f\r ]*\w+`)},
+	{matchedType: TokenType_PreprocessorDirective, matchingRe: regexp.MustCompile(`#[\t\v\f\r ]*(\w+)`)},
 	{matchedType: TokenType_Newline, matchingRe: regexp.MustCompile(`\n`)},
 	{matchedType: TokenType_Whitespace, matchingRe: regexp.MustCompile(`[\t\v\f\r ]+`)},
 	{matchedType: TokenType_ContinueLine, matchingRe: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
@@ -65,18 +65,23 @@ func (lx *Lexer) NextToken() Token {
 	tokenBegin := len(lx.dataLeft)
 	tokenEnd := len(lx.dataLeft)
 	tokenType := TokenType_Word
+	tokenSubContent := ""
 	for _, m := range matchers {
-		if match := m.matchingRe.FindIndex(lx.dataLeft); match != nil && match[0] < tokenBegin {
+		if match := m.matchingRe.FindSubmatchIndex(lx.dataLeft); len(match) >= 2 && match[0] < tokenBegin {
 			tokenBegin = match[0]
 			tokenEnd = match[1]
 			tokenType = m.matchedType
+
+			if len(match) >= 4 {
+				tokenSubContent = string(lx.dataLeft[match[2]:match[3]])
+			}
 		}
 	}
 
 	var result Token
 	if tokenBegin == 0 {
 		// Something matched at the beginning, so return that token.
-		result = Token{Type: tokenType, Location: lx.cursor, Content: string(lx.dataLeft[tokenBegin:tokenEnd])}
+		result = Token{Type: tokenType, Location: lx.cursor, Content: string(lx.dataLeft[tokenBegin:tokenEnd]), SubContent: tokenSubContent}
 	} else {
 		// If nothing matched at the beginning of the text, return a word token up to the next match. If nothing matched
 		// anywhere, use the rest of the text.

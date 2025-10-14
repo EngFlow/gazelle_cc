@@ -24,15 +24,18 @@ const (
 	TokenType_Symbol
 
 	// Preprocessor directive, a hash '#' followed by the directive name (with optional whitespace characters between).
+	// Directive name can be obtained as Token.SubContent.
 	TokenType_PreprocessorDirective
 
-	// Single newline character '\n'. Newlines require special handling because they mark the end of a preprocessor directive.
+	// Single newline character '\n'. Newlines require special handling because they mark the end of a preprocessor
+	// directive.
 	TokenType_Newline
 
 	// One or more whitespace characters, other than newlines.
 	TokenType_Whitespace
 
-	// Line continuation sequence, a backslash '\' followed by a newline character '\n' (with optional whitespace characters between).
+	// Line continuation sequence, a backslash '\' followed by a newline character '\n' (with optional whitespace
+	// characters between).
 	TokenType_ContinueLine
 
 	// Single-line comment, starting with // and ending at the end of the line.
@@ -43,9 +46,18 @@ const (
 )
 
 type Token struct {
-	Type     TokenType
+	// Deduced type of the token.
+	Type TokenType
+
+	// Location of this token in the input source code.
 	Location Cursor
-	Content  string
+
+	// Full text content of the token as it appeared in the source code.
+	Content string
+
+	// Optional content of a sub-match within the token, e.g. the directive name in a preprocessor directive token.
+	SubContent string
 }
 
+// A special token value representing the end of input (no more tokens available).
 var TokenEmpty = Token{}
