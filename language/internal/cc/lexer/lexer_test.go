@@ -35,11 +35,11 @@ func TestNextToken(t *testing.T) {
 		},
 		{
 			input:    []byte("#include \"file.h\""),
-			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#include", SubContent: "include"},
+			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#include"},
 		},
 		{
 			input:    []byte("#   define VARIABLE 123"),
-			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#   define", SubContent: "define"},
+			expected: Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#   define"},
 		},
 		{
 			input:    []byte("\n\n"),
@@ -147,7 +147,7 @@ func TestTokenize(t *testing.T) {
 		{
 			input: []byte("#define SQUARE(x)\\\n((x)*(x))"),
 			expected: []Token{
-				{Type: TokenType_PreprocessorDirective, Location: Cursor{Line: 1, Column: 1}, Content: "#define", SubContent: "define"},
+				{Type: TokenType_PreprocessorDirective, Location: Cursor{Line: 1, Column: 1}, Content: "#define"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 8}, Content: " "},
 				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 9}, Content: "SQUARE"},
 				{Type: TokenType_Symbol, Location: Cursor{Line: 1, Column: 15}, Content: "("},
@@ -201,5 +201,37 @@ func TestTokenize(t *testing.T) {
 	for _, tc := range testCases {
 		lx := NewLexer(tc.input)
 		assert.Equal(t, tc.expected, lx.Tokenize(), "input: %q", tc.input)
+	}
+}
+
+func TestExtractDirectiveName(t *testing.T) {
+	testCases := []struct {
+		input    Token
+		expected string
+	}{
+		{
+			input:    TokenEmpty,
+			expected: "",
+		},
+		{
+			input:    Token{Type: TokenType_Word, Location: CursorInit, Content: "identifier"},
+			expected: "",
+		},
+		{
+			input:    Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#include"},
+			expected: "include",
+		},
+		{
+			input:    Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#   define"},
+			expected: "define",
+		},
+		{
+			input:    Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#\tendif"},
+			expected: "endif",
+		},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expected, ExtractDirectiveName(tc.input), "input: %+v", tc.input)
 	}
 }
