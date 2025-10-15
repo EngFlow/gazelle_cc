@@ -358,7 +358,7 @@ func (p *parser) nextDirectiveToken() (string, error) {
 func (p *parser) readUntilEOL() []string {
 	newlineIndex := slices.IndexFunc(p.tokensLeft, func(token lexer.Token) bool { return token.Type == lexer.TokenType_Newline })
 	if newlineIndex == -1 {
-		return nil
+		newlineIndex = len(p.tokensLeft) // no newline found, read until end of input
 	}
 
 	result := collections.Map(p.tokensLeft[:newlineIndex], func(token lexer.Token) string { return token.Content })
