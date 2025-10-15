@@ -27,11 +27,14 @@ type matcher struct {
 	matchingRe  *regexp.Regexp
 }
 
+// Matches preprocessor directives. Contains a capturing group for the directive name.
+var rePreprocessorDirective = regexp.MustCompile(`#[\t\v\f\r ]*(\w+)`)
+
 // Matching logic for all token types apart from TokenType_Word which is the default fallback type when no other
 // matchers apply.
 var matchers = []matcher{
 	{matchedType: TokenType_Symbol, matchingRe: regexp.MustCompile(`(?:[!=<>]=?|&&?|\|\|?|[(){}\[\],;])`)},
-	{matchedType: TokenType_PreprocessorDirective, matchingRe: regexp.MustCompile(`#[\t\v\f\r ]*\w+`)},
+	{matchedType: TokenType_PreprocessorDirective, matchingRe: rePreprocessorDirective},
 	{matchedType: TokenType_Newline, matchingRe: regexp.MustCompile(`\n`)},
 	{matchedType: TokenType_Whitespace, matchingRe: regexp.MustCompile(`[\t\v\f\r ]+`)},
 	{matchedType: TokenType_ContinueLine, matchingRe: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
@@ -94,4 +97,16 @@ func (lx *Lexer) Tokenize() []Token {
 		tokens = append(tokens, lx.NextToken())
 	}
 	return tokens
+}
+
+// If the given token is a preprocessor directive, extract and return its name (e.g. "include", "define", etc.).
+func ExtractDirectiveName(token Token) string {
+	if token.Type != TokenType_PreprocessorDirective {
+		return ""
+	}
+	match := rePreprocessorDirective.FindStringSubmatch(token.Content)
+	if len(match) < 2 {
+		return ""
+	}
+	return match[1]
 }

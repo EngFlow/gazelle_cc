@@ -114,10 +114,15 @@ func TestParseIncludes(t *testing.T) {
 				DefineDirective{Name: "MACRO", Args: []string{}, Body: []string{}},
 			},
 		},
+		{
+			// Malformed input
+			input:    "\\,\n",
+			expected: []Directive{},
+		},
 	}
 
 	for _, tc := range testCases {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
@@ -174,6 +179,24 @@ func TestParseConditionalIncludes(t *testing.T) {
 						},
 					}},
 					IncludeDirective{Path: "last.h", LineNumber: 13},
+				},
+			},
+		},
+		// whitespace between '#' and directive keyword
+		{
+			input: `
+		# ifdef _WIN32
+		# endif
+		`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Defined{Ident("_WIN32")},
+							Body:      []Directive{},
+						},
+					}},
 				},
 			},
 		},
@@ -609,7 +632,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
@@ -698,7 +721,7 @@ func TestParseSourceHasMain(t *testing.T) {
 	}
 
 	for idx, tc := range testCases {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}

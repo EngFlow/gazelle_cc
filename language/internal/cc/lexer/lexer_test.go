@@ -203,3 +203,35 @@ func TestTokenize(t *testing.T) {
 		assert.Equal(t, tc.expected, lx.Tokenize(), "input: %q", tc.input)
 	}
 }
+
+func TestExtractDirectiveName(t *testing.T) {
+	testCases := []struct {
+		input    Token
+		expected string
+	}{
+		{
+			input:    TokenEmpty,
+			expected: "",
+		},
+		{
+			input:    Token{Type: TokenType_Word, Location: CursorInit, Content: "identifier"},
+			expected: "",
+		},
+		{
+			input:    Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#include"},
+			expected: "include",
+		},
+		{
+			input:    Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#   define"},
+			expected: "define",
+		},
+		{
+			input:    Token{Type: TokenType_PreprocessorDirective, Location: CursorInit, Content: "#\tendif"},
+			expected: "endif",
+		},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expected, ExtractDirectiveName(tc.input), "input: %+v", tc.input)
+	}
+}
