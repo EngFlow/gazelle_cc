@@ -20,8 +20,10 @@ const (
 	// Special token type indicating the end of the input stream.
 	TokenType_EOF TokenType = iota
 
-	// Every complete token that is not one of the other types, e.g. identifiers, keywords.
-	TokenType_Word
+	// Every complete token that is not one of the other types.
+	//
+	// This is a fallback type. Lexer covers only a subset of C/C++ syntax. Every token without its dedicated TokenType is classified as Unassigned.
+	TokenType_Unassigned
 
 	// Single newline character '\n'. Newlines require special handling because they mark the end of a preprocessor directive.
 	TokenType_Newline

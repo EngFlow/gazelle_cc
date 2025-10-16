@@ -46,7 +46,7 @@ func (lx *Lexer) NextToken() Token {
 	// Try each matchingRule looking for the earliest match.
 	tokenBegin := len(lx.dataLeft)
 	tokenEnd := len(lx.dataLeft)
-	tokenType := TokenType_Word
+	tokenType := TokenType_Unassigned
 	for _, rule := range matchingRules {
 		match := rule.matchingImpl.FindIndex(lx.dataLeft)
 		if match != nil && (match[0] < tokenBegin || ( /* prefer longer matches */ match[0] == tokenBegin && match[1] > tokenEnd)) {
@@ -61,9 +61,9 @@ func (lx *Lexer) NextToken() Token {
 		// Something matched at the beginning, so return that token.
 		result = Token{Type: tokenType, Location: lx.cursor, Content: string(lx.dataLeft[tokenBegin:tokenEnd])}
 	} else {
-		// If nothing matched at the beginning of the text, return a word token up to the next match. If nothing matched
-		// anywhere, use the rest of the text.
-		result = Token{Type: TokenType_Word, Location: lx.cursor, Content: string(lx.dataLeft[:tokenBegin])}
+		// If nothing matched at the beginning of the text, return an unassigned token up to the next match. If nothing
+		// matched anywhere, use the rest of the text.
+		result = Token{Type: TokenType_Unassigned, Location: lx.cursor, Content: string(lx.dataLeft[:tokenBegin])}
 	}
 
 	lx.consume(result.Content)

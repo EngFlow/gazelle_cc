@@ -50,7 +50,7 @@ func preprocessorMatcher(directiveName string) matcher {
 
 // Matching logic for all token types apart from:
 // - TokenType_EOF which is returned when no input data is left to process and it is never used for another purpose.
-// - TokenType_Word which is the default fallback type when no other matchingRule apply.
+// - TokenType_Unassigned which is the default fallback type when no other matchingRule apply.
 var matchingRules = []matchingRule{
 	{matchedType: TokenType_Newline, matchingImpl: fixedStringMatcher("\n")},
 	{matchedType: TokenType_Whitespace, matchingImpl: regexp.MustCompile(`[\t\v\f\r ]+`)},

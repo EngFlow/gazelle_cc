@@ -60,7 +60,7 @@ func TestNextToken(t *testing.T) {
 		},
 		{
 			input:    []byte("\\ unexpected \n MACRO_CONTINUED"),
-			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: "\\"},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: "\\"},
 		},
 		{
 			input:    []byte("// This is a single line comment"),
@@ -182,7 +182,7 @@ func TestAllTokens(t *testing.T) {
 				{Type: TokenType_ParenthesisLeft, Location: Cursor{Line: 2, Column: 2}, Content: "("},
 				{Type: TokenType_Identifier, Location: Cursor{Line: 2, Column: 3}, Content: "x"},
 				{Type: TokenType_ParenthesisRight, Location: Cursor{Line: 2, Column: 4}, Content: ")"},
-				{Type: TokenType_Word, Location: Cursor{Line: 2, Column: 5}, Content: "*"},
+				{Type: TokenType_Unassigned, Location: Cursor{Line: 2, Column: 5}, Content: "*"},
 				{Type: TokenType_ParenthesisLeft, Location: Cursor{Line: 2, Column: 6}, Content: "("},
 				{Type: TokenType_Identifier, Location: Cursor{Line: 2, Column: 7}, Content: "x"},
 				{Type: TokenType_ParenthesisRight, Location: Cursor{Line: 2, Column: 8}, Content: ")"},
@@ -200,7 +200,7 @@ func TestAllTokens(t *testing.T) {
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 11}, Content: " "},
 				{Type: TokenType_BraceLeft, Location: Cursor{Line: 1, Column: 12}, Content: "{"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 13}, Content: " "},
-				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 14}, Content: "/*"},
+				{Type: TokenType_Unassigned, Location: Cursor{Line: 1, Column: 14}, Content: "/*"},
 				{Type: TokenType_Newline, Location: Cursor{Line: 1, Column: 16}, Content: "\n"},
 			},
 		},
@@ -208,7 +208,7 @@ func TestAllTokens(t *testing.T) {
 			input: []byte("word/*unterminated comment"),
 			expected: []Token{
 				{Type: TokenType_Identifier, Location: Cursor{Line: 1, Column: 1}, Content: "word"},
-				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 5}, Content: "/*"},
+				{Type: TokenType_Unassigned, Location: Cursor{Line: 1, Column: 5}, Content: "/*"},
 				{Type: TokenType_Identifier, Location: Cursor{Line: 1, Column: 7}, Content: "unterminated"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 19}, Content: " "},
 				{Type: TokenType_Identifier, Location: Cursor{Line: 1, Column: 20}, Content: "comment"},
