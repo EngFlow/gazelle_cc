@@ -34,6 +34,9 @@ const (
 	// Line continuation sequence, a backslash '\' followed by a newline character '\n' (with optional whitespace characters between).
 	TokenType_ContinueLine
 
+	// Preprocessor system include path, enclosed in angle brackets, e.g. <stdio.h>.
+	TokenType_PreprocessorSystemPath
+
 	// The special keyword "defined", used in preprocessor conditional expressions.
 	TokenType_PreprocessorDefined
 

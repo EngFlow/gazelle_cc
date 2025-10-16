@@ -242,6 +242,22 @@ func TestAllTokens(t *testing.T) {
 				{Type: TokenType_Identifier, Location: Cursor{Line: 1, Column: 48}, Content: "L"},
 			},
 		},
+		{
+			input: []byte(`#include "mylib.h"`),
+			expected: []Token{
+				{Type: TokenType_PreprocessorInclude, Location: Cursor{Line: 1, Column: 1}, Content: "#include"},
+				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 9}, Content: " "},
+				{Type: TokenType_LiteralString, Location: Cursor{Line: 1, Column: 10}, Content: `"mylib.h"`},
+			},
+		},
+		{
+			input: []byte("#include <gtest/gtest.h>"),
+			expected: []Token{
+				{Type: TokenType_PreprocessorInclude, Location: Cursor{Line: 1, Column: 1}, Content: "#include"},
+				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 9}, Content: " "},
+				{Type: TokenType_PreprocessorSystemPath, Location: Cursor{Line: 1, Column: 10}, Content: "<gtest/gtest.h>"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
