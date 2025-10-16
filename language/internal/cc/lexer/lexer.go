@@ -19,29 +19,53 @@
 // location in the source code (for accurate error reporting).
 package lexer
 
-import "regexp"
+import (
+	"bytes"
+	"regexp"
+)
 
-// Represents a way of matching a specific token type using a regular expression.
-type matcher struct {
-	matchedType TokenType
-	matchingRe  *regexp.Regexp
+type (
+	// Abstraction over regexp.Regexp allows providing an alternative implementation.
+	matcher interface {
+		// Return a two-element slice of integers defining the location of the leftmost match in content of this
+		// matcher. The match itself is at content[indices[0]:indices[1]]. A return value of nil indicates no match.
+		FindIndex(content []byte) (indices []int)
+	}
+
+	// Implementation of matcher for fixed strings. No need to use regexp.Regexp for such simple cases.
+	fixedString string
+
+	// Represents a way of matching a specific token type.
+	matchingRule struct {
+		matchedType  TokenType
+		matchingImpl matcher
+	}
+
+	// Lexer breaks the input C/C++ source code into a sequence of tokens.
+	Lexer struct {
+		dataLeft []byte
+		cursor   Cursor
+	}
+)
+
+func (fs fixedString) FindIndex(content []byte) []int {
+	if begin := bytes.Index(content, []byte(fs)); begin >= 0 {
+		return []int{begin, begin + len(fs)}
+	}
+	return nil
 }
 
-// Matching logic for all token types apart from TokenType_Word which is the default fallback type when no other
-// matchers apply.
-var matchers = []matcher{
-	{matchedType: TokenType_Symbol, matchingRe: regexp.MustCompile(`(?:[!=<>]=?|&&?|\|\|?|[(){}\[\],;])`)},
-	{matchedType: TokenType_PreprocessorDirective, matchingRe: regexp.MustCompile(`#[\t\v\f\r ]*\w+`)},
-	{matchedType: TokenType_Newline, matchingRe: regexp.MustCompile(`\n`)},
-	{matchedType: TokenType_Whitespace, matchingRe: regexp.MustCompile(`[\t\v\f\r ]+`)},
-	{matchedType: TokenType_ContinueLine, matchingRe: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
-	{matchedType: TokenType_SingleLineComment, matchingRe: regexp.MustCompile(`//[^\n]*`)},
-	{matchedType: TokenType_MultiLineComment, matchingRe: regexp.MustCompile(`(?s)/\*.*?\*/`)},
-}
-
-type Lexer struct {
-	dataLeft []byte
-	cursor   Cursor
+// Matching logic for all token types apart from:
+// - TokenType_Word which is the default fallback type when no other matchingRule apply.
+// - TokenType_EOF which is returned when no input data is left to process and it is never used for another purpose.
+var matchingRules = []matchingRule{
+	{matchedType: TokenType_Symbol, matchingImpl: regexp.MustCompile(`(?:[!=<>]=?|&&?|\|\|?|[(){}\[\],;])`)},
+	{matchedType: TokenType_PreprocessorDirective, matchingImpl: regexp.MustCompile(`#[\t\v\f\r ]*\w+`)},
+	{matchedType: TokenType_Newline, matchingImpl: fixedString("\n")},
+	{matchedType: TokenType_Whitespace, matchingImpl: regexp.MustCompile(`[\t\v\f\r ]+`)},
+	{matchedType: TokenType_ContinueLine, matchingImpl: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
+	{matchedType: TokenType_SingleLineComment, matchingImpl: regexp.MustCompile(`//[^\n]*`)},
+	{matchedType: TokenType_MultiLineComment, matchingImpl: regexp.MustCompile(`(?s)/\*.*?\*/`)},
 }
 
 func NewLexer(sourceCode []byte) *Lexer {
@@ -61,15 +85,15 @@ func (lx *Lexer) NextToken() Token {
 		return TokenEOF
 	}
 
-	// Try each matcher looking for the earliest match.
+	// Try each matchingRule looking for the earliest match.
 	tokenBegin := len(lx.dataLeft)
 	tokenEnd := len(lx.dataLeft)
 	tokenType := TokenType_Word
-	for _, m := range matchers {
-		if match := m.matchingRe.FindIndex(lx.dataLeft); match != nil && match[0] < tokenBegin {
+	for _, rule := range matchingRules {
+		if match := rule.matchingImpl.FindIndex(lx.dataLeft); match != nil && match[0] < tokenBegin {
 			tokenBegin = match[0]
 			tokenEnd = match[1]
-			tokenType = m.matchedType
+			tokenType = rule.matchedType
 		}
 	}
 
