@@ -27,7 +27,7 @@ func TestNextToken(t *testing.T) {
 	}{
 		{
 			input:    []byte(""),
-			expected: TokenEmpty,
+			expected: TokenEOF,
 		},
 		{
 			input:    []byte("&&"),

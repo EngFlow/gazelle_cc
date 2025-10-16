@@ -17,8 +17,8 @@ package lexer
 type TokenType int
 
 const (
-	// Every complete token that is not one of the other types, e.g. identifiers, keywords.
-	TokenType_Word TokenType = iota
+	// Special token type indicating the end of the input stream.
+	TokenType_EOF TokenType = iota
 
 	// One of predefined fixed-size sequences of characters, e.g. '(', '==', ';', '&&'.
 	TokenType_Symbol
@@ -40,6 +40,9 @@ const (
 
 	// Multi-line comment, starting with /* and ending with */.
 	TokenType_MultiLineComment
+
+	// Every complete token that is not one of the other types, e.g. identifiers, keywords.
+	TokenType_Word
 )
 
 type Token struct {
@@ -48,4 +51,4 @@ type Token struct {
 	Content  string
 }
 
-var TokenEmpty = Token{}
+var TokenEOF = Token{Type: TokenType_EOF}

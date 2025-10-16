@@ -55,10 +55,10 @@ func (lx *Lexer) consume(content string) {
 }
 
 // Return the next token extracted from the beginning of the input data left to process. If no more tokens are left,
-// returns TokenEmpty.
+// returns TokenEOF.
 func (lx *Lexer) NextToken() Token {
 	if len(lx.dataLeft) == 0 {
-		return TokenEmpty
+		return TokenEOF
 	}
 
 	// Try each matcher looking for the earliest match.
