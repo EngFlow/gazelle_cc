@@ -64,27 +64,27 @@ func TestNextToken(t *testing.T) {
 		},
 		{
 			input:    []byte("// This is a single line comment"),
-			expected: Token{Type: TokenType_SingleLineComment, Location: CursorInit, Content: "// This is a single line comment"},
+			expected: Token{Type: TokenType_CommentSingleLine, Location: CursorInit, Content: "// This is a single line comment"},
 		},
 		{
 			input:    []byte("// This is a single line comment\nint main()"),
-			expected: Token{Type: TokenType_SingleLineComment, Location: CursorInit, Content: "// This is a single line comment"},
+			expected: Token{Type: TokenType_CommentSingleLine, Location: CursorInit, Content: "// This is a single line comment"},
 		},
 		{
 			input:    []byte("/*\n  This is a multi line comment\n*/\nint main()"),
-			expected: Token{Type: TokenType_MultiLineComment, Location: CursorInit, Content: "/*\n  This is a multi line comment\n*/"},
+			expected: Token{Type: TokenType_CommentMultiLine, Location: CursorInit, Content: "/*\n  This is a multi line comment\n*/"},
 		},
 		{
 			input:    []byte(`"This is a string literal"`),
-			expected: Token{Type: TokenType_StringLiteral, Location: CursorInit, Content: `"This is a string literal"`},
+			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `"This is a string literal"`},
 		},
 		{
-			input:    []byte(`"I contain \"quoted\" text"`),
-			expected: Token{Type: TokenType_StringLiteral, Location: CursorInit, Content: `"I contain \"quoted\" text"`},
+			input:    []byte(`"I contain a \"quoted\" text"`),
+			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `"I contain a \"quoted\" text"`},
 		},
 		{
 			input:    []byte(`"I contain a '\\' backslash"`),
-			expected: Token{Type: TokenType_StringLiteral, Location: CursorInit, Content: `"I contain a '\\' backslash"`},
+			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `"I contain a '\\' backslash"`},
 		},
 		{
 			// TODO handle raw string literals as whole tokens
@@ -134,7 +134,7 @@ func TestAllTokens(t *testing.T) {
 		{
 			input: []byte("/*\nint main() { return 0; }\n*/\nint main() { return 0; }"),
 			expected: []Token{
-				{Type: TokenType_MultiLineComment, Location: Cursor{Line: 1, Column: 1}, Content: "/*\nint main() { return 0; }\n*/"},
+				{Type: TokenType_CommentMultiLine, Location: Cursor{Line: 1, Column: 1}, Content: "/*\nint main() { return 0; }\n*/"},
 				{Type: TokenType_Newline, Location: Cursor{Line: 3, Column: 3}, Content: "\n"},
 				{Type: TokenType_Word, Location: Cursor{Line: 4, Column: 1}, Content: "int"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 4, Column: 4}, Content: " "},
@@ -199,9 +199,9 @@ func TestAllTokens(t *testing.T) {
 		{
 			input: []byte("/*😎*/ // This starts at column 7"),
 			expected: []Token{
-				{Type: TokenType_MultiLineComment, Location: Cursor{Line: 1, Column: 1}, Content: "/*😎*/"},
+				{Type: TokenType_CommentMultiLine, Location: Cursor{Line: 1, Column: 1}, Content: "/*😎*/"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 6}, Content: " "},
-				{Type: TokenType_SingleLineComment, Location: Cursor{Line: 1, Column: 7}, Content: "// This starts at column 7"},
+				{Type: TokenType_CommentSingleLine, Location: Cursor{Line: 1, Column: 7}, Content: "// This starts at column 7"},
 			},
 		},
 	}

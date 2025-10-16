@@ -49,15 +49,15 @@ func preprocessorMatcher(directiveName string) matcher {
 }
 
 // Matching logic for all token types apart from:
-// - TokenType_Word which is the default fallback type when no other matchingRule apply.
 // - TokenType_EOF which is returned when no input data is left to process and it is never used for another purpose.
+// - TokenType_Word which is the default fallback type when no other matchingRule apply.
 var matchingRules = []matchingRule{
 	{matchedType: TokenType_Newline, matchingImpl: fixedStringMatcher("\n")},
 	{matchedType: TokenType_Whitespace, matchingImpl: regexp.MustCompile(`[\t\v\f\r ]+`)},
 	{matchedType: TokenType_ContinueLine, matchingImpl: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
-	{matchedType: TokenType_SingleLineComment, matchingImpl: regexp.MustCompile(`//[^\n]*`)},
-	{matchedType: TokenType_MultiLineComment, matchingImpl: regexp.MustCompile(`(?s)/\*.*?\*/`)},
-	{matchedType: TokenType_StringLiteral, matchingImpl: regexp.MustCompile(`"(?:[^"\\\n]|\\.)*"`)},
+	{matchedType: TokenType_LiteralString, matchingImpl: regexp.MustCompile(`"(?:[^"\\\n]|\\.)*"`)},
+	{matchedType: TokenType_CommentSingleLine, matchingImpl: regexp.MustCompile(`//[^\n]*`)},
+	{matchedType: TokenType_CommentMultiLine, matchingImpl: regexp.MustCompile(`(?s)/\*.*?\*/`)},
 	{matchedType: TokenType_PreprocessorDefine, matchingImpl: preprocessorMatcher("define")},
 	{matchedType: TokenType_PreprocessorElif, matchingImpl: preprocessorMatcher("elif")},
 	{matchedType: TokenType_PreprocessorElifdef, matchingImpl: preprocessorMatcher("elifdef")},

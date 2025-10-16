@@ -20,6 +20,9 @@ const (
 	// Special token type indicating the end of the input stream.
 	TokenType_EOF TokenType = iota
 
+	// Every complete token that is not one of the other types, e.g. identifiers, keywords.
+	TokenType_Word
+
 	// Single newline character '\n'. Newlines require special handling because they mark the end of a preprocessor directive.
 	TokenType_Newline
 
@@ -29,14 +32,14 @@ const (
 	// Line continuation sequence, a backslash '\' followed by a newline character '\n' (with optional whitespace characters between).
 	TokenType_ContinueLine
 
+	// String literal, enclosed in double quotes, e.g. "example".
+	TokenType_LiteralString
+
 	// Single-line comment, starting with // and ending at the end of the line.
-	TokenType_SingleLineComment
+	TokenType_CommentSingleLine
 
 	// Multi-line comment, starting with /* and ending with */.
-	TokenType_MultiLineComment
-
-	// String literal, enclosed in double quotes, e.g. "example".
-	TokenType_StringLiteral
+	TokenType_CommentMultiLine
 
 	// Preprocessor directives, a hash '#' followed by the directive name (with optional whitespace characters between).
 
@@ -75,9 +78,6 @@ const (
 	TokenType_ParenthesisLeft
 	TokenType_ParenthesisRight
 	TokenType_Semicolon
-
-	// Every complete token that is not one of the other types, e.g. identifiers, keywords.
-	TokenType_Word
 )
 
 type Token struct {
