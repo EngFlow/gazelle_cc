@@ -32,6 +32,9 @@ const (
 	// Line continuation sequence, a backslash '\' followed by a newline character '\n' (with optional whitespace characters between).
 	TokenType_ContinueLine
 
+	// Identifier or keyword, a letter or underscore followed by letters, digits or underscores.
+	TokenType_Identifier
+
 	// Integer literal in base decimal, hexadecimal, octal or binary, e.g. 123, 0x1A3F, 0755, 0b1101.
 	TokenType_LiteralInteger
 
