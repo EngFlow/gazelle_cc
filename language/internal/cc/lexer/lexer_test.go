@@ -93,7 +93,23 @@ func TestNextToken(t *testing.T) {
 		},
 		{
 			input:    []byte("identifier123;"),
-			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: "identifier123"},
+			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: "identifier"},
+		},
+		{
+			input:    []byte("12345;"),
+			expected: Token{Type: TokenType_LiteralInteger, Location: CursorInit, Content: "12345"},
+		},
+		{
+			input:    []byte("0x1A3F;"),
+			expected: Token{Type: TokenType_LiteralInteger, Location: CursorInit, Content: "0x1A3F"},
+		},
+		{
+			input:    []byte("0755;"),
+			expected: Token{Type: TokenType_LiteralInteger, Location: CursorInit, Content: "0755"},
+		},
+		{
+			input:    []byte("0b1101;"),
+			expected: Token{Type: TokenType_LiteralInteger, Location: CursorInit, Content: "0b1101"},
 		},
 	}
 
@@ -125,7 +141,7 @@ func TestAllTokens(t *testing.T) {
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 13}, Content: " "},
 				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 14}, Content: "return"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 20}, Content: " "},
-				{Type: TokenType_Word, Location: Cursor{Line: 1, Column: 21}, Content: "0"},
+				{Type: TokenType_LiteralInteger, Location: Cursor{Line: 1, Column: 21}, Content: "0"},
 				{Type: TokenType_Semicolon, Location: Cursor{Line: 1, Column: 22}, Content: ";"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 23}, Content: " "},
 				{Type: TokenType_BraceRight, Location: Cursor{Line: 1, Column: 24}, Content: "}"},
@@ -146,7 +162,7 @@ func TestAllTokens(t *testing.T) {
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 4, Column: 13}, Content: " "},
 				{Type: TokenType_Word, Location: Cursor{Line: 4, Column: 14}, Content: "return"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 4, Column: 20}, Content: " "},
-				{Type: TokenType_Word, Location: Cursor{Line: 4, Column: 21}, Content: "0"},
+				{Type: TokenType_LiteralInteger, Location: Cursor{Line: 4, Column: 21}, Content: "0"},
 				{Type: TokenType_Semicolon, Location: Cursor{Line: 4, Column: 22}, Content: ";"},
 				{Type: TokenType_Whitespace, Location: Cursor{Line: 4, Column: 23}, Content: " "},
 				{Type: TokenType_BraceRight, Location: Cursor{Line: 4, Column: 24}, Content: "}"},

@@ -55,6 +55,7 @@ var matchingRules = []matchingRule{
 	{matchedType: TokenType_Newline, matchingImpl: fixedStringMatcher("\n")},
 	{matchedType: TokenType_Whitespace, matchingImpl: regexp.MustCompile(`[\t\v\f\r ]+`)},
 	{matchedType: TokenType_ContinueLine, matchingImpl: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
+	{matchedType: TokenType_LiteralInteger, matchingImpl: regexp.MustCompile(`(?i)0x[0-9a-f]+|0b[01]+|0[0-7]*|[1-9][0-9]*`)},
 	{matchedType: TokenType_LiteralString, matchingImpl: regexp.MustCompile(`"(?:[^"\\\n]|\\.)*"`)},
 	{matchedType: TokenType_CommentSingleLine, matchingImpl: regexp.MustCompile(`//[^\n]*`)},
 	{matchedType: TokenType_CommentMultiLine, matchingImpl: regexp.MustCompile(`(?s)/\*.*?\*/`)},
