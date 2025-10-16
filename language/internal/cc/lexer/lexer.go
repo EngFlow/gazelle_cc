@@ -90,7 +90,8 @@ func (lx *Lexer) NextToken() Token {
 	tokenEnd := len(lx.dataLeft)
 	tokenType := TokenType_Word
 	for _, rule := range matchingRules {
-		if match := rule.matchingImpl.FindIndex(lx.dataLeft); match != nil && match[0] < tokenBegin {
+		match := rule.matchingImpl.FindIndex(lx.dataLeft)
+		if match != nil && (match[0] < tokenBegin || ( /* prefer longer matches */ match[0] == tokenBegin && match[1] > tokenEnd)) {
 			tokenBegin = match[0]
 			tokenEnd = match[1]
 			tokenType = rule.matchedType
