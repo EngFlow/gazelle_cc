@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "cursor.go",
         "lexer.go",
+        "rules.go",
         "token.go",
     ],
     importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc/lexer",
