@@ -21,6 +21,7 @@ package lexer
 
 import (
 	"bytes"
+	"iter"
 	"regexp"
 )
 
@@ -112,11 +113,13 @@ func (lx *Lexer) NextToken() Token {
 	return result
 }
 
-// Return all tokens extracted from the input data.
-func (lx *Lexer) Tokenize() []Token {
-	var tokens []Token
-	for len(lx.dataLeft) > 0 {
-		tokens = append(tokens, lx.NextToken())
+// Iterate through the all tokens extracted from the input data.
+func (lx *Lexer) AllTokens() iter.Seq[Token] {
+	return func(yield func(Token) bool) {
+		for len(lx.dataLeft) > 0 {
+			if !yield(lx.NextToken()) {
+				return
+			}
+		}
 	}
-	return tokens
 }

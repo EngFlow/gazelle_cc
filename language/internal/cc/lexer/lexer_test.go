@@ -15,6 +15,7 @@
 package lexer
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,7 +96,7 @@ func TestNextToken(t *testing.T) {
 	}
 }
 
-func TestTokenize(t *testing.T) {
+func TestAllTokens(t *testing.T) {
 	testCases := []struct {
 		input    []byte
 		expected []Token
@@ -200,6 +201,6 @@ func TestTokenize(t *testing.T) {
 
 	for _, tc := range testCases {
 		lx := NewLexer(tc.input)
-		assert.Equal(t, tc.expected, lx.Tokenize(), "input: %q", tc.input)
+		assert.Equal(t, tc.expected, slices.Collect(lx.AllTokens()), "input: %q", tc.input)
 	}
 }
