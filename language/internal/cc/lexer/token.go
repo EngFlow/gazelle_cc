@@ -34,6 +34,9 @@ const (
 	// Line continuation sequence, a backslash '\' followed by a newline character '\n' (with optional whitespace characters between).
 	TokenType_ContinueLine
 
+	// The special keyword "defined", used in preprocessor conditional expressions.
+	TokenType_PreprocessorDefined
+
 	// Identifier or keyword, a letter or underscore followed by letters, digits or underscores.
 	TokenType_Identifier
 

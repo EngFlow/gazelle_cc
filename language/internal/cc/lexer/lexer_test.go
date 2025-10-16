@@ -222,6 +222,26 @@ func TestAllTokens(t *testing.T) {
 				{Type: TokenType_CommentSingleLine, Location: Cursor{Line: 1, Column: 7}, Content: "// This starts at column 7"},
 			},
 		},
+		{
+			input: []byte("#if defined(__APPLE__) && __cplusplus >= 201103L"),
+			expected: []Token{
+				{Type: TokenType_PreprocessorIf, Location: Cursor{Line: 1, Column: 1}, Content: "#if"},
+				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 4}, Content: " "},
+				{Type: TokenType_PreprocessorDefined, Location: Cursor{Line: 1, Column: 5}, Content: "defined"},
+				{Type: TokenType_ParenthesisLeft, Location: Cursor{Line: 1, Column: 12}, Content: "("},
+				{Type: TokenType_Identifier, Location: Cursor{Line: 1, Column: 13}, Content: "__APPLE__"},
+				{Type: TokenType_ParenthesisRight, Location: Cursor{Line: 1, Column: 22}, Content: ")"},
+				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 23}, Content: " "},
+				{Type: TokenType_OperatorLogicalAnd, Location: Cursor{Line: 1, Column: 24}, Content: "&&"},
+				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 26}, Content: " "},
+				{Type: TokenType_Identifier, Location: Cursor{Line: 1, Column: 27}, Content: "__cplusplus"},
+				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 38}, Content: " "},
+				{Type: TokenType_OperatorGreaterOrEqual, Location: Cursor{Line: 1, Column: 39}, Content: ">="},
+				{Type: TokenType_Whitespace, Location: Cursor{Line: 1, Column: 41}, Content: " "},
+				{Type: TokenType_LiteralInteger, Location: Cursor{Line: 1, Column: 42}, Content: "201103"},
+				{Type: TokenType_Identifier, Location: Cursor{Line: 1, Column: 48}, Content: "L"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

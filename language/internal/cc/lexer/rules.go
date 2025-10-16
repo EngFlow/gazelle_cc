@@ -49,12 +49,17 @@ func preprocessorMatcher(directiveName string) matcher {
 }
 
 // Matching logic for all token types apart from:
+//
 // - TokenType_EOF which is returned when no input data is left to process and it is never used for another purpose.
 // - TokenType_Unassigned which is the default fallback type when no other matchingRule apply.
+//
+// Order of rules matters when multiple rules can match the same input. E.g. "defined" matches both PreprocessorDefined
+// and Identifier. Thus the rule for TokenType_PreprocessorDefined must come first.
 var matchingRules = []matchingRule{
 	{matchedType: TokenType_Newline, matchingImpl: fixedStringMatcher("\n")},
 	{matchedType: TokenType_Whitespace, matchingImpl: regexp.MustCompile(`[\t\v\f\r ]+`)},
 	{matchedType: TokenType_ContinueLine, matchingImpl: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
+	{matchedType: TokenType_PreprocessorDefined, matchingImpl: fixedStringMatcher("defined")},
 	{matchedType: TokenType_Identifier, matchingImpl: regexp.MustCompile(`(?i)[a-z_][a-z0-9_]*`)},
 	{matchedType: TokenType_LiteralInteger, matchingImpl: regexp.MustCompile(`(?i)0x[0-9a-f]+|0b[01]+|0[0-7]*|[1-9][0-9]*`)},
 	{matchedType: TokenType_LiteralString, matchingImpl: regexp.MustCompile(`"(?:[^"\\\n]|\\.)*"`)},
