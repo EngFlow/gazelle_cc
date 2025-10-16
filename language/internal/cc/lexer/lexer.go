@@ -33,8 +33,8 @@ type (
 		FindIndex(content []byte) (indices []int)
 	}
 
-	// Implementation of matcher for fixed strings. No need to use regexp.Regexp for such simple cases.
-	fixedString string
+	// Matcher for fixed strings. No need to use regexp.Regexp for such simple cases.
+	fixedStringMatcher string
 
 	// Represents a way of matching a specific token type.
 	matchingRule struct {
@@ -49,24 +49,55 @@ type (
 	}
 )
 
-func (fs fixedString) FindIndex(content []byte) []int {
+func (fs fixedStringMatcher) FindIndex(content []byte) []int {
 	if begin := bytes.Index(content, []byte(fs)); begin >= 0 {
 		return []int{begin, begin + len(fs)}
 	}
 	return nil
 }
 
+func preprocessorMatcher(directiveName string) matcher {
+	return regexp.MustCompile(`#[\t\v\f\r ]*` + directiveName)
+}
+
 // Matching logic for all token types apart from:
 // - TokenType_Word which is the default fallback type when no other matchingRule apply.
 // - TokenType_EOF which is returned when no input data is left to process and it is never used for another purpose.
 var matchingRules = []matchingRule{
-	{matchedType: TokenType_Symbol, matchingImpl: regexp.MustCompile(`(?:[!=<>]=?|&&?|\|\|?|[(){}\[\],;])`)},
-	{matchedType: TokenType_PreprocessorDirective, matchingImpl: regexp.MustCompile(`#[\t\v\f\r ]*\w+`)},
-	{matchedType: TokenType_Newline, matchingImpl: fixedString("\n")},
+	{matchedType: TokenType_Newline, matchingImpl: fixedStringMatcher("\n")},
 	{matchedType: TokenType_Whitespace, matchingImpl: regexp.MustCompile(`[\t\v\f\r ]+`)},
 	{matchedType: TokenType_ContinueLine, matchingImpl: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
 	{matchedType: TokenType_SingleLineComment, matchingImpl: regexp.MustCompile(`//[^\n]*`)},
 	{matchedType: TokenType_MultiLineComment, matchingImpl: regexp.MustCompile(`(?s)/\*.*?\*/`)},
+	{matchedType: TokenType_PreprocessorDefine, matchingImpl: preprocessorMatcher("define")},
+	{matchedType: TokenType_PreprocessorElif, matchingImpl: preprocessorMatcher("elif")},
+	{matchedType: TokenType_PreprocessorElifdef, matchingImpl: preprocessorMatcher("elifdef")},
+	{matchedType: TokenType_PreprocessorElifndef, matchingImpl: preprocessorMatcher("elifndef")},
+	{matchedType: TokenType_PreprocessorElse, matchingImpl: preprocessorMatcher("else")},
+	{matchedType: TokenType_PreprocessorEndif, matchingImpl: preprocessorMatcher("endif")},
+	{matchedType: TokenType_PreprocessorIf, matchingImpl: preprocessorMatcher("if")},
+	{matchedType: TokenType_PreprocessorIfdef, matchingImpl: preprocessorMatcher("ifdef")},
+	{matchedType: TokenType_PreprocessorIfndef, matchingImpl: preprocessorMatcher("ifndef")},
+	{matchedType: TokenType_PreprocessorInclude, matchingImpl: preprocessorMatcher("include")},
+	{matchedType: TokenType_PreprocessorIncludeNext, matchingImpl: preprocessorMatcher("include_next")},
+	{matchedType: TokenType_PreprocessorUndef, matchingImpl: preprocessorMatcher("undef")},
+	{matchedType: TokenType_OperatorEqual, matchingImpl: fixedStringMatcher("==")},
+	{matchedType: TokenType_OperatorGreater, matchingImpl: fixedStringMatcher(">")},
+	{matchedType: TokenType_OperatorGreaterOrEqual, matchingImpl: fixedStringMatcher(">=")},
+	{matchedType: TokenType_OperatorLess, matchingImpl: fixedStringMatcher("<")},
+	{matchedType: TokenType_OperatorLessOrEqual, matchingImpl: fixedStringMatcher("<=")},
+	{matchedType: TokenType_OperatorLogicalAnd, matchingImpl: fixedStringMatcher("&&")},
+	{matchedType: TokenType_OperatorLogicalNot, matchingImpl: fixedStringMatcher("!")},
+	{matchedType: TokenType_OperatorLogicalOr, matchingImpl: fixedStringMatcher("||")},
+	{matchedType: TokenType_OperatorNotEqual, matchingImpl: fixedStringMatcher("!=")},
+	{matchedType: TokenType_BraceLeft, matchingImpl: fixedStringMatcher("{")},
+	{matchedType: TokenType_BraceRight, matchingImpl: fixedStringMatcher("}")},
+	{matchedType: TokenType_BracketLeft, matchingImpl: fixedStringMatcher("[")},
+	{matchedType: TokenType_BracketRight, matchingImpl: fixedStringMatcher("]")},
+	{matchedType: TokenType_Comma, matchingImpl: fixedStringMatcher(",")},
+	{matchedType: TokenType_ParenthesisLeft, matchingImpl: fixedStringMatcher("(")},
+	{matchedType: TokenType_ParenthesisRight, matchingImpl: fixedStringMatcher(")")},
+	{matchedType: TokenType_Semicolon, matchingImpl: fixedStringMatcher(";")},
 }
 
 func NewLexer(sourceCode []byte) *Lexer {

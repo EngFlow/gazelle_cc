@@ -20,12 +20,6 @@ const (
 	// Special token type indicating the end of the input stream.
 	TokenType_EOF TokenType = iota
 
-	// One of predefined fixed-size sequences of characters, e.g. '(', '==', ';', '&&'.
-	TokenType_Symbol
-
-	// Preprocessor directive, a hash '#' followed by the directive name (with optional whitespace characters between).
-	TokenType_PreprocessorDirective
-
 	// Single newline character '\n'. Newlines require special handling because they mark the end of a preprocessor directive.
 	TokenType_Newline
 
@@ -40,6 +34,44 @@ const (
 
 	// Multi-line comment, starting with /* and ending with */.
 	TokenType_MultiLineComment
+
+	// Preprocessor directives, a hash '#' followed by the directive name (with optional whitespace characters between).
+
+	TokenType_PreprocessorDefine
+	TokenType_PreprocessorElif
+	TokenType_PreprocessorElifdef
+	TokenType_PreprocessorElifndef
+	TokenType_PreprocessorElse
+	TokenType_PreprocessorEndif
+	TokenType_PreprocessorIf
+	TokenType_PreprocessorIfdef
+	TokenType_PreprocessorIfndef
+	TokenType_PreprocessorInclude
+	TokenType_PreprocessorIncludeNext
+	TokenType_PreprocessorUndef
+
+	// Subset of expression operators.
+
+	TokenType_OperatorEqual
+	TokenType_OperatorGreater
+	TokenType_OperatorGreaterOrEqual
+	TokenType_OperatorLess
+	TokenType_OperatorLessOrEqual
+	TokenType_OperatorLogicalAnd
+	TokenType_OperatorLogicalNot
+	TokenType_OperatorLogicalOr
+	TokenType_OperatorNotEqual
+
+	// Subset of symbols separating subexpressions.
+
+	TokenType_BraceLeft
+	TokenType_BraceRight
+	TokenType_BracketLeft
+	TokenType_BracketRight
+	TokenType_Comma
+	TokenType_ParenthesisLeft
+	TokenType_ParenthesisRight
+	TokenType_Semicolon
 
 	// Every complete token that is not one of the other types, e.g. identifiers, keywords.
 	TokenType_Word
