@@ -75,14 +75,21 @@ func TestNextToken(t *testing.T) {
 			expected: Token{Type: TokenType_MultiLineComment, Location: CursorInit, Content: "/*\n  This is a multi line comment\n*/"},
 		},
 		{
-			// TODO handle string literals as whole tokens
 			input:    []byte(`"This is a string literal"`),
-			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: `"This`},
+			expected: Token{Type: TokenType_StringLiteral, Location: CursorInit, Content: `"This is a string literal"`},
+		},
+		{
+			input:    []byte(`"I contain \"quoted\" text"`),
+			expected: Token{Type: TokenType_StringLiteral, Location: CursorInit, Content: `"I contain \"quoted\" text"`},
+		},
+		{
+			input:    []byte(`"I contain a '\\' backslash"`),
+			expected: Token{Type: TokenType_StringLiteral, Location: CursorInit, Content: `"I contain a '\\' backslash"`},
 		},
 		{
 			// TODO handle raw string literals as whole tokens
 			input:    []byte(`R"(abc)" fake-end)"`),
-			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: `R"`},
+			expected: Token{Type: TokenType_Word, Location: CursorInit, Content: "R"},
 		},
 		{
 			input:    []byte("identifier123;"),

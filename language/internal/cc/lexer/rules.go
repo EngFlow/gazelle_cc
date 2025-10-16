@@ -57,6 +57,7 @@ var matchingRules = []matchingRule{
 	{matchedType: TokenType_ContinueLine, matchingImpl: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
 	{matchedType: TokenType_SingleLineComment, matchingImpl: regexp.MustCompile(`//[^\n]*`)},
 	{matchedType: TokenType_MultiLineComment, matchingImpl: regexp.MustCompile(`(?s)/\*.*?\*/`)},
+	{matchedType: TokenType_StringLiteral, matchingImpl: regexp.MustCompile(`"(?:[^"\\\n]|\\.)*"`)},
 	{matchedType: TokenType_PreprocessorDefine, matchingImpl: preprocessorMatcher("define")},
 	{matchedType: TokenType_PreprocessorElif, matchingImpl: preprocessorMatcher("elif")},
 	{matchedType: TokenType_PreprocessorElifdef, matchingImpl: preprocessorMatcher("elifdef")},

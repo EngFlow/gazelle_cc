@@ -35,6 +35,9 @@ const (
 	// Multi-line comment, starting with /* and ending with */.
 	TokenType_MultiLineComment
 
+	// String literal, enclosed in double quotes, e.g. "example".
+	TokenType_StringLiteral
+
 	// Preprocessor directives, a hash '#' followed by the directive name (with optional whitespace characters between).
 
 	TokenType_PreprocessorDefine
