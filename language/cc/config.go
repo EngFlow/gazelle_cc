@@ -47,6 +47,8 @@ const (
 	cc_generate_proto           = "cc_generate_proto"
 	cc_unresolved_deps          = "cc_unresolved_deps"
 	cc_platform                 = "cc_platform"
+	cc_include_prefix           = "cc_include_prefix"
+	cc_strip_include_prefix     = "cc_strip_include_prefix"
 )
 
 func (c *ccLanguage) KnownDirectives() []string {
@@ -60,6 +62,8 @@ func (c *ccLanguage) KnownDirectives() []string {
 		cc_generate_proto,
 		cc_unresolved_deps,
 		cc_platform,
+		cc_include_prefix,
+		cc_strip_include_prefix,
 	}
 }
 
@@ -186,6 +190,10 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				constraint:     constraintLabel,
 				userDefinedEnv: macros,
 			}
+		case cc_include_prefix:
+			conf.ccIncludePrefix = d.Value
+		case cc_strip_include_prefix:
+			conf.ccStripIncludePrefix = d.Value
 		}
 	}
 }
@@ -241,6 +249,10 @@ type ccConfig struct {
 	generateProto bool
 	// Platforms for which os/arch specific selects should be generated
 	platforms map[platform.Platform]platformConfig
+	// Value of "include_prefix" attribute set in generated cc_library rules
+	ccIncludePrefix string
+	// Value of "strip_include_prefix" attribute set in generated cc_library rules
+	ccStripIncludePrefix string
 }
 
 type ccSearch struct {
@@ -270,6 +282,8 @@ func newCcConfig() *ccConfig {
 		generateCC:              true,
 		generateProto:           true,
 		platforms:               map[platform.Platform]platformConfig{},
+		ccIncludePrefix:         "",
+		ccStripIncludePrefix:    "",
 	}
 }
 

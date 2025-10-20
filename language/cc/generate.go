@@ -183,6 +183,12 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo cc
 		if args.File == nil || !args.File.HasDefaultVisibility() {
 			newRule.SetAttr("visibility", []string{"//visibility:public"})
 		}
+		if conf.ccIncludePrefix != "" {
+			newRule.SetAttr("include_prefix", conf.ccIncludePrefix)
+		}
+		if conf.ccStripIncludePrefix != "" {
+			newRule.SetAttr("strip_include_prefix", conf.ccStripIncludePrefix)
+		}
 
 		result.Gen = append(result.Gen, newRule)
 		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
@@ -284,6 +290,12 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 		}
 		if len(srcs) > 0 {
 			newRule.SetAttr("srcs", toRelativePaths(args.Rel, srcs))
+		}
+		if conf.ccIncludePrefix != "" {
+			newRule.SetAttr("include_prefix", conf.ccIncludePrefix)
+		}
+		if conf.ccStripIncludePrefix != "" {
+			newRule.SetAttr("strip_include_prefix", conf.ccStripIncludePrefix)
 		}
 		result.Gen = append(result.Gen, newRule)
 		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
