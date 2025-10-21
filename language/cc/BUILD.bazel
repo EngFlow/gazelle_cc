@@ -38,11 +38,13 @@ go_test(
     name = "cc_test",
     srcs = [
         "config_test.go",
+        "resolve_test.go",
         "source_groups_test.go",
     ],
     embed = [":cc"],
     deps = [
         "//language/internal/cc/parser",
+        "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
     ],
 )
