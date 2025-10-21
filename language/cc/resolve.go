@@ -113,24 +113,23 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 	return imports
 }
 
-// transformIncludePath converts a path to a header file into a string by which the
-// header file may be included, accounting for the library's
-// strip_include_prefix and include_prefix attributes.
+// transformIncludePath converts a path to a header file into a string by which the header file may be included,
+// accounting for the library's strip_include_prefix and include_prefix attributes.
 //
-// libRel is the slash-separated, repo-root-relative path to the directory
-// containing the target.
+// libRel is the slash-separated, repo-root-relative path to the directory containing the target.
 //
-// stripIncludePrefix is the value of the target's strip_include_prefix
-// attribute. If it's "", this has no effect. If it's a relative path (including
-// "."), both libRel and stripIncludePrefix are stripped from rel. If it's an
-// absolute path, the leading '/' is removed, and only stripIncludePrefix is
-// removed from hdrRel.
+// stripIncludePrefix is the value of the target's strip_include_prefix attribute. If it's "", this has no effect. If
+// it's a relative path (including "."), both libRel and stripIncludePrefix are stripped from rel. If it's an absolute
+// path, the leading '/' is removed, and only stripIncludePrefix is removed from hdrRel.
 //
-// includePrefix is the value of the target's include_prefix attribute.
-// It's prepended to hdrRel after stripIncludePrefix is applied.
+// includePrefix is the value of the target's include_prefix attribute. It's prepended to hdrRel after
+// stripIncludePrefix is applied.
 //
-// Both includePrefix and stripIncludePrefix must be clean (with path.Clean)
-// if they are non-empty.
+// SPECIAL CASE: regardless of the official Bazel docs, when includePrefix is set and stripIncludePrefix is not set,
+// we treat it as if stripIncludePrefix were set to the library's repo-root-relative path (libRel). This matches
+// observed Bazel behavior.
+//
+// Both includePrefix and stripIncludePrefix must be clean (with path.Clean) if they are non-empty.
 //
 // hdrRel is the slash-separated, repo-root-relative path to the header file.
 func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel string) string {
@@ -140,6 +139,9 @@ func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel stri
 		effectiveStripIncludePrefix = stripIncludePrefix[len("/"):]
 	} else if stripIncludePrefix != "" {
 		effectiveStripIncludePrefix = path.Join(libRel, stripIncludePrefix)
+	} else if includePrefix != "" {
+		// SPECIAL CASE: includePrefix is set and stripIncludePrefix is not set
+		effectiveStripIncludePrefix = libRel
 	}
 	cleanRel := pathtools.TrimPrefix(hdrRel, effectiveStripIncludePrefix)
 
