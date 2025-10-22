@@ -1,0 +1,112 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:ignore
+# gazelle:exclude include
+
+cc_library(
+    name = "rule",
+    hdrs = ["include/rule.h"],
+    include_prefix = "",
+    strip_include_prefix = "",
+    includes = [],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_Prefix",
+    hdrs = ["include/rule_Prefix.h"],
+    include_prefix = "customPrefix",
+    strip_include_prefix = "",
+    includes = [],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_AbsStrippedPrefix",
+    hdrs = ["include/rule_AbsStrippedPrefix.h"],
+    include_prefix = "",
+    strip_include_prefix = "/lib/include",
+    includes = [],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_AbsStrippedPrefix_Prefix",
+    hdrs = ["include/rule_AbsStrippedPrefix_Prefix.h"],
+    include_prefix = "customPrefix",
+    strip_include_prefix = "/lib/include",
+    includes = [],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_RelStrippedPrefix",
+    hdrs = ["include/rule_RelStrippedPrefix.h"],
+    include_prefix = "",
+    strip_include_prefix = "include",
+    includes = [],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_RelStrippedPrefix_Prefix",
+    hdrs = ["include/rule_RelStrippedPrefix_Prefix.h"],
+    include_prefix = "customPrefix",
+    strip_include_prefix = "include",
+    includes = [],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_Includes",
+    hdrs = ["include/rule_Includes.h"],
+    include_prefix = "",
+    strip_include_prefix = "",
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_Includes_Prefix",
+    hdrs = ["include/rule_Includes_Prefix.h"],
+    include_prefix = "customPrefix",
+    strip_include_prefix = "",
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_Includes_AbsStrippedPrefix",
+    hdrs = ["include/rule_Includes_AbsStrippedPrefix.h"],
+    include_prefix = "",
+    strip_include_prefix = "/lib/include",
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_Includes_AbsStrippedPrefix_Prefix",
+    hdrs = ["include/rule_Includes_AbsStrippedPrefix_Prefix.h"],
+    include_prefix = "customPrefix",
+    strip_include_prefix = "/lib/include",
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_Includes_RelStrippedPrefix",
+    hdrs = ["include/rule_Includes_RelStrippedPrefix.h"],
+    include_prefix = "",
+    strip_include_prefix = "include",
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule_Includes_RelStrippedPrefix_Prefix",
+    hdrs = ["include/rule_Includes_RelStrippedPrefix_Prefix.h"],
+    include_prefix = "customPrefix",
+    strip_include_prefix = "include",
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)

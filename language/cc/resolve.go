@@ -89,8 +89,7 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 
 			// virtualPath allows to reference the header using modified path according to strip_include_prefix and
 			// include_prefix attributes.
-			virtualPath := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, fullyQualifiedPath)
-			if virtualPath != fullyQualifiedPath {
+			if virtualPath := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, fullyQualifiedPath); virtualPath != fullyQualifiedPath {
 				imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: virtualPath})
 			}
 
