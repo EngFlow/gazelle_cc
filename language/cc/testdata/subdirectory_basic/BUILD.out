@@ -1,0 +1,30 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+# gazelle:cc_group subdirectory
+
+cc_binary(
+    name = "main",
+    srcs = ["src/main.cc"],
+    deps = [":subdirectory_basic"],
+)
+
+cc_library(
+    name = "subdirectory_basic",
+    srcs = [
+        "include/public.cc",
+        "src/impl.cc",
+        "src/impl.h",
+    ],
+    hdrs = ["include/public.h"],
+    implementation_deps = ["//dep"],
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "subdirectory_basic_test",
+    srcs = [
+        "test/test.cc",
+        "test/test.h",
+    ],
+    deps = [":subdirectory_basic"],
+)

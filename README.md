@@ -48,12 +48,37 @@ For instructions how to setup `gazelle_cc` using WORKSPACEs visit [this guide](.
 
 The extension defines the following custom directives:
 
-### `# gazelle:cc_group [directory|unit]`
+### `# gazelle:cc_group [directory|subdirectory|unit]`
 
 Controls how C++ source files are grouped into rules:
 
 - `directory`: Creates one `cc_library` per directory **(default)**
+- `subdirectory`: Like `directory`, but also consider files from `src/`, `include/`, and `test/` subdirectories (names are customizable with directives). Subdirectories containing `BUILD` files are not considered.
 - `unit`: Creates one `cc_library`/`cc_test` per translation unit or group of cyclicly dependent translation units. Corresponding `.h` and `.cc` files are always defined in the same group
+
+### `# gazelle:cc_group_subdirectory_include pattern`
+
+When `# gazelle:cc_group subdirectory` is used, this directive specifies a glob pattern to match directories containing public header files. These files are typically assigned to the `hdrs` attribute of `cc_library`. Any non-header files in a matching directory are assigned to `srcs` instead.
+
+When this directive is not used, the default pattern is `include`.
+
+This directive may be repeated multiple times to match multiple patterns. Settings are inherited in subdirectories. To reset the list, use `# gazelle:cc_group_subdirectory_include` without a pattern.
+
+### `# gazelle:cc_group_subdirectory_src pattern`
+
+When `# gazelle:cc_group subdirectory` is used, this directive specifies a glob pattern to match directories containing source files and implementation header files. These files are typically assigned to the `srcs` attribute of `cc_library` and `cc_binary` targets.
+
+When this directive is not used, the default pattern is `src`.
+
+This directive may be repeated multiple times to match multiple patterns. Settings are inherited in subdirectories. To reset the list, use `# gazelle:cc_group_subdirectory_src` without a pattern.
+
+### `# gazelle:cc_group_subdirectory_test pattern`
+
+When `# gazelle:cc_group subdirectory` is used, this directive specifies a glob pattern to match directories containing test source files. These files are typically assigned to the `srcs` attribute of `cc_test` targets.
+
+When this directive is not used, the default pattern is `test`.
+
+This directive may be repeated multiple times to match multiple patterns. Settings are inherited in subdirectories. To reset the list, use `# gazelle:cc_group_subdirectory_test` without a pattern.
 
 ### `# gazelle:cc_group_unit_cycles [merge|warn]`
 

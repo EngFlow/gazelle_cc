@@ -16,14 +16,17 @@ package cc
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
+	"github.com/bazelbuild/bazel-gazelle/walk"
 )
 
 // fileKind determines how a file should be added to rules, based on its
@@ -69,10 +72,16 @@ type fileInfo struct {
 }
 
 // getFileInfo parses a file and returns metadata describing it.
-func getFileInfo(args language.GenerateArgs, platformEnvs map[platform.Platform]parser.Environment, name string) (fileInfo, error) {
+func getFileInfo(
+	args language.GenerateArgs,
+	platformEnvs map[platform.Platform]parser.Environment,
+	hasBuildFile collections.Set[string],
+	name string) (fileInfo, error) {
+
 	if !hasMatchingExtension(name, ccExtensions) {
 		return fileInfo{}, errUnmatchedExtension
 	}
+	conf := getCcConfig(args.Config)
 	filePath := filepath.Join(args.Dir, name)
 	sourceInfo, err := parser.ParseSourceFile(filePath)
 	if err != nil {
@@ -105,23 +114,54 @@ func getFileInfo(args language.GenerateArgs, platformEnvs map[platform.Platform]
 		}
 	}
 
-	inTestDirectory := pathtools.Index(args.Rel, "test") >= 0 || pathtools.Index(args.Rel, "tests") >= 0
 	base := path.Base(name)
 	stem := base[:len(base)-len(path.Ext(base))]
 	isTest := strings.HasPrefix(stem, "test") || strings.HasSuffix(stem, "test")
-
+	var subdirKind subdirKind
+	if conf.groupingMode == groupSourcesBySubdirectory {
+		subdirKind, err = checkSubdirKind(conf, hasBuildFile, args.Rel, path.Dir(name))
+		if err != nil {
+			return fileInfo{}, err
+		}
+	}
 	var kind fileKind
-	switch {
-	case inTestDirectory:
-		kind = testSrcKind
-	case fileNameIsHeader(name):
-		kind = libHdrKind
-	case isTest:
-		kind = testSrcKind
-	case sourceInfo.HasMain:
-		kind = binSrcKind
-	default:
-		kind = libSrcKind
+	if subdirKind != noSubdir {
+		// In subdirectory mode, classify files mostly based on their directory
+		// names. File extensions are less important.
+		subdirKind, err := checkSubdirKind(conf, hasBuildFile, args.Rel, path.Dir(name))
+		if err != nil {
+			return fileInfo{}, err
+		}
+		switch {
+		case subdirKind == hdrsSubdir && fileNameIsHeader(name):
+			kind = libHdrKind
+		case isTest || subdirKind == testSubdir:
+			kind = testSrcKind
+		case sourceInfo.HasMain:
+			kind = binSrcKind
+		default:
+			kind = libSrcKind
+		}
+	} else {
+		// In other modes or in subdirectory mode when a file is not in a
+		// subdirectory, classify files mostly based on their extension.
+		inTestDirectory := pathtools.Index(args.Rel, "test") >= 0 ||
+			pathtools.Index(args.Rel, "tests") >= 0 ||
+			(conf.groupingMode == groupSourcesBySubdirectory &&
+				conf.matchesSubdirectoryTestPatterns(path.Dir(name)))
+
+		switch {
+		case inTestDirectory:
+			kind = testSrcKind
+		case fileNameIsHeader(name):
+			kind = libHdrKind
+		case isTest:
+			kind = testSrcKind
+		case sourceInfo.HasMain:
+			kind = binSrcKind
+		default:
+			kind = libSrcKind
+		}
 	}
 
 	return fileInfo{
@@ -130,6 +170,53 @@ func getFileInfo(args language.GenerateArgs, platformEnvs map[platform.Platform]
 		kind:     kind,
 		hasMain:  sourceInfo.HasMain,
 	}, nil
+}
+
+type subdirKind byte
+
+const (
+	noSubdir subdirKind = iota
+	srcsSubdir
+	hdrsSubdir
+	testSubdir
+)
+
+// checkSubdirKind returns how the subdirectory's contents should be treated
+// in subdirectory mode. It returns noSubdir if we're not in subdirectory mode,
+// if the subdirectory doesn't match any patterns, or if the subdirectory
+// contains a build file. It returns an error if the subdirecotry matches
+// multiple patterns.
+func checkSubdirKind(conf *ccConfig, hasBuildFile collections.Set[string], rel, subdir string) (subdirKind, error) {
+	subdirRel := path.Join(rel, subdir)
+	if conf.groupingMode != groupSourcesBySubdirectory || hasBuildFile.Contains(subdirRel) {
+		return noSubdir, nil
+	}
+	di, err := walk.GetDirInfo(subdirRel)
+	if err != nil {
+		return noSubdir, err
+	}
+	if di.File != nil {
+		return noSubdir, nil
+	}
+
+	var sty subdirKind
+	matchCount := 0
+	if conf.matchesSubdirectorySrcsPatterns(subdir) {
+		sty = srcsSubdir
+		matchCount++
+	}
+	if conf.matchesSubdirectoryHdrsPatterns(subdir) {
+		sty = hdrsSubdir
+		matchCount++
+	}
+	if conf.matchesSubdirectoryTestPatterns(subdir) {
+		sty = testSubdir
+		matchCount++
+	}
+	if matchCount > 1 {
+		return noSubdir, fmt.Errorf("directory %s matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.", path.Join(rel, subdir))
+	}
+	return sty, nil
 }
 
 var errUnmatchedExtension = errors.New("unmatched file extension")
