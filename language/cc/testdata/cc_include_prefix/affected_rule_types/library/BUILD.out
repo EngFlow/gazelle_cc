@@ -1,0 +1,10 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "library",
+    srcs = ["library.cc"],
+    hdrs = ["library.h"],
+    include_prefix = "my_prefix",
+    strip_include_prefix = "/affected_rule_types",
+    visibility = ["//visibility:public"],
+)

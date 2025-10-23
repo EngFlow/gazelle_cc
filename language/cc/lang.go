@@ -116,8 +116,10 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 				"implementation_deps": true,
 			})
 			kindInfo.MergeableAttrs = mergeMaps(kindInfo.MergeableAttrs, map[string]bool{
-				"hdrs":                true,
-				"implementation_deps": true,
+				"hdrs":                 true,
+				"implementation_deps":  true,
+				"include_prefix":       true,
+				"strip_include_prefix": true,
 			})
 			kindInfo.ResolveAttrs = mergeMaps(kindInfo.ResolveAttrs, map[string]bool{
 				"implementation_deps": true,

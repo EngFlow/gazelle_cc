@@ -177,6 +177,14 @@ cc_library(
 )
 ```
 
+### `# gazelle:cc_include_prefix <value>`
+
+Explicitly sets the value of `"include_prefix"` attribute for generated `cc_library` rules.
+
+### `# gazelle:cc_strip_include_prefix <value>`
+
+Explicitly sets the value of `"strip_include_prefix"` attribute for generated `cc_library` rules.
+
 ## Rules for target rule selection
 
 The extension automatically selects the appropriate rule type based on the following criteria:
