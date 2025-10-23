@@ -3,6 +3,6 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 cc_library(
     name = "prefix",
     hdrs = ["prefix.h"],
-    include_prefix = "extra",
+    include_prefix = "extra/prefix",
     visibility = ["//visibility:public"],
 )

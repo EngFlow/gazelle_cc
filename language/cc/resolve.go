@@ -76,13 +76,22 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 			includes[i] = path.Clean(includeDir)
 		}
 
-		// Maximum possible slice: each header is indexed once for its fully-qualified path and at most once for every matching declared -I include directory.
-		imports = make([]resolve.ImportSpec, 0, len(hdrs)*(1+len(includes)))
+		// Maximum possible slice, each header is indexed:
+		// - once for its fully-qualified path
+		// - once for its virtual path (if include_prefix or strip_include_prefix is specified)
+		// - at most once for every matching declared -I include directory
+		imports = make([]resolve.ImportSpec, 0, len(hdrs)*(2+len(includes)))
 		for _, hdr := range hdrs {
-			// Index the canonicalPath form exactly as it will appear in source
-			// Transform the path based on the rule attributes
-			canonicalPath := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, path.Join(f.Pkg, hdr))
-			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: canonicalPath})
+			// fullyQualifiedPath is the repository-root-relative path to the header. This path is always reachable via
+			// #include, regardless of the rule's attributes: includes, include_prefix, and strip_include_prefix.
+			fullyQualifiedPath := path.Join(f.Pkg, hdr)
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: fullyQualifiedPath})
+
+			// virtualPath allows to reference the header using modified path according to strip_include_prefix and
+			// include_prefix attributes.
+			if virtualPath := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, fullyQualifiedPath); virtualPath != fullyQualifiedPath {
+				imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: virtualPath})
+			}
 
 			// Index shorter includes paths made valid by each -I <includeDir>
 			// Bazel adds every entry in the `includes` attribute to the compiler’s search path.
@@ -100,7 +109,7 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 				// Ensure the prefix ends with path separator to distinguish include=foo hdrs=[foo.h, foo/bar.h]
 				// It was already cleaned so there won't be duplicate path seperators here
 				relativeTo = relativeTo + string(filepath.Separator)
-				relativePath, matching := strings.CutPrefix(canonicalPath, relativeTo)
+				relativePath, matching := strings.CutPrefix(fullyQualifiedPath, relativeTo)
 				if !matching {
 					// If the include directory is not relative to canonical form it's would be simply ignored.
 					continue
@@ -113,8 +122,8 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 	return imports
 }
 
-// transformIncludePath converts a path to a header file into a string by which the
-// header file may be included, accounting for the library's
+// transformIncludePath converts a path to a header file into a string by which
+// the header file may be included, accounting for the library's
 // strip_include_prefix and include_prefix attributes.
 //
 // libRel is the slash-separated, repo-root-relative path to the directory
@@ -126,11 +135,11 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 // absolute path, the leading '/' is removed, and only stripIncludePrefix is
 // removed from hdrRel.
 //
-// includePrefix is the value of the target's include_prefix attribute.
-// It's prepended to hdrRel after stripIncludePrefix is applied.
+// includePrefix is the value of the target's include_prefix attribute. It's
+// prepended to hdrRel after stripIncludePrefix is applied.
 //
-// Both includePrefix and stripIncludePrefix must be clean (with path.Clean)
-// if they are non-empty.
+// Both includePrefix and stripIncludePrefix must be clean (with path.Clean) if
+// they are non-empty.
 //
 // hdrRel is the slash-separated, repo-root-relative path to the header file.
 func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel string) string {
@@ -140,6 +149,9 @@ func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel stri
 		effectiveStripIncludePrefix = stripIncludePrefix[len("/"):]
 	} else if stripIncludePrefix != "" {
 		effectiveStripIncludePrefix = path.Join(libRel, stripIncludePrefix)
+	} else if includePrefix != "" {
+		// Match Bazel's undocumented behavior by stripping the package name.
+		effectiveStripIncludePrefix = libRel
 	}
 	cleanRel := pathtools.TrimPrefix(hdrRel, effectiveStripIncludePrefix)
 
