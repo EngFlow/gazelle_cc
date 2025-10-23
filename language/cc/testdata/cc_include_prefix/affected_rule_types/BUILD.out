@@ -1,0 +1,2 @@
+# gazelle:cc_include_prefix my_prefix
+# gazelle:cc_strip_include_prefix /affected_rule_types

@@ -3,6 +3,6 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 cc_library(
     name = "use",
     srcs = ["use.cc"],
-    implementation_deps = ["//libs/mylib"],
+    implementation_deps = ["//resolve_deps/libs/mylib"],
     visibility = ["//visibility:public"],
 )
