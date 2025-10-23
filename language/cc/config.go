@@ -282,8 +282,6 @@ func newCcConfig() *ccConfig {
 		generateCC:              true,
 		generateProto:           true,
 		platforms:               map[platform.Platform]platformConfig{},
-		ccIncludePrefix:         "",
-		ccStripIncludePrefix:    "",
 	}
 }
 
