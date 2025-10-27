@@ -12,6 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package collections provides functional programming utilities for working
+// with Go sequences and slices.
+//
+// The package includes a generic Set type for mathematical set operations and
+// efficient membership testing.
+//
+// This package leverages Go's iter.Seq type to provide efficient, composable
+// operations on both sequences and slices. Each operation comes in two
+// variants: one for sequences (Seq suffix) and one for slices (Slice suffix).
 package collections
 
 import (
