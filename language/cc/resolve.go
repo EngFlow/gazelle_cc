@@ -456,7 +456,7 @@ func (b *platformDepsBuilder) addConstrained(condition label.Label, dependency l
 func (b *platformDepsBuilder) build() ccPlatformStrings {
 	platformStrings := ccPlatformStrings{Generic: []string{}, Constrained: map[string][]string{}}
 	toStringsSlice := func(labels collections.Set[label.Label]) []string {
-		return collections.Map(labels.Values(), func(label label.Label) string { return label.String() })
+		return collections.MapSlice(labels.Values(), func(label label.Label) string { return label.String() })
 	}
 	platformStrings.Generic = toStringsSlice(b.generic)
 	for constraintLabel, deps := range b.constrainted {

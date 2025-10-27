@@ -14,49 +14,47 @@
 
 package collections
 
-import (
-	"testing"
-)
+import "testing"
 
-func TestMap(t *testing.T) {
+func TestMapSlice(t *testing.T) {
 	input := []int{1, 2, 3}
 	expected := []string{"1", "2", "3"}
 
-	result := Map(input, func(i int) string {
+	result := MapSlice(input, func(i int) string {
 		return string(rune('0' + i))
 	})
 
 	for i := range expected {
 		if result[i] != expected[i] {
-			t.Errorf("Map failed at index %d: expected %v, got %v", i, expected[i], result[i])
+			t.Errorf("MapSlice failed at index %d: expected %v, got %v", i, expected[i], result[i])
 		}
 	}
 }
 
-func TestFlatMap(t *testing.T) {
+func TestFlatMapSlice(t *testing.T) {
 	input := []int{1, 2}
 	expected := []int{1, 1, 2, 2}
 
-	result := FlatMap(input, func(i int) []int {
+	result := FlatMapSlice(input, func(i int) []int {
 		return []int{i, i}
 	})
 
 	if len(result) != len(expected) {
-		t.Fatalf("FlatMap length mismatch: expected %d, got %d", len(expected), len(result))
+		t.Fatalf("FlatMapSlice length mismatch: expected %d, got %d", len(expected), len(result))
 	}
 
 	for i := range expected {
 		if result[i] != expected[i] {
-			t.Errorf("FlatMap failed at index %d: expected %d, got %d", i, expected[i], result[i])
+			t.Errorf("FlatMapSlice failed at index %d: expected %d, got %d", i, expected[i], result[i])
 		}
 	}
 }
 
-func TestFilterMap(t *testing.T) {
+func TestFilterMapSlice(t *testing.T) {
 	input := []int{1, -1, 2}
 	expected := []int{2, 4}
 
-	result := FilterMap(input, func(i int) (int, bool) {
+	result := FilterMapSlice(input, func(i int) (int, bool) {
 		if i < 0 {
 			return 0, false
 		}
@@ -74,11 +72,11 @@ func TestFilterMap(t *testing.T) {
 	}
 }
 
-func TestFilter(t *testing.T) {
+func TestFilterSlice(t *testing.T) {
 	input := []int{1, 2, 3, 4}
 	expected := []int{2, 4}
 
-	result := Filter(input, func(i int) bool {
+	result := FilterSlice(input, func(i int) bool {
 		return i%2 == 0
 	})
 
