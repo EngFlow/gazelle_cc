@@ -85,7 +85,7 @@ func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Modul
 		for _, sourcesTarget := range sourcesQuery.GetTarget() {
 			switch sourcesTarget.GetRule().GetRuleClass() {
 			case "filegroup":
-				for _, src := range collections.FilterMap(bazel.GetNamedAttribute(sourcesTarget, "srcs").GetStringListValue(), tryParseLabel) {
+				for _, src := range collections.FilterMapSlice(bazel.GetNamedAttribute(sourcesTarget, "srcs").GetStringListValue(), tryParseLabel) {
 					if strings.HasPrefix(src.Name, includeDir) || strings.HasPrefix(src.Pkg, includeDir) {
 						hdrs.Add(src)
 					}
@@ -113,11 +113,11 @@ func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Modul
 			targets = append(targets, &indexer.Target{
 				Name: libName,
 				Hdrs: *hdrs.Join(
-					collections.ToSet(collections.FilterMap(
+					collections.ToSet(collections.FilterMapSlice(
 						bazel.GetNamedAttribute(ccLib, "hdrs").GetStringListValue(),
 						tryParseLabel))),
 				Includes: collections.SetOf(includeDir),
-				Deps: collections.ToSet(collections.FilterMap(
+				Deps: collections.ToSet(collections.FilterMapSlice(
 					bazel.GetNamedAttribute(ccLib, "deps").StringListValue,
 					tryParseLabel)),
 			})
