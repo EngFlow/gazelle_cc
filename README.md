@@ -1,3 +1,5 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/EngFlow/gazelle_cc)
+
 # Gazelle C++ Extension
 
 This repository contains a [Gazelle](https://github.com/bazel-contrib/bazel-gazelle) extension for C++ projects.
