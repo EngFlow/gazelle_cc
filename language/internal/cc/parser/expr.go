@@ -184,29 +184,6 @@ func (expr Ident) Eval(env Environment) (int, error) {
 }
 func (expr ConstantInt) Eval(env Environment) (int, error) { return int(expr), nil }
 
-// Negate returns a new Compare expression with the comparison operator logically negated.
-// For example, == becomes !=, < becomes >=, and so on. Panics on unknown operator.
-func (expr Compare) Negate() Compare {
-	var newOperator string
-	switch expr.Op {
-	case "==":
-		newOperator = "!="
-	case "!=":
-		newOperator = "=="
-	case "<":
-		newOperator = ">="
-	case "<=":
-		newOperator = ">"
-	case ">":
-		newOperator = "<="
-	case ">=":
-		newOperator = "<"
-	default:
-		panic(fmt.Sprintf("unknown compare operation type: %s", expr.Op))
-	}
-	return Compare{Left: expr.Left, Op: newOperator, Right: expr.Right}
-}
-
 func booleanToInt(b bool) int {
 	if b {
 		return 1
