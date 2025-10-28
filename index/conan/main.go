@@ -157,13 +157,13 @@ func extractIndexerModule(query proto.QueryResult, moduleName string) indexer.Mo
 
 		target := &indexer.Target{
 			Name: name,
-			Hdrs: collections.ToSet(collections.FilterMap(
+			Hdrs: collections.ToSet(collections.FilterMapSlice(
 				bazel.GetNamedAttribute(info, "hdrs").GetStringListValue(),
 				tryParseLabel)),
 			Includes:           collections.ToSet(bazel.GetNamedAttribute(info, "includes").GetStringListValue()),
 			StripIncludePrefix: bazel.GetNamedAttribute(info, "strip_include_prefix").GetStringValue(),
 			IncludePrefix:      bazel.GetNamedAttribute(info, "include_prefix").GetStringValue(),
-			Deps: collections.ToSet(collections.FilterMap(
+			Deps: collections.ToSet(collections.FilterMapSlice(
 				bazel.GetNamedAttribute(info, "deps").GetStringListValue(),
 				tryParseLabel)),
 		}

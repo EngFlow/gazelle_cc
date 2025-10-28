@@ -19,28 +19,7 @@
 // location in the source code (for accurate error reporting).
 package lexer
 
-import "regexp"
-
-// Represents a way of matching a specific token type using a regular expression.
-type matcher struct {
-	matchedType TokenType
-	matchingRe  *regexp.Regexp
-}
-
-// Matches preprocessor directives. Contains a capturing group for the directive name.
-var rePreprocessorDirective = regexp.MustCompile(`#[\t\v\f\r ]*(\w+)`)
-
-// Matching logic for all token types apart from TokenType_Word which is the default fallback type when no other
-// matchers apply.
-var matchers = []matcher{
-	{matchedType: TokenType_Symbol, matchingRe: regexp.MustCompile(`(?:[!=<>]=?|&&?|\|\|?|[(){}\[\],;])`)},
-	{matchedType: TokenType_PreprocessorDirective, matchingRe: rePreprocessorDirective},
-	{matchedType: TokenType_Newline, matchingRe: regexp.MustCompile(`\n`)},
-	{matchedType: TokenType_Whitespace, matchingRe: regexp.MustCompile(`[\t\v\f\r ]+`)},
-	{matchedType: TokenType_ContinueLine, matchingRe: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
-	{matchedType: TokenType_SingleLineComment, matchingRe: regexp.MustCompile(`//[^\n]*`)},
-	{matchedType: TokenType_MultiLineComment, matchingRe: regexp.MustCompile(`(?s)/\*.*?\*/`)},
-}
+import "iter"
 
 type Lexer struct {
 	dataLeft []byte
@@ -58,21 +37,22 @@ func (lx *Lexer) consume(content string) {
 }
 
 // Return the next token extracted from the beginning of the input data left to process. If no more tokens are left,
-// returns TokenEmpty.
+// returns TokenEOF.
 func (lx *Lexer) NextToken() Token {
 	if len(lx.dataLeft) == 0 {
-		return TokenEmpty
+		return TokenEOF
 	}
 
-	// Try each matcher looking for the earliest match.
+	// Try each matchingRule looking for the earliest match.
 	tokenBegin := len(lx.dataLeft)
 	tokenEnd := len(lx.dataLeft)
-	tokenType := TokenType_Word
-	for _, m := range matchers {
-		if match := m.matchingRe.FindIndex(lx.dataLeft); match != nil && match[0] < tokenBegin {
+	tokenType := TokenType_Unassigned
+	for _, rule := range matchingRules {
+		match := rule.matchingImpl.FindIndex(lx.dataLeft)
+		if match != nil && (match[0] < tokenBegin || ( /* prefer longer matches */ match[0] == tokenBegin && match[1] > tokenEnd)) {
 			tokenBegin = match[0]
 			tokenEnd = match[1]
-			tokenType = m.matchedType
+			tokenType = rule.matchedType
 		}
 	}
 
@@ -81,22 +61,24 @@ func (lx *Lexer) NextToken() Token {
 		// Something matched at the beginning, so return that token.
 		result = Token{Type: tokenType, Location: lx.cursor, Content: string(lx.dataLeft[tokenBegin:tokenEnd])}
 	} else {
-		// If nothing matched at the beginning of the text, return a word token up to the next match. If nothing matched
-		// anywhere, use the rest of the text.
-		result = Token{Type: TokenType_Word, Location: lx.cursor, Content: string(lx.dataLeft[:tokenBegin])}
+		// If nothing matched at the beginning of the text, return an unassigned token up to the next match. If nothing
+		// matched anywhere, use the rest of the text.
+		result = Token{Type: TokenType_Unassigned, Location: lx.cursor, Content: string(lx.dataLeft[:tokenBegin])}
 	}
 
 	lx.consume(result.Content)
 	return result
 }
 
-// Return all tokens extracted from the input data.
-func (lx *Lexer) Tokenize() []Token {
-	var tokens []Token
-	for len(lx.dataLeft) > 0 {
-		tokens = append(tokens, lx.NextToken())
+// Iterate through the all tokens extracted from the input data.
+func (lx *Lexer) AllTokens() iter.Seq[Token] {
+	return func(yield func(Token) bool) {
+		for len(lx.dataLeft) > 0 {
+			if !yield(lx.NextToken()) {
+				return
+			}
+		}
 	}
-	return tokens
 }
 
 // If the given token is a preprocessor directive, extract and return its name (e.g. "include", "define", etc.).

@@ -1,0 +1,2 @@
+# gazelle:cc_include_prefix custom_prefix
+# gazelle:cc_strip_include_prefix /resolve_deps/libs
