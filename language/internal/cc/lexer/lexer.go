@@ -80,15 +80,3 @@ func (lx *Lexer) AllTokens() iter.Seq[Token] {
 		}
 	}
 }
-
-// If the given token is a preprocessor directive, extract and return its name (e.g. "include", "define", etc.).
-func ExtractDirectiveName(token Token) string {
-	if token.Type != TokenType_PreprocessorDirective {
-		return ""
-	}
-	match := rePreprocessorDirective.FindStringSubmatch(token.Content)
-	if len(match) < 2 {
-		return ""
-	}
-	return match[1]
-}
