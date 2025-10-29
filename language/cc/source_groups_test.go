@@ -15,210 +15,213 @@
 package cc
 
 import (
-	"fmt"
-	"maps"
 	"slices"
+	"strings"
 	"testing"
 
-	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSourceGroups(t *testing.T) {
-	includes := func(files ...string) parser.SourceInfo {
-		result := parser.SourceInfo{}
-		for _, file := range files {
-			result.Directives = append(result.Directives, parser.IncludeDirective{Path: file})
-		}
-		return result
-	}
 	testCases := []struct {
-		clue     string
-		input    sourceInfos
-		expected sourceGroups
+		desc     string
+		input    []fileInfo
+		expected []sourceGroupSummary
 	}{
 		{
-			clue: "A source file with no includes should be unassigned",
-			input: sourceInfos{
-				"orphan.cc": {},
-			},
-			expected: sourceGroups{
-				"orphan": {sources: []string{"orphan.cc"}},
+			desc:  "A source file with no includes should be unassigned",
+			input: []fileInfo{fileInfoForTest("orphan.cc")},
+			expected: []sourceGroupSummary{
+				{id: "orphan", sources: []string{"orphan.cc"}},
 			},
 		},
 		{
-			clue: "Each header should form its own group even if it includes another",
-			input: sourceInfos{
-				"a.h": {},
-				"b.h": includes("a.h"),
-				"c.h": includes("b.h"),
+			desc: "Each header should form its own group even if it includes another",
+			input: []fileInfo{
+				fileInfoForTest("a.h"),
+				fileInfoForTest("b.h", "a.h"),
+				fileInfoForTest("c.h", "b.h"),
 			},
-			expected: sourceGroups{
-				"a": {sources: []string{"a.h"}},
-				"b": {sources: []string{"b.h"}, dependsOn: []groupId{"a"}},
-				"c": {sources: []string{"c.h"}, dependsOn: []groupId{"b"}},
-			},
-		},
-		{
-			clue: "Group source with header even when not included",
-			input: sourceInfos{
-				"a.h":  {},
-				"a.c":  {},
-				"b.cc": {},
-				"b.h":  {},
-			},
-			expected: sourceGroups{
-				"a": {sources: []string{"a.c", "a.h"}},
-				"b": {sources: []string{"b.cc", "b.h"}},
+			expected: []sourceGroupSummary{
+				{id: "a", sources: []string{"a.h"}},
+				{id: "b", sources: []string{"b.h"}},
+				{id: "c", sources: []string{"c.h"}},
 			},
 		},
 		{
-			clue: "Merge cyclic dependency sources",
-			input: sourceInfos{
-				"a.h":  includes("b.h"),
-				"a.c":  includes("a.h"),
-				"b.h":  includes("a.h"),
-				"b.cc": includes("b.h"),
-				"c.h":  includes("a.h"),
+			desc: "Group source with header even when not included",
+			input: []fileInfo{
+				fileInfoForTest("a.h"),
+				fileInfoForTest("a.c"),
+				fileInfoForTest("b.cc"),
+				fileInfoForTest("b.h"),
 			},
-			expected: sourceGroups{
-				"a": {sources: []string{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
-				"c": {sources: []string{"c.h"}, dependsOn: []groupId{"a"}},
-			},
-		},
-		{
-			clue: "Detect implementation based cycle",
-			input: sourceInfos{
-				"a.h":  {},
-				"a.c":  includes("b.h"),
-				"b.h":  {},
-				"b.cc": includes("a.h"),
-			},
-			expected: sourceGroups{
-				"a": {sources: []string{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
+			expected: []sourceGroupSummary{
+				{id: "a", sources: []string{"a.c", "a.h"}},
+				{id: "b", sources: []string{"b.cc", "b.h"}},
 			},
 		},
 		{
-			clue: "Handle cyclic dependencies among headers correctly",
-			input: sourceInfos{
-				"p.h": includes("q.h"),
-				"q.h": includes("r.h"),
-				"r.h": includes("p.h"),
+			desc: "Merge cyclic dependency sources",
+			input: []fileInfo{
+				fileInfoForTest("a.h", "b.h"),
+				fileInfoForTest("a.c", "a.h"),
+				fileInfoForTest("b.h", "a.h"),
+				fileInfoForTest("b.cc", "b.h"),
+				fileInfoForTest("c.h", "a.h"),
 			},
-			expected: sourceGroups{
-				"p": {sources: []string{"p.h", "q.h", "r.h"}, subGroups: []groupId{"p", "q", "r"}},
-			},
-		},
-		{
-			clue: "A source file that includes multiple unrelated headers should assigned to it's own group",
-			input: sourceInfos{
-				"m.h":      {},
-				"n.h":      {},
-				"o.h":      {},
-				"file.cpp": includes("m.h", "n.h", "o.h"),
-			},
-			expected: sourceGroups{
-				"m":    {sources: []string{"m.h"}},
-				"n":    {sources: []string{"n.h"}},
-				"o":    {sources: []string{"o.h"}},
-				"file": {sources: []string{"file.cpp"}, dependsOn: []groupId{"m", "n", "o"}},
-			},
-		},
-
-		{
-			clue: "Correctly group mixed dependencies",
-			input: sourceInfos{
-				"a.h":  {},
-				"b.h":  includes("a.h"),
-				"c.h":  {},
-				"d.h":  includes("c.h"),
-				"e.h":  includes("d.h", "f1.h", "f2.h"),
-				"f1.h": includes("e.h"),
-				"f2.h": includes("e.h"),
-				"g.h":  includes("b.h", "d.h"),
-				"h.h":  includes("g.h"),
-				"i.h":  includes("g.h"),
-				"j.h":  includes("h.h", "i.h"),
-			},
-			expected: sourceGroups{
-				"a": {sources: []string{"a.h"}},
-				"b": {sources: []string{"b.h"}, dependsOn: []groupId{"a"}},
-				"c": {sources: []string{"c.h"}},
-				"d": {sources: []string{"d.h"}, dependsOn: []groupId{"c"}},
-				"e": {sources: []string{"e.h", "f1.h", "f2.h"}, dependsOn: []groupId{"d"}, subGroups: []groupId{"e", "f1", "f2"}},
-				"g": {sources: []string{"g.h"}, dependsOn: []groupId{"b", "d"}},
-				"h": {sources: []string{"h.h"}, dependsOn: []groupId{"g"}},
-				"i": {sources: []string{"i.h"}, dependsOn: []groupId{"g"}},
-				"j": {sources: []string{"j.h"}, dependsOn: []groupId{"h", "i"}},
+			expected: []sourceGroupSummary{
+				{id: "a", sources: []string{"a.c", "a.h", "b.cc", "b.h"}},
+				{id: "c", sources: []string{"c.h"}},
 			},
 		},
 		{
-			clue: "Header including an external include file should still form a group",
-			input: sourceInfos{
-				"lib.h":   {Directives: []parser.Directive{parser.IncludeDirective{Path: "system.h", IsSystem: true}}},
-				"lib.cc":  {Directives: []parser.Directive{parser.IncludeDirective{Path: "lib.h"}}},
-				"app.cpp": {Directives: []parser.Directive{parser.IncludeDirective{Path: "system.h", IsSystem: true}}},
+			desc: "Detect implementation based cycle",
+			input: []fileInfo{
+				fileInfoForTest("a.h"),
+				fileInfoForTest("a.c", "b.h"),
+				fileInfoForTest("b.h"),
+				fileInfoForTest("b.cc", "a.h"),
 			},
-			expected: sourceGroups{
-				"lib": {sources: []string{"lib.cc", "lib.h"}},
-				"app": {sources: []string{"app.cpp"}},
-			},
-		},
-		{
-			clue: "Implementation of header should merge groups even if header does not",
-			input: sourceInfos{
-				"a.h":  {},
-				"b.h":  {},
-				"a.cc": includes("b.h"),
-				"b.cc": includes("a.h"),
-			},
-			expected: sourceGroups{
-				"a": {sources: []string{"a.cc", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
+			expected: []sourceGroupSummary{
+				{id: "a", sources: []string{"a.c", "a.h", "b.cc", "b.h"}},
 			},
 		},
 		{
-			clue: "Implementation of header does not merge if can define dependency",
-			input: sourceInfos{
-				"a.h":  {},
-				"a.cc": {},
-				"b.h":  {},
-				"b.cc": includes("a.h"),
+			desc: "Handle cyclic dependencies among headers correctly",
+			input: []fileInfo{
+				fileInfoForTest("p.h", "q.h"),
+				fileInfoForTest("q.h", "r.h"),
+				fileInfoForTest("r.h", "p.h"),
 			},
-			expected: sourceGroups{
-				"a": {sources: []string{"a.cc", "a.h"}},
-				"b": {sources: []string{"b.cc", "b.h"}, dependsOn: []groupId{"a"}},
+			expected: []sourceGroupSummary{
+				{id: "p", sources: []string{"p.h", "q.h", "r.h"}},
+			},
+		},
+		{
+			desc: "A source file that includes multiple unrelated headers should assigned to it's own group",
+			input: []fileInfo{
+				fileInfoForTest("m.h"),
+				fileInfoForTest("n.h"),
+				fileInfoForTest("o.h"),
+				fileInfoForTest("file.cpp", "m.h", "n.h", "o.h"),
+			},
+			expected: []sourceGroupSummary{
+				{id: "file", sources: []string{"file.cpp"}},
+				{id: "m", sources: []string{"m.h"}},
+				{id: "n", sources: []string{"n.h"}},
+				{id: "o", sources: []string{"o.h"}},
+			},
+		},
+		{
+			desc: "Correctly group mixed dependencies",
+			input: []fileInfo{
+				fileInfoForTest("a.h"),
+				fileInfoForTest("b.h", "a.h"),
+				fileInfoForTest("c.h"),
+				fileInfoForTest("d.h", "c.h"),
+				fileInfoForTest("e.h", "d.h", "f1.h", "f2.h"),
+				fileInfoForTest("f1.h", "e.h"),
+				fileInfoForTest("f2.h", "e.h"),
+				fileInfoForTest("g.h", "b.h", "d.h"),
+				fileInfoForTest("h.h", "g.h"),
+				fileInfoForTest("i.h", "g.h"),
+				fileInfoForTest("j.h", "h.h", "i.h"),
+			},
+			expected: []sourceGroupSummary{
+				{id: "a", sources: []string{"a.h"}},
+				{id: "b", sources: []string{"b.h"}},
+				{id: "c", sources: []string{"c.h"}},
+				{id: "d", sources: []string{"d.h"}},
+				{id: "e", sources: []string{"e.h", "f1.h", "f2.h"}},
+				{id: "g", sources: []string{"g.h"}},
+				{id: "h", sources: []string{"h.h"}},
+				{id: "i", sources: []string{"i.h"}},
+				{id: "j", sources: []string{"j.h"}},
+			},
+		},
+		{
+			desc: "Header including an external include file should still form a group",
+			input: []fileInfo{
+				{
+					name:     "lib.h",
+					kind:     libSrcKind,
+					includes: []ccInclude{{path: "system.h", isSystemInclude: true}},
+				},
+				fileInfoForTest("lib.cc", "lib.h"),
+				{
+					name:     "app.cpp",
+					kind:     libSrcKind,
+					includes: []ccInclude{{path: "system.h", isSystemInclude: true}},
+				},
+			},
+			expected: []sourceGroupSummary{
+				{id: "app", sources: []string{"app.cpp"}},
+				{id: "lib", sources: []string{"lib.cc", "lib.h"}},
+			},
+		},
+		{
+			desc: "Implementation of header should merge groups even if header does not",
+			input: []fileInfo{
+				fileInfoForTest("a.h"),
+				fileInfoForTest("b.h"),
+				fileInfoForTest("a.cc", "b.h"),
+				fileInfoForTest("b.cc", "a.h"),
+			},
+			expected: []sourceGroupSummary{
+				{id: "a", sources: []string{"a.cc", "a.h", "b.cc", "b.h"}},
+			},
+		},
+		{
+			desc: "Implementation of header does not merge if can define dependency",
+			input: []fileInfo{
+				fileInfoForTest("a.h"),
+				fileInfoForTest("a.cc"),
+				fileInfoForTest("b.h"),
+				fileInfoForTest("b.cc", "a.h"),
+			},
+			expected: []sourceGroupSummary{
+				{id: "a", sources: []string{"a.cc", "a.h"}},
+				{id: "b", sources: []string{"b.cc", "b.h"}},
 			},
 		},
 	}
 
-	for idx, tc := range testCases {
-		result := groupSourcesByUnits(
-			slices.Collect(maps.Keys(tc.input)),
-			tc.input,
-		)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			actual := summarizeSourceGroups(groupSourcesByUnits("", tc.input))
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
 
-		shouldFail := false
-		for groupId, expected := range tc.expected {
-			actual, exists := result[groupId]
-			if !exists {
-				t.Logf("In test case %d (%v): missing group: %v", idx, tc.clue, groupId)
-				shouldFail = true
-				continue
-			}
-			if fmt.Sprintf("%v", *expected) != fmt.Sprintf("%v", *actual) {
-				t.Logf("In test case %d (%v): groups %v does not match\n\t- expected: %+v\n\t- obtained: %+v", idx, tc.clue, groupId, *expected, *actual)
-				shouldFail = true
-			}
-		}
-		for groupId, group := range result {
-			_, exists := tc.expected[groupId]
-			if !exists {
-				t.Logf("In test case %d (%v): unexpected group: %v - %v", idx, tc.clue, groupId, group)
-				shouldFail = true
-			}
-		}
+type sourceGroupSummary struct {
+	id      groupId
+	sources []string
+}
 
-		if shouldFail {
-			t.Errorf("Test case %d (%v) failed", idx, tc.clue)
-		}
+func summarizeSourceGroups(groups sourceGroups) []sourceGroupSummary {
+	summaries := make([]sourceGroupSummary, 0, len(groups))
+	for id, group := range groups {
+		summaries = append(summaries, sourceGroupSummary{
+			id:      id,
+			sources: toRelativePaths(group.sources),
+		})
+	}
+	slices.SortFunc(summaries, func(a, b sourceGroupSummary) int {
+		return strings.Compare(string(a.id), string(b.id))
+	})
+	return summaries
+}
+
+func fileInfoForTest(name string, includePaths ...string) fileInfo {
+	includes := make([]ccInclude, len(includePaths))
+	for i, path := range includePaths {
+		includes[i] = ccInclude{path: path}
+	}
+	return fileInfo{
+		name:     name,
+		kind:     libSrcKind,
+		includes: includes,
 	}
 }

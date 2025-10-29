@@ -60,7 +60,7 @@ type (
 		platforms []platform.Platform
 	}
 	ccImports struct {
-		// #include directives found in header files
+		// #include directives found in header files, including those listed in "srcs"
 		hdrIncludes []ccInclude
 		// #include directives found in non-header files
 		srcIncludes []ccInclude

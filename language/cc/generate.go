@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"errors"
 	"log"
 	"maps"
 	"path"
@@ -24,8 +25,6 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
-	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -33,12 +32,12 @@ import (
 )
 
 func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
-	srcInfo := collectSourceInfos(args)
+	fileInfos := collectFileInfos(args)
 	rulesInfo := extractRulesInfo(args)
 
 	// The order of rules generation matters - name conflict and renaming is based on result.Gen content
 	var result = language.GenerateResult{}
-	result.RelsToIndex = c.listRelsToIndex(args, srcInfo)
+	result.RelsToIndex = c.listRelsToIndex(args, fileInfos)
 
 	if !getCcConfig(args.Config).generateCC {
 		// No need to generate or remove any rules
@@ -46,60 +45,34 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 	}
 
 	consumedProtoFiles := c.generateProtoLibraryRules(args, rulesInfo, &result)
-	c.generateBinaryRules(args, srcInfo, rulesInfo, &result)
-	c.generateLibraryRules(args, srcInfo, rulesInfo, consumedProtoFiles, &result)
-	c.generateTestRules(args, srcInfo, rulesInfo, &result)
+	c.generateBinaryRules(args, fileInfos, rulesInfo, &result)
+	c.generateLibraryRules(args, fileInfos, rulesInfo, consumedProtoFiles, &result)
+	c.generateTestRules(args, fileInfos, rulesInfo, &result)
 
 	// None of the rules generated above can be empty - it's guaranteed by generating them only if sources exists
 	// However we need to inspect for existing rules that are no longer matching any files
-	result.Empty = slices.Concat(result.Empty, c.findEmptyRules(args, srcInfo, rulesInfo, result.Gen))
+	result.Empty = slices.Concat(result.Empty, c.findEmptyRules(args, fileInfos, rulesInfo, result.Gen))
 
 	return result
 }
 
-func extractImports(args language.GenerateArgs, files []string, sourceInfos map[string]parser.SourceInfo) ccImports {
-	ccConfig := getCcConfig(args.Config)
-	platformEnvs := ccConfig.getPlatformEnvironments()
-	imports := ccImports{}
-	for _, file := range files {
-		var includes *[]ccInclude
-		if fileNameIsHeader(file) {
-			includes = &imports.hdrIncludes
+func extractImports(fileInfos []fileInfo) ccImports {
+	var imports ccImports
+	for _, fi := range fileInfos {
+		if fileNameIsHeader(fi.name) {
+			// Dependencies from .h files in the "srcs" attribute should go in
+			// "deps" rather than "implementation_deps" because they still need
+			// to be made available as inputs for other libraries that depend
+			// on this one. "hdrs" files may include "srcs" files.
+			imports.hdrIncludes = append(imports.hdrIncludes, fi.includes...)
 		} else {
-			includes = &imports.srcIncludes
-		}
-
-		sourceInfo := sourceInfos[file]
-
-		// Evaluate the directives and search for platform specific include paths
-		// We do it for each enabled platform using it's unique set of macros
-		platformIncludes := map[string][]platform.Platform{}
-		for platform, macros := range platformEnvs {
-			reachable := sourceInfo.CollectReachableIncludes(macros)
-			for _, include := range reachable {
-				platformIncludes[include.Path] = append(platformIncludes[include.Path], platform)
-			}
-		}
-
-		// Assign all includes found in the directives
-		for _, include := range sourceInfo.CollectIncludes() {
-			usedByPlatforms := platformIncludes[include.Path]
-			isPlatformSpecific := len(usedByPlatforms) != len(platformEnvs)
-			*includes = append(*includes, ccInclude{
-				sourceFile:         file,
-				lineNumber:         include.LineNumber,
-				path:               path.Clean(include.Path),
-				isSystemInclude:    include.IsSystem,
-				isPlatformSpecific: isPlatformSpecific,
-				platforms:          usedByPlatforms,
-			})
+			imports.srcIncludes = append(imports.srcIncludes, fi.includes...)
 		}
 	}
-
 	return imports
 }
 
-func splitSourcesIntoGroups(args language.GenerateArgs, srcs []string, srcInfo ccSourceInfoSet) sourceGroups {
+func splitSourcesIntoGroups(args language.GenerateArgs, fileInfos []fileInfo) sourceGroups {
 	conf := getCcConfig(args.Config)
 	var srcGroups sourceGroups
 	switch conf.groupingMode {
@@ -114,9 +87,9 @@ func splitSourcesIntoGroups(args language.GenerateArgs, srcs []string, srcInfo c
 		if groupName == "" {
 			groupName = filepath.Base(args.Dir)
 		}
-		srcGroups = sourceGroups{groupId(groupName): {sources: srcs}}
+		srcGroups = sourceGroups{groupId(groupName): {sources: fileInfos}}
 	case groupSourcesByUnit:
-		srcGroups = groupSourcesByUnits(srcs, srcInfo.sourceInfos)
+		srcGroups = groupSourcesByUnits(args.Rel, fileInfos)
 	}
 	return srcGroups
 }
@@ -142,19 +115,19 @@ func newOrExistingRule(kind string, ruleName string, srcGroups sourceGroups, rul
 	return newRule
 }
 
-func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, excludedSources sourceFileSet, result *language.GenerateResult) {
+func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, fileInfos []fileInfo, rulesInfo rulesInfo, excludedSources sourceFileSet, result *language.GenerateResult) {
 	conf := getCcConfig(args.Config)
 	// Ignore files that might have been consumed by other rules
-	allSrcs := []string{}
-	for _, file := range slices.Concat(srcInfo.srcs, srcInfo.hdrs) {
-		if isExcluded := excludedSources[file]; !isExcluded {
-			allSrcs = append(allSrcs, file)
+	var libFiles []fileInfo
+	for _, fi := range fileInfos {
+		if !excludedSources[fi.name] && (fi.kind == libSrcKind || fi.kind == libHdrKind) {
+			libFiles = append(libFiles, fi)
 		}
 	}
-	if len(allSrcs) == 0 {
+	if len(libFiles) == 0 {
 		return
 	}
-	srcGroups := splitSourcesIntoGroups(args, allSrcs, srcInfo)
+	srcGroups := splitSourcesIntoGroups(args, libFiles)
 	ambigiousRuleAssignments := srcGroups.adjustToExistingRules(rulesInfo)
 
 	for _, groupId := range srcGroups.groupIds() {
@@ -166,19 +139,27 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo cc
 		newRule := newOrExistingRule("cc_library", ruleName, srcGroups, rulesInfo, args)
 
 		// Deal with rules that conflict with existing defintions
-		if ambigiousRuleAssignments, reachableByPlatforms := ambigiousRuleAssignments[groupId]; reachableByPlatforms {
-			if !c.handleAmbigiousRulesAssignment(args, conf, srcInfo, rulesInfo, newRule, result, *group, ambigiousRuleAssignments) {
+		if ruleNames := ambigiousRuleAssignments[groupId]; len(ruleNames) > 1 {
+			if !c.handleAmbigiousRulesAssignment(args, conf, rulesInfo, newRule, result, *group, ruleNames) {
 				continue // Failed to handle issue, skip this group. New rule could have been modified
 			}
 		}
 
-		// Assign sources to gorups
-		srcs, hdrs := partitionCSources(group.sources)
+		// Assign sources to groups
+		var srcs, hdrs []string
+		for _, fi := range group.sources {
+			switch fi.kind {
+			case libSrcKind:
+				srcs = append(srcs, fi.name)
+			case libHdrKind:
+				hdrs = append(hdrs, fi.name)
+			}
+		}
 		if len(srcs) > 0 {
-			newRule.SetAttr("srcs", toRelativePaths(args.Rel, srcs))
+			newRule.SetAttr("srcs", srcs)
 		}
 		if len(hdrs) > 0 {
-			newRule.SetAttr("hdrs", toRelativePaths(args.Rel, hdrs))
+			newRule.SetAttr("hdrs", hdrs)
 		}
 		if args.File == nil || !args.File.HasDefaultVisibility() {
 			newRule.SetAttr("visibility", []string{"//visibility:public"})
@@ -191,29 +172,31 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, srcInfo cc
 		}
 
 		result.Gen = append(result.Gen, newRule)
-		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
+		result.Imports = append(result.Imports, extractImports(group.sources))
 	}
 }
 
-func (c *ccLanguage) generateBinaryRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
-	srcGroups := identitySourceGroups(srcInfo.mainSrcs)
+func (c *ccLanguage) generateBinaryRules(args language.GenerateArgs, fileInfos []fileInfo, rulesInfo rulesInfo, result *language.GenerateResult) {
+	mainSrcs := collections.FilterSlice(fileInfos, func(fi fileInfo) bool { return fi.kind == binSrcKind })
+	srcGroups := identitySourceGroups(mainSrcs)
 	for _, groupId := range srcGroups.groupIds() {
 		group := srcGroups[groupId]
 		ruleName := groupId.toRuleName()
 		newRule := newOrExistingRule("cc_binary", ruleName, srcGroups, rulesInfo, args)
-		newRule.SetAttr("srcs", toRelativePaths(args.Rel, group.sources))
+		newRule.SetAttr("srcs", toRelativePaths(group.sources))
 		result.Gen = append(result.Gen, newRule)
-		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
+		result.Imports = append(result.Imports, extractImports(group.sources))
 	}
 }
 
-func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, result *language.GenerateResult) {
-	if len(srcInfo.testSrcs) == 0 {
+func (c *ccLanguage) generateTestRules(args language.GenerateArgs, fileInfos []fileInfo, rulesInfo rulesInfo, result *language.GenerateResult) {
+	testSrcs := collections.FilterSlice(fileInfos, func(fi fileInfo) bool { return fi.kind == testSrcKind })
+	if len(testSrcs) == 0 {
 		return
 	}
 	// TODO: group tests by framework (unlikely but possible)
 	conf := getCcConfig(args.Config)
-	srcGroups := splitSourcesIntoGroups(args, srcInfo.testSrcs, srcInfo)
+	srcGroups := splitSourcesIntoGroups(args, testSrcs)
 	ambigiousRuleAssignments := srcGroups.adjustToExistingRules(rulesInfo)
 
 	// If group A depends on group B then group B should be emitted as cc_library
@@ -236,7 +219,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 			}
 			hasMain := slices.ContainsFunc(
 				group.sources,
-				func(src string) bool { return srcInfo.sourceInfos[src].HasMain },
+				func(src fileInfo) bool { return src.hasMain },
 			)
 			if hasMain {
 				testRunnerGroups = append(testRunnerGroups, id)
@@ -284,15 +267,22 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 			testRunnerRuleName = label.Label{Name: newRule.Name(), Relative: true}
 		}
 
-		srcs, hdrs := partitionCSources(group.sources)
+		var srcs, hdrs []string
+		for _, fi := range group.sources {
+			if fileNameIsHeader(fi.name) {
+				hdrs = append(hdrs, fi.name)
+			} else {
+				srcs = append(srcs, fi.name)
+			}
+		}
 		if len(hdrs) > 0 {
-			newRule.SetAttr("hdrs", toRelativePaths(args.Rel, hdrs))
+			newRule.SetAttr("hdrs", hdrs)
 		}
 		if len(srcs) > 0 {
-			newRule.SetAttr("srcs", toRelativePaths(args.Rel, srcs))
+			newRule.SetAttr("srcs", srcs)
 		}
 		result.Gen = append(result.Gen, newRule)
-		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
+		result.Imports = append(result.Imports, extractImports(group.sources))
 	}
 
 	// Generate actual cc_test rules
@@ -309,18 +299,18 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, srcInfo ccSou
 		newRule := newOrExistingRule("cc_test", ruleName, srcGroups, rulesInfo, args)
 
 		// Deal with rules that conflict with existing defintions
-		if ambigiousRuleAssignments, reachableByPlatforms := ambigiousRuleAssignments[groupId]; reachableByPlatforms {
-			if !c.handleAmbigiousRulesAssignment(args, conf, srcInfo, rulesInfo, newRule, result, *group, ambigiousRuleAssignments) {
+		if ruleNames := ambigiousRuleAssignments[groupId]; len(ruleNames) > 0 {
+			if !c.handleAmbigiousRulesAssignment(args, conf, rulesInfo, newRule, result, *group, ruleNames) {
 				continue // Failed to handle issue, skip this group. New rule could have been modified
 			}
 		}
-		newRule.SetAttr("srcs", toRelativePaths(args.Rel, group.sources))
+		newRule.SetAttr("srcs", toRelativePaths(group.sources))
 		// Store the found test runner info, the runner would be injected into `deps` attribute
 		if testRunnerRuleName != label.NoLabel {
 			newRule.SetPrivateAttr(ccTestRunnerDepKey, testRunnerRuleName)
 		}
 		result.Gen = append(result.Gen, newRule)
-		result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
+		result.Imports = append(result.Imports, extractImports(group.sources))
 	}
 }
 
@@ -345,8 +335,8 @@ func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rules
 			for _, file := range protoFiles {
 				// If generated pb.h files exists exclude it, refer to cc_proto_library instead
 				if baseName, isProto := strings.CutSuffix(file, ".proto"); isProto {
-					consumedProtoFiles[path.Join(args.Rel, baseName+".pb.h")] = true
-					consumedProtoFiles[path.Join(args.Rel, baseName+".pb.cc")] = true
+					consumedProtoFiles[baseName+".pb.h"] = true
+					consumedProtoFiles[baseName+".pb.cc"] = true
 				}
 			}
 			protoRuleLabel, err := label.Parse(":" + protoRule.Name())
@@ -378,77 +368,23 @@ func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rules
 	return consumedProtoFiles
 }
 
-// Source file path relative to the workspace directory
-type sourceInfos map[string]parser.SourceInfo
-type ccSourceInfoSet struct {
-	// Sources of regular (library) files
-	srcs []string
-	// Headers
-	hdrs []string
-	// Sources containing main methods
-	mainSrcs []string
-	// Sources containing tests or defined in tests context
-	testSrcs []string
-	// Files that are unrecognized as CC sources
-	unmatched []string
-	// Map containing information extracted from recognized CC source
-	sourceInfos sourceInfos
-}
-
-func (s *ccSourceInfoSet) containsBuildableSource(src string) bool {
-	return slices.Contains(s.srcs, src) ||
-		slices.Contains(s.hdrs, src) ||
-		slices.Contains(s.mainSrcs, src) ||
-		slices.Contains(s.testSrcs, src)
-}
-
-// Collects and groups files that can be used to generate CC rules based on it's local context
-// Parses all matched CC source files to extract additional context
-func collectSourceInfos(args language.GenerateArgs) ccSourceInfoSet {
-	res := ccSourceInfoSet{}
-	res.sourceInfos = map[string]parser.SourceInfo{}
-
-	inTestDirectory := slices.ContainsFunc(
-		strings.Split(args.Rel, "/"),
-		func(segment string) bool {
-			switch segment {
-			case "test", "tests":
-				return true
-			default:
-				return false
-			}
-		},
-	)
-
-	for _, fileName := range args.RegularFiles {
-		file := path.Join(args.Rel, fileName)
-		if !hasMatchingExtension(fileName, ccExtensions) {
-			res.unmatched = append(res.unmatched, file)
+// Collects files that can be used to generate CC rules based on local context.
+// Parses all matched CC source files to extract additional context.
+func collectFileInfos(args language.GenerateArgs) []fileInfo {
+	conf := getCcConfig(args.Config)
+	platformEnvs := conf.getPlatformEnvironments()
+	fileInfos := make([]fileInfo, 0, len(args.RegularFiles))
+	for _, name := range args.RegularFiles {
+		fi, err := getFileInfo(args, platformEnvs, name)
+		if errors.Is(err, errUnmatchedExtension) {
+			continue
+		} else if err != nil {
+			log.Printf("gazelle_cc: %v", err)
 			continue
 		}
-		filePath := filepath.Join(args.Dir, fileName)
-		sourceInfo, err := parser.ParseSourceFile(filePath)
-		if err != nil {
-			log.Printf("Failed to parse source %v, reason: %v", filePath, err)
-			continue
-		}
-		res.sourceInfos[file] = sourceInfo
-		baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-		baseName = strings.ToLower(baseName)
-		switch {
-		case inTestDirectory:
-			res.testSrcs = append(res.testSrcs, file)
-		case hasMatchingExtension(fileName, headerExtensions):
-			res.hdrs = append(res.hdrs, file)
-		case strings.HasPrefix(baseName, "test") || strings.HasSuffix(baseName, "test"):
-			res.testSrcs = append(res.testSrcs, file)
-		case sourceInfo.HasMain:
-			res.mainSrcs = append(res.mainSrcs, file)
-		default:
-			res.srcs = append(res.srcs, file)
-		}
+		fileInfos = append(fileInfos, fi)
 	}
-	return res
+	return fileInfos
 }
 
 // Adjust created sourceGroups based of information from existing rules defintions.
@@ -462,8 +398,8 @@ func (srcGroups *sourceGroups) adjustToExistingRules(rulesInfo rulesInfo) (ambig
 		// Collect info about previous assignment of sources to rules creating this group
 		assignedToRules := make(map[string]bool)
 		for _, src := range group.sources {
-			if groupName, reachableByPlatforms := rulesInfo.groupAssignment[fileNameToGroupId(src)]; reachableByPlatforms {
-				assignedToRules[groupName] = true
+			if ruleName, ok := rulesInfo.groupAssignment[fileNameToGroupId(src.name)]; ok {
+				assignedToRules[ruleName] = true
 			}
 		}
 		assignedToRuleNames := slices.Collect(maps.Keys(assignedToRules))
@@ -488,7 +424,15 @@ func (srcGroups *sourceGroups) adjustToExistingRules(rulesInfo rulesInfo) (ambig
 // * if allowRulesMerge merges all rules refering to this group sources into a single rule
 // * otherwise warns user about cyclic deps and sets cyclic deps attributes to newRule and returns false
 // Returns true if successfully handled issues and it's possible to finalize creation of newRule
-func (c *ccLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, conf *ccConfig, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, newRule *rule.Rule, result *language.GenerateResult, group sourceGroup, ambigiousRuleAssignments []string) (handled bool) {
+func (c *ccLanguage) handleAmbigiousRulesAssignment(
+	args language.GenerateArgs,
+	conf *ccConfig,
+	rulesInfo rulesInfo,
+	newRule *rule.Rule,
+	result *language.GenerateResult,
+	group sourceGroup,
+	ambigiousRuleAssignments []string) (handled bool) {
+
 	switch conf.groupsCycleHandlingMode {
 	case mergeOnGroupsCycle:
 		// Merge rules creating a cyclic dependency into a single rule and remove old ones
@@ -503,7 +447,7 @@ func (c *ccLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, 
 		}
 		log.Printf("Rules %v defined in %v %v, their sources %v would be merged into a single rule '%v'. "+
 			"To prevent automatic merging of rules set `# gazelle:%v %v`",
-			slices.Sorted(slices.Values(ambigiousRuleAssignments)), args.Dir, mergeReason, slices.Sorted(slices.Values(toRelativePaths(args.Rel, group.sources))), newRule.Name(),
+			slices.Sorted(slices.Values(ambigiousRuleAssignments)), args.Dir, mergeReason, slices.Sorted(slices.Values(toRelativePaths(group.sources))), newRule.Name(),
 			cc_group_unit_cycles, warnOnGroupsCycle,
 		)
 		for _, referedRuleName := range ambigiousRuleAssignments {
@@ -526,7 +470,7 @@ func (c *ccLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, 
 				"  - Set `# gazelle:%v %v` to automatically merge targets to avoid cyclic dependencies.\n"+
 				"  - Manually combine targets to avoid cyclic dependencies.\n"+
 				"  - Remove `#include`s from source files that cause cyclic dependencies: %v",
-			ambigiousRuleAssignments, args.File.Path, cc_group_unit_cycles, mergeOnGroupsCycle, group.sources)
+			ambigiousRuleAssignments, args.File.Path, cc_group_unit_cycles, mergeOnGroupsCycle, toRelativePaths(group.sources))
 		// Collect labels to rules creating a cycle
 		deps := make([]label.Label, len(ambigiousRuleAssignments))
 		for idx, group := range ambigiousRuleAssignments {
@@ -540,7 +484,7 @@ func (c *ccLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, 
 			}
 			rule.SetAttr("deps", deps)
 			result.Gen = append(result.Gen, rule)
-			result.Imports = append(result.Imports, extractImports(args, group.sources, srcInfo.sourceInfos))
+			result.Imports = append(result.Imports, extractImports(group.sources))
 		}
 		return false // Skip processing these groups, keep existing rules unchanged
 	default:
@@ -549,7 +493,7 @@ func (c *ccLanguage) handleAmbigiousRulesAssignment(args language.GenerateArgs, 
 	}
 }
 
-func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, srcInfo ccSourceInfoSet, rulesInfo rulesInfo, generatedRules []*rule.Rule) []*rule.Rule {
+func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, fileInfos []fileInfo, rulesInfo rulesInfo, generatedRules []*rule.Rule) []*rule.Rule {
 	file := args.File
 	if file == nil {
 		return nil
@@ -569,13 +513,14 @@ func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, srcInfo ccSource
 			continue
 		}
 
-		sourceFiles := slices.Collect(maps.Keys(rulesInfo.ccRuleSources[r.Name()]))
-		// Check whether at least 1 file mentioned in rule definition sources is buildable (exists)
-		srcsExist := slices.ContainsFunc(sourceFiles, func(src string) bool {
-			return srcInfo.containsBuildableSource(src)
+		// Preserve the rule if at least one of its file still exists, even if
+		// that file is also assigned to another rule.
+		ruleFiles := rulesInfo.ccRuleSources[r.Name()]
+		existingFileIndex := slices.IndexFunc(fileInfos, func(fi fileInfo) bool {
+			_, ok := ruleFiles[fi.name]
+			return ok
 		})
-
-		if srcsExist {
+		if existingFileIndex >= 0 {
 			continue
 		}
 		// Create a copy of the rule, using the original one might prevent it from deletion
@@ -585,13 +530,13 @@ func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, srcInfo ccSource
 	return emptyRules
 }
 
-func (c *ccLanguage) listRelsToIndex(args language.GenerateArgs, srcInfo ccSourceInfoSet) []string {
+func (c *ccLanguage) listRelsToIndex(args language.GenerateArgs, fileInfos []fileInfo) []string {
 	relsToIndex := []string{}
 	relsToIndexSeen := make(map[string]struct{})
 	conf := getCcConfig(args.Config)
-	for _, si := range srcInfo.sourceInfos {
-		for _, inc := range si.CollectIncludes() {
-			dir := path.Dir(path.Clean(inc.Path))
+	for _, fi := range fileInfos {
+		for _, inc := range fi.includes {
+			dir := path.Dir(path.Clean(inc.path))
 			if dir == "." {
 				dir = ""
 			}
@@ -632,12 +577,11 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 		info.definedRules[ruleName] = rule
 		assignSources := func(srcs []string) {
 			for _, filename := range srcs {
-				srcFile := path.Join(args.Rel, filename)
-				if _, reachableByPlatforms := info.ccRuleSources[ruleName]; !reachableByPlatforms {
+				if info.ccRuleSources[ruleName] == nil {
 					info.ccRuleSources[ruleName] = make(sourceFileSet)
 				}
-				info.ccRuleSources[ruleName][srcFile] = true
-				info.groupAssignment[fileNameToGroupId(srcFile)] = ruleName
+				info.ccRuleSources[ruleName][filename] = true
+				info.groupAssignment[fileNameToGroupId(filename)] = ruleName
 			}
 		}
 		switch resolveCCRuleKind(rule.Kind(), args.Config) {
@@ -654,7 +598,7 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 }
 
 func resolveCCRuleKind(kind string, config *config.Config) string {
-	if target, reachableByPlatforms := config.AliasMap[kind]; reachableByPlatforms {
+	if target, ok := config.AliasMap[kind]; ok {
 		return target
 	}
 	for _, mapping := range config.KindMap {
