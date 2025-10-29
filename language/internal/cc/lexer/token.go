@@ -94,6 +94,10 @@ const (
 	TokenType_Semicolon
 )
 
+func (t TokenType) IsPreprocessorDirective() bool {
+	return t >= TokenType_PreprocessorDefine && t <= TokenType_PreprocessorUndef
+}
+
 type Token struct {
 	Type     TokenType
 	Location Cursor
