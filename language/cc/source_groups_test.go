@@ -42,7 +42,7 @@ func TestSourceGroups(t *testing.T) {
 				"orphan.cc": {},
 			},
 			expected: sourceGroups{
-				"orphan": {sources: []sourceFile{"orphan.cc"}},
+				"orphan": {sources: []string{"orphan.cc"}},
 			},
 		},
 		{
@@ -53,9 +53,9 @@ func TestSourceGroups(t *testing.T) {
 				"c.h": includes("b.h"),
 			},
 			expected: sourceGroups{
-				"a": {sources: []sourceFile{"a.h"}},
-				"b": {sources: []sourceFile{"b.h"}, dependsOn: []groupId{"a"}},
-				"c": {sources: []sourceFile{"c.h"}, dependsOn: []groupId{"b"}},
+				"a": {sources: []string{"a.h"}},
+				"b": {sources: []string{"b.h"}, dependsOn: []groupId{"a"}},
+				"c": {sources: []string{"c.h"}, dependsOn: []groupId{"b"}},
 			},
 		},
 		{
@@ -67,8 +67,8 @@ func TestSourceGroups(t *testing.T) {
 				"b.h":  {},
 			},
 			expected: sourceGroups{
-				"a": {sources: []sourceFile{"a.c", "a.h"}},
-				"b": {sources: []sourceFile{"b.cc", "b.h"}},
+				"a": {sources: []string{"a.c", "a.h"}},
+				"b": {sources: []string{"b.cc", "b.h"}},
 			},
 		},
 		{
@@ -81,8 +81,8 @@ func TestSourceGroups(t *testing.T) {
 				"c.h":  includes("a.h"),
 			},
 			expected: sourceGroups{
-				"a": {sources: []sourceFile{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
-				"c": {sources: []sourceFile{"c.h"}, dependsOn: []groupId{"a"}},
+				"a": {sources: []string{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
+				"c": {sources: []string{"c.h"}, dependsOn: []groupId{"a"}},
 			},
 		},
 		{
@@ -94,7 +94,7 @@ func TestSourceGroups(t *testing.T) {
 				"b.cc": includes("a.h"),
 			},
 			expected: sourceGroups{
-				"a": {sources: []sourceFile{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
+				"a": {sources: []string{"a.c", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
 			},
 		},
 		{
@@ -105,7 +105,7 @@ func TestSourceGroups(t *testing.T) {
 				"r.h": includes("p.h"),
 			},
 			expected: sourceGroups{
-				"p": {sources: []sourceFile{"p.h", "q.h", "r.h"}, subGroups: []groupId{"p", "q", "r"}},
+				"p": {sources: []string{"p.h", "q.h", "r.h"}, subGroups: []groupId{"p", "q", "r"}},
 			},
 		},
 		{
@@ -117,10 +117,10 @@ func TestSourceGroups(t *testing.T) {
 				"file.cpp": includes("m.h", "n.h", "o.h"),
 			},
 			expected: sourceGroups{
-				"m":    {sources: []sourceFile{"m.h"}},
-				"n":    {sources: []sourceFile{"n.h"}},
-				"o":    {sources: []sourceFile{"o.h"}},
-				"file": {sources: []sourceFile{"file.cpp"}, dependsOn: []groupId{"m", "n", "o"}},
+				"m":    {sources: []string{"m.h"}},
+				"n":    {sources: []string{"n.h"}},
+				"o":    {sources: []string{"o.h"}},
+				"file": {sources: []string{"file.cpp"}, dependsOn: []groupId{"m", "n", "o"}},
 			},
 		},
 
@@ -140,15 +140,15 @@ func TestSourceGroups(t *testing.T) {
 				"j.h":  includes("h.h", "i.h"),
 			},
 			expected: sourceGroups{
-				"a": {sources: []sourceFile{"a.h"}},
-				"b": {sources: []sourceFile{"b.h"}, dependsOn: []groupId{"a"}},
-				"c": {sources: []sourceFile{"c.h"}},
-				"d": {sources: []sourceFile{"d.h"}, dependsOn: []groupId{"c"}},
-				"e": {sources: []sourceFile{"e.h", "f1.h", "f2.h"}, dependsOn: []groupId{"d"}, subGroups: []groupId{"e", "f1", "f2"}},
-				"g": {sources: []sourceFile{"g.h"}, dependsOn: []groupId{"b", "d"}},
-				"h": {sources: []sourceFile{"h.h"}, dependsOn: []groupId{"g"}},
-				"i": {sources: []sourceFile{"i.h"}, dependsOn: []groupId{"g"}},
-				"j": {sources: []sourceFile{"j.h"}, dependsOn: []groupId{"h", "i"}},
+				"a": {sources: []string{"a.h"}},
+				"b": {sources: []string{"b.h"}, dependsOn: []groupId{"a"}},
+				"c": {sources: []string{"c.h"}},
+				"d": {sources: []string{"d.h"}, dependsOn: []groupId{"c"}},
+				"e": {sources: []string{"e.h", "f1.h", "f2.h"}, dependsOn: []groupId{"d"}, subGroups: []groupId{"e", "f1", "f2"}},
+				"g": {sources: []string{"g.h"}, dependsOn: []groupId{"b", "d"}},
+				"h": {sources: []string{"h.h"}, dependsOn: []groupId{"g"}},
+				"i": {sources: []string{"i.h"}, dependsOn: []groupId{"g"}},
+				"j": {sources: []string{"j.h"}, dependsOn: []groupId{"h", "i"}},
 			},
 		},
 		{
@@ -159,8 +159,8 @@ func TestSourceGroups(t *testing.T) {
 				"app.cpp": {Directives: []parser.Directive{parser.IncludeDirective{Path: "system.h", IsSystem: true}}},
 			},
 			expected: sourceGroups{
-				"lib": {sources: []sourceFile{"lib.cc", "lib.h"}},
-				"app": {sources: []sourceFile{"app.cpp"}},
+				"lib": {sources: []string{"lib.cc", "lib.h"}},
+				"app": {sources: []string{"app.cpp"}},
 			},
 		},
 		{
@@ -172,7 +172,7 @@ func TestSourceGroups(t *testing.T) {
 				"b.cc": includes("a.h"),
 			},
 			expected: sourceGroups{
-				"a": {sources: []sourceFile{"a.cc", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
+				"a": {sources: []string{"a.cc", "a.h", "b.cc", "b.h"}, subGroups: []groupId{"a", "b"}},
 			},
 		},
 		{
@@ -184,8 +184,8 @@ func TestSourceGroups(t *testing.T) {
 				"b.cc": includes("a.h"),
 			},
 			expected: sourceGroups{
-				"a": {sources: []sourceFile{"a.cc", "a.h"}},
-				"b": {sources: []sourceFile{"b.cc", "b.h"}, dependsOn: []groupId{"a"}},
+				"a": {sources: []string{"a.cc", "a.h"}},
+				"b": {sources: []string{"b.cc", "b.h"}, dependsOn: []groupId{"a"}},
 			},
 		},
 	}

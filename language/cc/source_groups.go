@@ -37,7 +37,7 @@ func (id groupId) toRuleName() string {
 
 // sourceGroup represents a collection of source files and their dependencies
 type sourceGroup struct {
-	sources   []sourceFile
+	sources   []string
 	dependsOn []groupId // Direct dependencies of this group (only used internally for testing)
 	subGroups []groupId // Sub-groups creating this group
 }
@@ -47,10 +47,10 @@ type sourceGroups map[groupId]*sourceGroup
 
 // Returns a source group by assigning files based on their filename (excluding extension)
 // without analyzing dependencies between sources
-func identitySourceGroups(srcs []sourceFile) sourceGroups {
+func identitySourceGroups(srcs []string) sourceGroups {
 	srcGroups := make(sourceGroups)
 	for _, src := range srcs {
-		srcGroups[src.toGroupId()] = &sourceGroup{sources: []sourceFile{src}}
+		srcGroups[fileNameToGroupId(src)] = &sourceGroup{sources: []string{src}}
 	}
 	return srcGroups
 }
@@ -101,7 +101,7 @@ func (g *sourceGroups) renameOrMergeWith(current groupId, replacement groupId) b
 // Header (.h) and it's corresponding implemention (.cc) are always grouped together.
 // Source files without corresponding headers are assigned to single-element groups and can never become dependency of any other group.
 // Each source file is guaranteed to be assigned to exactly 1 group.
-func groupSourcesByUnits(sources []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) sourceGroups {
+func groupSourcesByUnits(sources []string, sourceInfos map[string]parser.SourceInfo) sourceGroups {
 	graph := buildDependencyGraph(sources, sourceInfos)
 	sccs := graph.findStronglyConnectedComponents()
 	groups := splitIntoSourceGroups(sccs, graph)
@@ -112,7 +112,7 @@ func groupSourcesByUnits(sources []sourceFile, sourceInfos map[sourceFile]parser
 	return groups
 }
 
-type sourceFileSet map[sourceFile]bool
+type sourceFileSet map[string]bool
 
 // represents a node in the dependency graph.
 type sourceGroupNode struct {
@@ -126,12 +126,12 @@ type sourceDependencyGraph map[groupId]sourceGroupNode
 // Source file (.cc) and it's corresponsing header are always grouped together and become a node in a dependency graph.
 // Nodes of the graph are constructed base on sources having the same name (excluding extension suffix)
 // Edges of the dependency graph are constructed based on include directives to local headers defined in sources of the graph node
-func buildDependencyGraph(sourceFiles []sourceFile, sourceInfos map[sourceFile]parser.SourceInfo) sourceDependencyGraph {
+func buildDependencyGraph(sourceFiles []string, sourceInfos map[string]parser.SourceInfo) sourceDependencyGraph {
 	graph := make(sourceDependencyGraph)
 
 	// Initialize graph nodes
 	for _, src := range sourceFiles {
-		groupId := src.toGroupId()
+		groupId := fileNameToGroupId(src)
 		graph[groupId] = sourceGroupNode{
 			sources:   make(sourceFileSet),
 			adjacency: make(sourceFileSet)}
@@ -140,7 +140,7 @@ func buildDependencyGraph(sourceFiles []sourceFile, sourceInfos map[sourceFile]p
 	// Create edges based on include dependencies
 	for _, file := range sourceFiles {
 		info := sourceInfos[file]
-		node := file.toGroupId()
+		node := fileNameToGroupId(file)
 		graph[node].sources[file] = true
 		for _, include := range info.CollectIncludes() {
 			if include.IsSystem {
@@ -148,9 +148,9 @@ func buildDependencyGraph(sourceFiles []sourceFile, sourceInfos map[sourceFile]p
 			}
 			// Exclude non local headers, these are handled independently as target dependency
 			// The include can be either workspace relative or source file relative
-			for _, baseDir := range []string{"", path.Dir(file.stringValue())} {
-				dep := newSourceFile(baseDir, include.Path)
-				if _, exists := graph[dep.toGroupId()]; exists {
+			for _, baseDir := range []string{"", path.Dir(file)} {
+				dep := path.Join(baseDir, include.Path)
+				if _, exists := graph[fileNameToGroupId(dep)]; exists {
 					graph[node].adjacency[dep] = true
 					break
 				}
@@ -180,7 +180,7 @@ func (graph *sourceDependencyGraph) findStronglyConnectedComponents() [][]groupI
 
 		nodes := *graph
 		for sourceFile := range nodes[node].adjacency {
-			dep := sourceFile.toGroupId()
+			dep := fileNameToGroupId(sourceFile)
 			if _, exists := indices[dep]; !exists {
 				strongConnect(dep)
 				lowLink[node] = min(lowLink[node], lowLink[dep])
@@ -218,7 +218,7 @@ func splitIntoSourceGroups(fileGroups [][]groupId, graph sourceDependencyGraph) 
 	groups := make(sourceGroups, len(fileGroups))
 
 	for _, sourcesGroup := range fileGroups {
-		var groupSources []sourceFile
+		var groupSources []string
 		for _, groupId := range sourcesGroup {
 			for src := range graph[groupId].sources {
 				groupSources = append(groupSources, src)
@@ -235,10 +235,10 @@ func splitIntoSourceGroups(fileGroups [][]groupId, graph sourceDependencyGraph) 
 
 // Assigns to each source group a list of its direct dependencies (sourceGroup.dependsOn)
 func (groups *sourceGroups) resolveGroupDependencies(graph sourceDependencyGraph) {
-	headerToGroupId := make(map[sourceFile]groupId)
+	headerToGroupId := make(map[string]groupId)
 	for id, group := range *groups {
 		for _, file := range group.sources {
-			if file.isHeader() {
+			if fileNameIsHeader(file) {
 				headerToGroupId[file] = id
 			}
 		}
@@ -247,7 +247,7 @@ func (groups *sourceGroups) resolveGroupDependencies(graph sourceDependencyGraph
 	for id, group := range *groups {
 		dependencies := make(map[groupId]bool)
 		for _, file := range group.sources {
-			depId := file.toGroupId()
+			depId := fileNameToGroupId(file)
 			for dep := range graph[depId].adjacency {
 				if depGroup, exists := headerToGroupId[dep]; exists && depGroup != id {
 					dependencies[depGroup] = true
@@ -262,8 +262,8 @@ func (groups *sourceGroups) resolveGroupDependencies(graph sourceDependencyGraph
 
 // Generates a map of sourceFiles and their corresponsing groupId.
 // Panics if source file is assigned to multiple groups
-func (groups *sourceGroups) sourceToGroupIds() map[sourceFile]groupId {
-	sourceToGroupId := map[sourceFile]groupId{}
+func (groups *sourceGroups) sourceToGroupIds() map[string]groupId {
+	sourceToGroupId := map[string]groupId{}
 	for id, group := range *groups {
 		for _, file := range group.sources {
 			if previous, exists := sourceToGroupId[file]; exists {
@@ -277,8 +277,8 @@ func (groups *sourceGroups) sourceToGroupIds() map[sourceFile]groupId {
 
 // Selects a name for the group based on its lexographically first source file name, prefers headers over remaining kinds of files
 // The constructed id is lower-cased file name without the extension suffix
-func selectGroupName(files []sourceFile) groupId {
-	var selectedFile sourceFile
+func selectGroupName(files []string) groupId {
+	var selectedFile string
 	_, hdrs := partitionCSources(files)
 	switch len(hdrs) {
 	case 0:
@@ -290,13 +290,13 @@ func selectGroupName(files []sourceFile) groupId {
 		slices.Sort(hdrs)
 		selectedFile = hdrs[0]
 	}
-	return selectedFile.toGroupId()
+	return fileNameToGroupId(selectedFile)
 }
 
 // Splits the source files into sources and headers
-func partitionCSources(files []sourceFile) (srcs []sourceFile, hdrs []sourceFile) {
+func partitionCSources(files []string) (srcs []string, hdrs []string) {
 	for _, file := range files {
-		if file.isHeader() {
+		if fileNameIsHeader(file) {
 			hdrs = append(hdrs, file)
 		} else {
 			srcs = append(srcs, file)
@@ -305,30 +305,20 @@ func partitionCSources(files []sourceFile) (srcs []sourceFile, hdrs []sourceFile
 	return srcs, hdrs
 }
 
-func (file *sourceFile) isHeader() bool {
-	ext := filepath.Ext(string(*file))
+func fileNameIsHeader(name string) bool {
+	ext := filepath.Ext(name)
 	return slices.Contains(headerExtensions, ext)
 }
 
-func (s *sourceFile) baseName() string {
-	name := string(*s)
-	return strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))
-}
-
-func (s *sourceFile) stringValue() string {
-	return string(*s)
-}
-
-func (s *sourceFile) toGroupId() groupId {
-	name := string(*s)
+func fileNameToGroupId(name string) groupId {
 	id := strings.TrimSuffix(name, filepath.Ext(name))
 	return groupId(id)
 }
 
-func toRelativePaths(dir string, files []sourceFile) []string {
+func toRelativePaths(dir string, files []string) []string {
 	relPaths := make([]string, len(files))
 	for idx, value := range files {
-		path, err := filepath.Rel(dir, value.stringValue())
+		path, err := filepath.Rel(dir, value)
 		if err != nil {
 			log.Panicf("Cannot relativize: %v - %v", dir, value)
 		}

@@ -47,7 +47,7 @@ type (
 	}
 	ccInclude struct {
 		// File where this include was found
-		sourceFile sourceFile
+		sourceFile string
 		// Line number in sourceFile where this include was found
 		lineNumber int
 		// Include path extracted from brackets or double quotes
