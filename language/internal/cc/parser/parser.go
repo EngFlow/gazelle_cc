@@ -114,7 +114,7 @@ const debug = false
 // preprocessor conditionals. minPrecedence controls operator binding
 // (precedence climbing).
 func (p *parser) parseExprPrecedence(minPrecedence precedence) (Expr, error) {
-	token, err := p.nextDirectiveToken()
+	token, err := p.expectNextInlineToken()
 	if err != nil {
 		return nil, err
 	}
@@ -331,18 +331,17 @@ func (p *parser) parseExpr() (Expr, error) {
 	return p.parseExprPrecedence(precedenceLowest)
 }
 
-// Similar to nextToken(), but returns an error if no tokens are left or newline
-// is encountered. Newline means unexpected end of the directive in this
-// context.
-func (p *parser) nextDirectiveToken() (lexer.Token, error) {
-	token := p.nextToken()
-	switch token.Type {
-	case lexer.TokenType_EOF:
-		return lexer.TokenEOF, errors.New("expected identifier, found EOF")
+// Similar to expectNextToken(), but returns an error if no tokens are left or
+// newline is encountered. Newline character means unexpected end of the
+// directive in this context.
+func (p *parser) expectNextInlineToken() (lexer.Token, error) {
+	switch p.peekToken() {
 	case lexer.TokenType_Newline:
-		return lexer.TokenEOF, errors.New("expected token, found EOL")
+		return lexer.TokenEOF, errors.New("expected token in the same single line")
+	case lexer.TokenType_EOF:
+		return lexer.TokenEOF, errors.New("expected token but reached end of input")
 	default:
-		return token, nil
+		return p.nextToken(), nil
 	}
 }
 
@@ -479,7 +478,7 @@ func (p *parser) parseDefineDirective() (DefineDirective, error) {
 		// Function-like macro definition
 	parseArgs:
 		for {
-			token, err := p.nextDirectiveToken()
+			token, err := p.expectNextInlineToken()
 			if err != nil {
 				return DefineDirective{}, err
 			}
