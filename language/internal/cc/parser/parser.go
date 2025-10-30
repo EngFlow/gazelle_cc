@@ -309,6 +309,13 @@ func (p *parser) expectNextToken(expected lexer.TokenType) (lexer.Token, error) 
 func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) bool) ([]Directive, error) {
 	directives := []Directive{}
 	for !shouldStop(p.peekToken()) {
+		if p.peekToken() == lexer.TokenType_EOF {
+			if debug {
+				log.Printf("unexpected end of input")
+			}
+			return directives, nil
+		}
+
 		if p.tryParseMainFunction() {
 			p.sourceInfo.HasMain = true
 		}

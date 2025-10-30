@@ -631,6 +631,16 @@ func TestParseConditionalIncludes(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Unclosed conditional block
+			input: `
+			#ifdef FOO
+				#include "foo.h"
+			`,
+			expected: SourceInfo{
+				Directives: []Directive{},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
