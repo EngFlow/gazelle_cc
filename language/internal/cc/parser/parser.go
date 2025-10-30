@@ -316,11 +316,8 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) boo
 			directive, err := p.parseDirective(tokenType)
 			if err == nil {
 				directives = append(directives, directive)
-			} else {
-				p.dropTokensUntilNewline()
-				if debug {
-					log.Printf("Failed to parse %s directive: %v", tokenType, err)
-				}
+			} else if debug {
+				log.Printf("Failed to parse %s directive: %v", tokenType, err)
 			}
 		}
 	}
@@ -348,17 +345,6 @@ func (p *parser) readUntilNewline() []string {
 	result := collections.MapSlice(p.tokensLeft[:newlineIndex], func(token lexer.Token) string { return token.Content })
 	p.dropTokens(dropIndex)
 	return result
-}
-
-// dropTokensUntilNewline skips all tokens remaining on the current line
-// including the newline character.
-func (p *parser) dropTokensUntilNewline() {
-	newlineIndex := slices.IndexFunc(p.tokensLeft, func(token lexer.Token) bool { return token.Type == lexer.TokenType_Newline })
-	if newlineIndex >= 0 {
-		p.dropTokens(newlineIndex + 1)
-	} else {
-		p.dropTokens(len(p.tokensLeft))
-	}
 }
 
 // parseIdent reads the next identifier token.
