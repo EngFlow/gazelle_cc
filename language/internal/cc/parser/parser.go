@@ -149,7 +149,7 @@ func parseBinaryLogicOrOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, e
 	if err != nil {
 		return nil, err
 	}
-	return Or{lhs, rhs}, nil
+	return Or{L: lhs, R: rhs}, nil
 }
 
 func parseBinaryLogicAndOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, error) {
@@ -157,7 +157,7 @@ func parseBinaryLogicAndOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, 
 	if err != nil {
 		return nil, err
 	}
-	return And{lhs, rhs}, nil
+	return And{L: lhs, R: rhs}, nil
 }
 
 func parseBinaryCompareOperator(p *parser, operator lexer.TokenType, lhs Expr) (Expr, error) {
@@ -165,7 +165,7 @@ func parseBinaryCompareOperator(p *parser, operator lexer.TokenType, lhs Expr) (
 	if err != nil {
 		return nil, err
 	}
-	return Compare{lhs, operator, rhs}, nil
+	return Compare{Left: lhs, Op: operator, Right: rhs}, nil
 }
 
 func parseBinaryApplyOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, error) {
@@ -200,7 +200,7 @@ func parseUnaryBangOperator(p *parser, _ lexer.TokenType) (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Not{inner}, nil
+	return Not{X: inner}, nil
 }
 
 func parseUnaryOpenParenthesis(p *parser, _ lexer.TokenType) (Expr, error) {
@@ -396,13 +396,13 @@ func (p *parser) parseIfBranch(directive lexer.TokenType, kind BranchKind) (Cond
 		if err != nil {
 			return ConditionalBranch{}, err
 		}
-		cond = Defined{ident}
+		cond = Defined{Name: ident}
 	case lexer.TokenType_PreprocessorIfndef, lexer.TokenType_PreprocessorElifndef:
 		ident, err := p.parseIdent()
 		if err != nil {
 			return ConditionalBranch{}, err
 		}
-		cond = Not{X: Defined{ident}}
+		cond = Not{X: Defined{Name: ident}}
 	case lexer.TokenType_PreprocessorIf, lexer.TokenType_PreprocessorElif:
 		cond, err = p.parseExpr()
 		if err != nil {
