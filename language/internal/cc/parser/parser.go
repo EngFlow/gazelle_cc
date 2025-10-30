@@ -114,12 +114,9 @@ const debug = false
 // preprocessor conditionals. minPrecedence controls operator binding
 // (precedence climbing).
 func (p *parser) parseExprPrecedence(minPrecedence precedence) (Expr, error) {
-	token, err := p.expectNextInlineToken()
-	if err != nil {
-		return nil, err
-	}
-
+	token := p.nextToken()
 	var result Expr
+	var err error
 	rule, exists := exprKeywordsPrecedence[token.Type]
 	if exists && rule.prefixParser != nil {
 		result, err = rule.prefixParser(p, token.Type)
@@ -331,20 +328,6 @@ func (p *parser) parseExpr() (Expr, error) {
 	return p.parseExprPrecedence(precedenceLowest)
 }
 
-// Similar to expectNextToken(), but returns an error if no tokens are left or
-// newline is encountered. Newline character means unexpected end of the
-// directive in this context.
-func (p *parser) expectNextInlineToken() (lexer.Token, error) {
-	switch p.peekToken() {
-	case lexer.TokenType_Newline:
-		return lexer.TokenEOF, errors.New("expected token in the same single line")
-	case lexer.TokenType_EOF:
-		return lexer.TokenEOF, errors.New("expected token but reached end of input")
-	default:
-		return p.nextToken(), nil
-	}
-}
-
 // readUntilEOL skips all tokens until the end of the line, returning all read
 // tokens as a slice of strings.
 func (p *parser) readUntilEOL() []string {
@@ -478,18 +461,20 @@ func (p *parser) parseDefineDirective() (DefineDirective, error) {
 		// Function-like macro definition
 	parseArgs:
 		for {
-			token, err := p.expectNextInlineToken()
-			if err != nil {
-				return DefineDirective{}, err
-			}
-			switch token.Type {
+			switch p.peekToken() {
 			case lexer.TokenType_ParenthesisRight:
-				break parseArgs // end of argument list
+				// end of argument list
+				p.nextToken()
+				break parseArgs
 			case lexer.TokenType_Comma:
 				// skip commas
+				p.nextToken()
 				continue
+			case lexer.TokenType_Identifier:
+				// argument name
+				defineArgs = append(defineArgs, p.nextToken().Content)
 			default:
-				defineArgs = append(defineArgs, token.Content)
+				return DefineDirective{}, fmt.Errorf("malformed macro argument list in #define for macro %q", ident)
 			}
 		}
 	}
