@@ -208,7 +208,7 @@ func parseUnaryOpenParenthesis(p *parser, _ lexer.TokenType) (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.expectNextToken(lexer.TokenType_ParenthesisRight); err != nil {
+	if _, err := p.expectNextToken(lexer.TokenType_ParenthesisRight); err != nil {
 		return nil, err
 	}
 	return expr, nil
@@ -244,7 +244,7 @@ func parseDefinedExpr(p *parser, _ lexer.TokenType) (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := p.expectNextToken(lexer.TokenType_ParenthesisRight); err != nil {
+		if _, err := p.expectNextToken(lexer.TokenType_ParenthesisRight); err != nil {
 			return nil, err
 		}
 	} else {
@@ -286,17 +286,16 @@ func (p *parser) nextToken() lexer.Token {
 	return token
 }
 
-// Check if the next token matches the expected content, returning error
-// otherwise.
-func (p *parser) expectNextToken(expected lexer.TokenType) error {
-	tokenType := p.nextToken().Type
-	switch tokenType {
-	case lexer.TokenType_EOF:
-		return fmt.Errorf("expected %q but reached end of input", expected)
+// Return the next token and consume it if it matches expected type. Otherwise
+// return an error, without consuming the token.
+func (p *parser) expectNextToken(expected lexer.TokenType) (lexer.Token, error) {
+	switch p.peekToken() {
 	case expected:
-		return nil
+		return p.nextToken(), nil
+	case lexer.TokenType_EOF:
+		return lexer.TokenEOF, fmt.Errorf("expected %s but reached end of input", expected)
 	default:
-		return fmt.Errorf("expected %q but found %q", expected, tokenType)
+		return lexer.TokenEOF, fmt.Errorf("expected %s but found %s", expected, p.peekToken())
 	}
 }
 
@@ -365,12 +364,9 @@ func (p *parser) readUntilEOL() []string {
 
 // parseIdent reads the next identifier token.
 func (p *parser) parseIdent() (Ident, error) {
-	token, err := p.nextDirectiveToken()
+	token, err := p.expectNextToken(lexer.TokenType_Identifier)
 	if err != nil {
 		return "", err
-	}
-	if token.Type != lexer.TokenType_Identifier {
-		return "", fmt.Errorf("expected identifier, found %q", token.Content)
 	}
 	return Ident(token.Content), nil
 }

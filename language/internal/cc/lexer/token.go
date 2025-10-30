@@ -14,36 +14,46 @@
 
 package lexer
 
+import "fmt"
+
 type TokenType int
 
 const (
-	// Special token type indicating the end of the input stream.
+	// Special token type indicating the end of the input stream (or default
+	// value when an error is returned).
 	TokenType_EOF TokenType = iota
 
 	// Every complete token that is not one of the other types.
 	//
-	// This is a fallback type. Lexer covers only a subset of C/C++ syntax. Every token without its dedicated TokenType is classified as Unassigned.
+	// This is a fallback type. Lexer covers only a subset of C/C++ syntax.
+	// Every token without its dedicated TokenType is classified as Unassigned.
 	TokenType_Unassigned
 
-	// Single newline character '\n'. Newlines require special handling because they mark the end of a preprocessor directive.
+	// Single newline character '\n'. Newlines require special handling because
+	// they mark the end of a preprocessor directive.
 	TokenType_Newline
 
 	// One or more whitespace characters, other than newlines.
 	TokenType_Whitespace
 
-	// Line continuation sequence, a backslash '\' followed by a newline character '\n' (with optional whitespace characters between).
+	// Line continuation sequence, a backslash '\' followed by a newline
+	// character '\n' (with optional whitespace characters between).
 	TokenType_ContinueLine
 
-	// Preprocessor system include path, enclosed in angle brackets, e.g. <stdio.h>.
+	// Preprocessor system include path, enclosed in angle brackets, e.g.
+	// <stdio.h>.
 	TokenType_PreprocessorSystemPath
 
-	// The special keyword "defined", used in preprocessor conditional expressions.
+	// The special keyword "defined", used in preprocessor conditional
+	// expressions.
 	TokenType_PreprocessorDefined
 
-	// Identifier or keyword, a letter or underscore followed by letters, digits or underscores.
+	// Identifier or keyword, a letter or underscore followed by letters, digits
+	// or underscores.
 	TokenType_Identifier
 
-	// Integer literal in base decimal, hexadecimal, octal or binary, e.g. 123, 0x1A3F, 0755, 0b1101.
+	// Integer literal in base decimal, hexadecimal, octal or binary, e.g. 123,
+	// 0x1A3F, 0755, 0b1101.
 	TokenType_LiteralInteger
 
 	// String literal, enclosed in double quotes, e.g. "example".
@@ -55,7 +65,8 @@ const (
 	// Multi-line comment, starting with /* and ending with */.
 	TokenType_CommentMultiLine
 
-	// Preprocessor directives, a hash '#' followed by the directive name (with optional whitespace characters between).
+	// Preprocessor directives, a hash '#' followed by the directive name (with
+	// optional whitespace characters between).
 
 	TokenType_PreprocessorDefine
 	TokenType_PreprocessorElif
@@ -93,6 +104,12 @@ const (
 	TokenType_ParenthesisRight
 	TokenType_Semicolon
 )
+
+// TODO: we can generate appropriate string representations using tools like
+// https://github.com/dmarkham/enumer
+func (t TokenType) String() string {
+	return fmt.Sprintf("TokenType(%d)", t)
+}
 
 func (t TokenType) IsPreprocessorDirective() bool {
 	return t >= TokenType_PreprocessorDefine && t <= TokenType_PreprocessorUndef
