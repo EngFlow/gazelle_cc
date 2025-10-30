@@ -219,6 +219,7 @@ func parseUnaryOpenParenthesis(p *parser) (Expr, error) {
 // parseIncludeDirective parses an #include or #include_next directive,
 // extracting its path and kind (system/user).
 func (p *parser) parseIncludeDirective() (Directive, error) {
+	p.nextToken()
 	switch p.peekToken() {
 	// Handle #include <system_include.h>
 	case lexer.TokenType_PreprocessorSystemPath:
@@ -312,13 +313,15 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) boo
 			p.sourceInfo.HasMain = true
 		}
 
-		if tokenType := p.nextToken().Type; tokenType.IsPreprocessorDirective() {
-			directive, err := p.parseDirective(tokenType)
+		if tokenType := p.peekToken(); tokenType.IsPreprocessorDirective() {
+			directive, err := p.parseDirective()
 			if err == nil {
 				directives = append(directives, directive)
 			} else if debug {
 				log.Printf("Failed to parse %s directive: %v", tokenType, err)
 			}
+		} else {
+			p.nextToken()
 		}
 	}
 
@@ -369,11 +372,11 @@ func isEndOfIfBranch(tokenType lexer.TokenType) bool {
 
 // parseIfBranch parses a single #if/#ifdef/#ifndef/#elif/#elifdef/#elifndef
 // branch and its body.
-func (p *parser) parseIfBranch(directive lexer.TokenType, kind BranchKind) (ConditionalBranch, error) {
+func (p *parser) parseIfBranch(kind BranchKind) (ConditionalBranch, error) {
 	var cond Expr
 	var err error
 
-	switch directive {
+	switch directive := p.nextToken().Type; directive {
 	case lexer.TokenType_PreprocessorIfdef, lexer.TokenType_PreprocessorElifdef:
 		ident, err := p.parseIdent()
 		if err != nil {
@@ -392,7 +395,7 @@ func (p *parser) parseIfBranch(directive lexer.TokenType, kind BranchKind) (Cond
 			return ConditionalBranch{}, err
 		}
 	default:
-		return ConditionalBranch{}, fmt.Errorf("unsupported branch directive: %q", directive)
+		return ConditionalBranch{}, fmt.Errorf("unsupported branch directive: %s", directive)
 	}
 
 	body, err := p.parseDirectivesUntil(isEndOfIfBranch)
@@ -409,21 +412,19 @@ func (p *parser) parseIfBranch(directive lexer.TokenType, kind BranchKind) (Cond
 
 // parseIfBlock parses an entire #if/#ifdef/#ifndef block (including
 // #elif/#else/#endif) and all nested directives.
-func (p *parser) parseIfBlock(startDirective lexer.TokenType) (IfBlock, error) {
+func (p *parser) parseIfBlock() (IfBlock, error) {
 	var branches []ConditionalBranch
 
-	firstBranch, err := p.parseIfBranch(startDirective, IfBranch)
+	firstBranch, err := p.parseIfBranch(IfBranch)
 	if err != nil {
 		return IfBlock{}, err
 	}
 	branches = append(branches, firstBranch)
 
 	for {
-		tokenType := p.peekToken()
-		switch tokenType {
+		switch p.peekToken() {
 		case lexer.TokenType_PreprocessorElif, lexer.TokenType_PreprocessorElifdef, lexer.TokenType_PreprocessorElifndef:
-			p.nextToken()
-			branch, err := p.parseIfBranch(tokenType, ElifBranch)
+			branch, err := p.parseIfBranch(ElifBranch)
 			if err != nil {
 				return IfBlock{}, err
 			}
@@ -446,7 +447,7 @@ func (p *parser) parseIfBlock(startDirective lexer.TokenType) (IfBlock, error) {
 			return IfBlock{Branches: branches}, nil
 
 		default:
-			return IfBlock{}, fmt.Errorf("unexpected token %v inside #if block", tokenType)
+			return IfBlock{}, fmt.Errorf("unexpected token %v inside #if block", p.peekToken())
 		}
 	}
 }
@@ -454,6 +455,7 @@ func (p *parser) parseIfBlock(startDirective lexer.TokenType) (IfBlock, error) {
 // parseDefineDirective parses a #define directive, capturing the macro name and
 // tokens.
 func (p *parser) parseDefineDirective() (DefineDirective, error) {
+	p.nextToken()
 	ident, err := p.parseIdent()
 	if err != nil {
 		return DefineDirective{}, err
@@ -486,6 +488,7 @@ func (p *parser) parseDefineDirective() (DefineDirective, error) {
 
 // parseUndefineDirective parses a #undef directive and its macro name.
 func (p *parser) parseUndefineDirective() (UndefineDirective, error) {
+	p.nextToken()
 	ident, err := p.parseIdent()
 	if err != nil {
 		return UndefineDirective{}, err
@@ -495,21 +498,21 @@ func (p *parser) parseUndefineDirective() (UndefineDirective, error) {
 
 // parseDirective dispatches to the appropriate directive parser based on the
 // token.
-func (p *parser) parseDirective(directive lexer.TokenType) (Directive, error) {
-	switch directive {
+func (p *parser) parseDirective() (Directive, error) {
+	switch directive := p.peekToken(); directive {
 	case lexer.TokenType_PreprocessorInclude, lexer.TokenType_PreprocessorIncludeNext:
 		return p.parseIncludeDirective()
 	case lexer.TokenType_PreprocessorIf, lexer.TokenType_PreprocessorIfdef, lexer.TokenType_PreprocessorIfndef:
-		return p.parseIfBlock(directive)
+		return p.parseIfBlock()
 	case lexer.TokenType_PreprocessorDefine:
 		return p.parseDefineDirective()
 	case lexer.TokenType_PreprocessorUndef:
 		return p.parseUndefineDirective()
 	default:
 		if isEndOfIfBranch(directive) {
-			return nil, fmt.Errorf("malformed input: unpaired #if condition token: %q", directive)
+			return nil, fmt.Errorf("malformed input: unpaired #if condition token: %s", directive)
 		}
-		return nil, fmt.Errorf("unknown directive: %q", directive)
+		return nil, fmt.Errorf("unknown directive: %s", directive)
 	}
 }
 
