@@ -71,8 +71,8 @@ type (
 		prefixParser prefixParseFn
 		infixParser  infixParserFn
 	}
-	prefixParseFn func(p *parser, operator lexer.TokenType) (Expr, error)
-	infixParserFn func(p *parser, operator lexer.TokenType, lhs Expr) (Expr, error)
+	prefixParseFn func(p *parser) (Expr, error)
+	infixParserFn func(p *parser, lhs Expr) (Expr, error)
 	precedence    int
 )
 
@@ -114,14 +114,13 @@ const debug = false
 // preprocessor conditionals. minPrecedence controls operator binding
 // (precedence climbing).
 func (p *parser) parseExprPrecedence(minPrecedence precedence) (Expr, error) {
-	token := p.nextToken()
 	var result Expr
 	var err error
-	rule, exists := exprKeywordsPrecedence[token.Type]
+	rule, exists := exprKeywordsPrecedence[p.peekToken()]
 	if exists && rule.prefixParser != nil {
-		result, err = rule.prefixParser(p, token.Type)
+		result, err = rule.prefixParser(p)
 	} else {
-		result, err = parseValue(token)
+		result, err = parseValue(p.nextToken())
 	}
 
 	if err != nil {
@@ -134,14 +133,15 @@ func (p *parser) parseExprPrecedence(minPrecedence precedence) (Expr, error) {
 			return result, nil // current operator binds less – stop and return
 		}
 
-		result, err = rule.infixParser(p, p.nextToken().Type, result)
+		result, err = rule.infixParser(p, result)
 		if err != nil {
 			return nil, err
 		}
 	}
 }
 
-func parseBinaryLogicOrOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, error) {
+func parseBinaryLogicOrOperator(p *parser, lhs Expr) (Expr, error) {
+	p.nextToken()
 	rhs, err := p.parseExprPrecedence(precedenceOr + 1)
 	if err != nil {
 		return nil, err
@@ -149,7 +149,8 @@ func parseBinaryLogicOrOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, e
 	return Or{L: lhs, R: rhs}, nil
 }
 
-func parseBinaryLogicAndOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, error) {
+func parseBinaryLogicAndOperator(p *parser, lhs Expr) (Expr, error) {
+	p.nextToken()
 	rhs, err := p.parseExprPrecedence(precedenceAnd + 1)
 	if err != nil {
 		return nil, err
@@ -157,7 +158,8 @@ func parseBinaryLogicAndOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, 
 	return And{L: lhs, R: rhs}, nil
 }
 
-func parseBinaryCompareOperator(p *parser, operator lexer.TokenType, lhs Expr) (Expr, error) {
+func parseBinaryCompareOperator(p *parser, lhs Expr) (Expr, error) {
+	operator := p.nextToken().Type
 	rhs, err := p.parseExprPrecedence(precedenceCompare + 1)
 	if err != nil {
 		return nil, err
@@ -165,7 +167,8 @@ func parseBinaryCompareOperator(p *parser, operator lexer.TokenType, lhs Expr) (
 	return Compare{Left: lhs, Op: operator, Right: rhs}, nil
 }
 
-func parseBinaryApplyOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, error) {
+func parseBinaryApplyOperator(p *parser, lhs Expr) (Expr, error) {
+	p.nextToken()
 	ident, ok := lhs.(Ident)
 	if !ok {
 		return nil, fmt.Errorf("expected identifier for apply operator, got %T", lhs)
@@ -192,7 +195,8 @@ func parseBinaryApplyOperator(p *parser, _ lexer.TokenType, lhs Expr) (Expr, err
 	}
 }
 
-func parseUnaryBangOperator(p *parser, _ lexer.TokenType) (Expr, error) {
+func parseUnaryBangOperator(p *parser) (Expr, error) {
+	p.nextToken()
 	inner, err := p.parseExprPrecedence(precedenceBang + 1)
 	if err != nil {
 		return nil, err
@@ -200,7 +204,8 @@ func parseUnaryBangOperator(p *parser, _ lexer.TokenType) (Expr, error) {
 	return Not{X: inner}, nil
 }
 
-func parseUnaryOpenParenthesis(p *parser, _ lexer.TokenType) (Expr, error) {
+func parseUnaryOpenParenthesis(p *parser) (Expr, error) {
+	p.nextToken()
 	expr, err := p.parseExprPrecedence(precedenceLowest + 1)
 	if err != nil {
 		return nil, err
@@ -232,7 +237,8 @@ func (p *parser) parseIncludeDirective() (Directive, error) {
 
 // parseDefinedExpr parses the `defined` operator for macro checks in #if
 // expressions.
-func parseDefinedExpr(p *parser, _ lexer.TokenType) (Expr, error) {
+func parseDefinedExpr(p *parser) (Expr, error) {
+	p.nextToken()
 	var name Ident
 	var err error
 	if p.peekToken() == lexer.TokenType_ParenthesisLeft {
