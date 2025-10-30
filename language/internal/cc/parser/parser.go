@@ -317,9 +317,9 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) boo
 			if err == nil {
 				directives = append(directives, directive)
 			} else {
-				skipped := p.readUntilEOL() // skip remaining part of directive
+				p.dropTokensUntilNewline()
 				if debug {
-					log.Printf("Failed to parse %v directive: %v, skipping tokens until end of line: %v", tokenType, err, skipped)
+					log.Printf("Failed to parse %s directive: %v", tokenType, err)
 				}
 			}
 		}
@@ -334,9 +334,9 @@ func (p *parser) parseExpr() (Expr, error) {
 	return p.parseExprPrecedence(precedenceLowest)
 }
 
-// readUntilEOL skips all tokens until the end of the line, returning all read
-// tokens as a slice of strings.
-func (p *parser) readUntilEOL() []string {
+// readUntilNewline skips all tokens until the end of the line, returning all
+// read tokens (excluding the newline) as a slice of strings.
+func (p *parser) readUntilNewline() []string {
 	newlineIndex := slices.IndexFunc(p.tokensLeft, func(token lexer.Token) bool { return token.Type == lexer.TokenType_Newline })
 	dropIndex := newlineIndex + 1
 	if newlineIndex < 0 {
@@ -348,6 +348,17 @@ func (p *parser) readUntilEOL() []string {
 	result := collections.MapSlice(p.tokensLeft[:newlineIndex], func(token lexer.Token) string { return token.Content })
 	p.dropTokens(dropIndex)
 	return result
+}
+
+// dropTokensUntilNewline skips all tokens remaining on the current line
+// including the newline character.
+func (p *parser) dropTokensUntilNewline() {
+	newlineIndex := slices.IndexFunc(p.tokensLeft, func(token lexer.Token) bool { return token.Type == lexer.TokenType_Newline })
+	if newlineIndex >= 0 {
+		p.dropTokens(newlineIndex + 1)
+	} else {
+		p.dropTokens(len(p.tokensLeft))
+	}
 }
 
 // parseIdent reads the next identifier token.
@@ -484,7 +495,7 @@ func (p *parser) parseDefineDirective() (DefineDirective, error) {
 			}
 		}
 	}
-	return DefineDirective{Name: ident.String(), Args: defineArgs, Body: p.readUntilEOL()}, nil
+	return DefineDirective{Name: ident.String(), Args: defineArgs, Body: p.readUntilNewline()}, nil
 }
 
 // parseUndefineDirective parses a #undef directive and its macro name.
