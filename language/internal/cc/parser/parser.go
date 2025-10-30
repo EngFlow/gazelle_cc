@@ -306,7 +306,9 @@ func (p *parser) expectNextToken(expected lexer.TokenType) error {
 func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) bool) ([]Directive, error) {
 	directives := []Directive{}
 	for !shouldStop(p.peekToken()) {
-		p.parseMainFunction()
+		if p.tryParseMainFunction() {
+			p.sourceInfo.HasMain = true
+		}
 
 		if tokenType := p.nextToken().Type; tokenType.IsPreprocessorDirective() {
 			directive, err := p.parseDirective(tokenType)
@@ -528,11 +530,12 @@ func (p *parser) parseDirective(directive lexer.TokenType) (Directive, error) {
 	}
 }
 
-func (p *parser) parseMainFunction() {
+func (p *parser) tryParseMainFunction() bool {
 	if len(p.tokensLeft) >= 3 && p.tokensLeft[0].Content == "int" && p.tokensLeft[1].Content == "main" && p.tokensLeft[2].Content == "(" {
-		p.sourceInfo.HasMain = true
 		p.dropTokens(3)
+		return true
 	}
+	return false
 }
 
 // A valid macro identifier must follow these rules:
