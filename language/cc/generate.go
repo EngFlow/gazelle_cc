@@ -172,9 +172,13 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, fileInfos 
 	// Ignore files that might have been consumed by other rules
 	var libFiles []fileInfo
 	for _, fi := range fileInfos {
-		if !excludedSources[fi.name] && (fi.kind == libSrcKind || fi.kind == libHdrKind) {
-			libFiles = append(libFiles, fi)
+		if excludedSources[fi.name] {
+			continue
 		}
+		if fi.kind != libSrcKind && fi.kind != libHdrKind {
+			continue
+		}
+		libFiles = append(libFiles, fi)
 	}
 	if len(libFiles) == 0 {
 		return
