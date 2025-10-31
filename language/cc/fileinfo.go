@@ -75,7 +75,7 @@ type fileInfo struct {
 func getFileInfo(
 	args language.GenerateArgs,
 	platformEnvs map[platform.Platform]parser.Environment,
-	hasBuildFile collections.Set[string],
+	buildFileDirRels collections.Set[string],
 	name string) (fileInfo, error) {
 
 	if !hasMatchingExtension(name, ccExtensions) {
@@ -119,7 +119,7 @@ func getFileInfo(
 	isTest := strings.HasPrefix(stem, "test") || strings.HasSuffix(stem, "test")
 	var subdirKind subdirKind
 	if conf.groupingMode == groupSourcesBySubdirectory {
-		subdirKind, err = checkSubdirKind(conf, hasBuildFile, args.Rel, path.Dir(name))
+		subdirKind, err = checkSubdirKind(conf, buildFileDirRels, args.Rel, path.Dir(name))
 		if err != nil {
 			return fileInfo{}, err
 		}
@@ -128,7 +128,7 @@ func getFileInfo(
 	if subdirKind != noSubdir {
 		// In subdirectory mode, classify files mostly based on their directory
 		// names. File extensions are less important.
-		subdirKind, err := checkSubdirKind(conf, hasBuildFile, args.Rel, path.Dir(name))
+		subdirKind, err := checkSubdirKind(conf, buildFileDirRels, args.Rel, path.Dir(name))
 		if err != nil {
 			return fileInfo{}, err
 		}
@@ -186,9 +186,9 @@ const (
 // if the subdirectory doesn't match any patterns, or if the subdirectory
 // contains a build file. It returns an error if the subdirecotry matches
 // multiple patterns.
-func checkSubdirKind(conf *ccConfig, hasBuildFile collections.Set[string], rel, subdir string) (subdirKind, error) {
+func checkSubdirKind(conf *ccConfig, buildFileDirRels collections.Set[string], rel, subdir string) (subdirKind, error) {
 	subdirRel := path.Join(rel, subdir)
-	if conf.groupingMode != groupSourcesBySubdirectory || hasBuildFile.Contains(subdirRel) {
+	if conf.groupingMode != groupSourcesBySubdirectory || buildFileDirRels.Contains(subdirRel) {
 		return noSubdir, nil
 	}
 	di, err := walk.GetDirInfo(subdirRel)

@@ -35,7 +35,7 @@ import (
 func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.GenerateResult) {
 	defer func() {
 		if args.File != nil || len(args.OtherGen) > 0 || len(result.Gen) > 0 {
-			c.hasBuildFile.Add(args.Rel)
+			c.buildFileDirRels.Add(args.Rel)
 		}
 	}()
 
@@ -45,7 +45,7 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.
 		return language.GenerateResult{}
 	}
 
-	fileInfos := collectFileInfos(args, c.hasBuildFile)
+	fileInfos := collectFileInfos(args, c.buildFileDirRels)
 	rulesInfo := extractRulesInfo(args)
 
 	// The order of rules generation matters - name conflict and renaming is based on result.Gen content
@@ -426,7 +426,7 @@ func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rules
 
 // Collects files that can be used to generate CC rules based on local context.
 // Parses all matched CC source files to extract additional context.
-func collectFileInfos(args language.GenerateArgs, hasBuildFile collections.Set[string]) []fileInfo {
+func collectFileInfos(args language.GenerateArgs, buildFileDirRels collections.Set[string]) []fileInfo {
 	conf := getCcConfig(args.Config)
 	platformEnvs := conf.getPlatformEnvironments()
 	names := args.RegularFiles[:len(args.RegularFiles):len(args.RegularFiles)]
@@ -434,8 +434,12 @@ func collectFileInfos(args language.GenerateArgs, hasBuildFile collections.Set[s
 		// TODO(#73): recursively collect files from subdirectories that don't have
 		// build files. For now, we only consider immediate subdirectories.
 		for _, subdir := range args.Subdirs {
-			subdirRel := path.Join(args.Rel, subdir)
-			if hasBuildFile.Contains(subdirRel) {
+			subdirKind, err := checkSubdirKind(conf, buildFileDirRels, args.Rel, subdir)
+			if err != nil {
+				log.Printf("gazelle_cc: %v", err)
+				continue
+			}
+			if subdirKind == noSubdir {
 				continue
 			}
 			di, err := walk.GetDirInfo(path.Join(args.Rel, subdir))
@@ -451,7 +455,7 @@ func collectFileInfos(args language.GenerateArgs, hasBuildFile collections.Set[s
 
 	fileInfos := make([]fileInfo, 0, len(names))
 	for _, name := range names {
-		fi, err := getFileInfo(args, platformEnvs, hasBuildFile, name)
+		fi, err := getFileInfo(args, platformEnvs, buildFileDirRels, name)
 		if errors.Is(err, errUnmatchedExtension) {
 			continue
 		} else if err != nil {

@@ -83,7 +83,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 	}
 	config.Exts[languageName] = conf
 	if f != nil {
-		c.hasBuildFile.Add(rel)
+		c.buildFileDirRels.Add(rel)
 	}
 
 	if f == nil {

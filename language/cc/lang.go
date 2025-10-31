@@ -46,7 +46,7 @@ type (
 		// will have build files populated by rules from this extension or
 		// others that ran earlier. Populated by Configure (called in pre-order)
 		// and GenerateRules (called in post-order but maybe not recursively).
-		hasBuildFile collections.Set[string]
+		buildFileDirRels collections.Set[string]
 		// List of collected errors, reported together at once after the dependency resolution
 		collectedErrors []error
 	}
@@ -94,7 +94,7 @@ func NewLanguage() language.Language {
 	return &ccLanguage{
 		bzlmodBuiltInIndex: loadBuiltInBzlModDependenciesIndex(),
 		notFoundBzlModDeps: make(collections.Set[string]),
-		hasBuildFile:       make(collections.Set[string]),
+		buildFileDirRels:   make(collections.Set[string]),
 	}
 }
 

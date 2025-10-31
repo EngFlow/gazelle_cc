@@ -1,7 +1,3 @@
 gazelle: gazelle_cc: directory include matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
-gazelle: gazelle_cc: directory include matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
 gazelle: gazelle_cc: directory src matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
-gazelle: gazelle_cc: directory src matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
-gazelle: gazelle_cc: directory src matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
-gazelle: gazelle_cc: directory test matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
 gazelle: gazelle_cc: directory test matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
