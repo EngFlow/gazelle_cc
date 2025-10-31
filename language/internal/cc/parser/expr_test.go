@@ -17,6 +17,7 @@ package parser
 import (
 	"testing"
 
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/lexer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,47 +69,47 @@ func TestExprEvaluation(t *testing.T) {
 		},
 		{
 			"compare != 0", // #if SHARED_FLAG
-			Compare{Left: Ident("SHARED_FLAG"), Op: "!=", Right: ConstantInt(0)},
+			Compare{Left: Ident("SHARED_FLAG"), Op: lexer.TokenType_OperatorNotEqual, Right: ConstantInt(0)},
 			[]macrosPreset{linuxPreset},
 		},
 		{
 			"compare == 0", // #if ! SHARED_FLAG
-			Compare{Left: Ident("SHARED_FLAG"), Op: "==", Right: ConstantInt(0)},
+			Compare{Left: Ident("SHARED_FLAG"), Op: lexer.TokenType_OperatorEqual, Right: ConstantInt(0)},
 			[]macrosPreset{windowsPreset},
 		},
 		{
 			"compare >= 0",
-			Compare{Left: Ident("SHARED_FLAG"), Op: ">=", Right: ConstantInt(0)},
+			Compare{Left: Ident("SHARED_FLAG"), Op: lexer.TokenType_OperatorGreaterOrEqual, Right: ConstantInt(0)},
 			[]macrosPreset{linuxPreset, windowsPreset},
 		},
 		{
 			"compare > 0",
-			Compare{Left: Ident("SHARED_FLAG"), Op: ">", Right: ConstantInt(0)},
+			Compare{Left: Ident("SHARED_FLAG"), Op: lexer.TokenType_OperatorGreater, Right: ConstantInt(0)},
 			[]macrosPreset{linuxPreset},
 		},
 		{
 			"compare const == const -> true",
-			Compare{Left: ConstantInt(0), Op: "==", Right: ConstantInt(0)},
+			Compare{Left: ConstantInt(0), Op: lexer.TokenType_OperatorEqual, Right: ConstantInt(0)},
 			[]macrosPreset{linuxPreset, windowsPreset},
 		},
 		{
 			"compare const != const -> true",
-			Compare{Left: ConstantInt(0), Op: "!=", Right: ConstantInt(0)},
+			Compare{Left: ConstantInt(0), Op: lexer.TokenType_OperatorNotEqual, Right: ConstantInt(0)},
 			[]macrosPreset{},
 		},
 		{
 			"compare $ident == $ident -> true",
-			Compare{Left: Ident("VER"), Op: "==", Right: Ident("VER")},
+			Compare{Left: Ident("VER"), Op: lexer.TokenType_OperatorEqual, Right: Ident("VER")},
 			[]macrosPreset{linuxPreset, windowsPreset},
 		},
 		{
 			"compare $unknownIdent == 0 -> true",
-			Compare{Left: Ident("OTHER"), Op: "==", Right: ConstantInt(0)},
+			Compare{Left: Ident("OTHER"), Op: lexer.TokenType_OperatorEqual, Right: ConstantInt(0)},
 			[]macrosPreset{linuxPreset, windowsPreset},
 		},
 		{
 			"compare 0 != $unknownIdent -> false",
-			Compare{Left: ConstantInt(0), Op: "!=", Right: Ident("OTHER")},
+			Compare{Left: ConstantInt(0), Op: lexer.TokenType_OperatorNotEqual, Right: Ident("OTHER")},
 			[]macrosPreset{},
 		},
 		{
@@ -116,7 +117,7 @@ func TestExprEvaluation(t *testing.T) {
 			Or{
 				L: And{
 					L: Defined{Name: "LINUX"},
-					R: Compare{Left: Ident("SHARED_FLAG"), Op: "!=", Right: ConstantInt(0)},
+					R: Compare{Left: Ident("SHARED_FLAG"), Op: lexer.TokenType_OperatorGreaterOrEqual, Right: ConstantInt(0)},
 				},
 				R: Defined{Name: "WIN32"},
 			},

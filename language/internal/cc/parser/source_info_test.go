@@ -228,7 +228,7 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("ParseSource failed for %q: %v", tc.name, err)
 			continue
