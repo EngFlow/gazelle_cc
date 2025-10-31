@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/pathtools"
 )
 
 // groupId represents a unique identifier for a group of source files
@@ -102,8 +101,8 @@ func (g *sourceGroups) renameOrMergeWith(current groupId, replacement groupId) b
 // Header (.h) and it's corresponding implemention (.cc) are always grouped together.
 // Source files without corresponding headers are assigned to single-element groups and can never become dependency of any other group.
 // Each source file is guaranteed to be assigned to exactly 1 group.
-func groupSourcesByUnits(rel string, fileInfos []fileInfo) sourceGroups {
-	graph := buildDependencyGraph(rel, fileInfos)
+func groupSourcesByUnits(rel, stripIncludePrefix, includePrefix string, fileInfos []fileInfo) sourceGroups {
+	graph := buildDependencyGraph(rel, stripIncludePrefix, includePrefix, fileInfos)
 	sccs := graph.findStronglyConnectedComponents()
 	groups := splitIntoSourceGroups(fileInfos, sccs, graph)
 	groups.resolveGroupDependencies(graph)
@@ -127,34 +126,44 @@ type sourceDependencyGraph map[groupId]*sourceGroupNode
 // Source file (.cc) and it's corresponsing header are always grouped together and become a node in a dependency graph.
 // Nodes of the graph are constructed base on sources having the same name (excluding extension suffix)
 // Edges of the dependency graph are constructed based on include directives to local headers defined in sources of the graph node
-func buildDependencyGraph(rel string, fileInfos []fileInfo) sourceDependencyGraph {
-	// Initialize graph nodes
+func buildDependencyGraph(rel, stripIncludePrefix, includePrefix string, fileInfos []fileInfo) sourceDependencyGraph {
+	// Initialize graph nodes and build maps from include paths to group IDs.
+	// We consider two types of includes:
+	// 1. Full include paths, typically relative to the repository root but
+	//    may be transformed by include_prefix / strip_include_prefix.
+	// 2. Local include paths, relative to the including file's directory.
+	//    But map keys are relative to THIS directory.
 	graph := make(sourceDependencyGraph)
-	fileNames := make(collections.Set[string])
+	fullIncludeToGroup := make(map[string]groupId)
+	relIncludeToGroup := make(map[string]groupId)
 	for _, fi := range fileInfos {
 		id := fileNameToGroupId(fi.name)
 		graph[id] = &sourceGroupNode{adjacency: make(collections.Set[groupId])}
-		fileNames.Add(fi.name)
+
+		fullRel := path.Join(rel, fi.name)
+		include := transformIncludePath(rel, stripIncludePrefix, includePrefix, fullRel)
+		fullIncludeToGroup[include] = id
+		relIncludeToGroup[fi.name] = id
 	}
 
-	// Create edges based on include dependencies
+	// Create edges based on includes between these files, using the graph above.
+	// Don't consider system includes or includes of files outside this set.
+	// The latter are handled separately during dependency resolution.
 	for _, file := range fileInfos {
 		id := fileNameToGroupId(file.name)
 		node := graph[id]
 		node.sources = append(node.sources, file.name)
 		for _, include := range file.includes {
-			// Check if the include refers to a file in this graph. It can be a path
-			// relative to the current directory or to the repo root. Exclude other
-			// headers. These are treated as deps.
 			if include.isSystemInclude {
 				continue
 			}
-			if fileNames.Contains(include.path) {
-				includeId := fileNameToGroupId(include.path)
-				node.adjacency.Add(includeId)
-			} else if trimmed := pathtools.TrimPrefix(include.path, rel); len(trimmed) < len(include.path) && fileNames.Contains(trimmed) {
-				includeId := fileNameToGroupId(trimmed)
-				node.adjacency.Add(includeId)
+			if id, ok := fullIncludeToGroup[include.path]; ok {
+				node.adjacency.Add(id)
+				continue
+			}
+			relInclude := path.Join(path.Dir(file.name), include.path)
+			if id, ok := relIncludeToGroup[relInclude]; ok {
+				node.adjacency.Add(id)
 			}
 		}
 	}
