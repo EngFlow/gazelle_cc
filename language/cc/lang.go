@@ -43,7 +43,7 @@ type (
 		// Used for deduplication of missing modul_dep warnings
 		notFoundBzlModDeps collections.Set[string]
 		// Set of relative paths to directories that already have build files or
-		// file will have build files populated by rules from this extension or
+		// will have build files populated by rules from this extension or
 		// others that ran earlier. Populated by Configure (called in pre-order)
 		// and GenerateRules (called in post-order but maybe not recursively).
 		hasBuildFile collections.Set[string]
