@@ -24,9 +24,12 @@ import (
 
 func TestSourceGroups(t *testing.T) {
 	testCases := []struct {
-		desc     string
-		input    []fileInfo
-		expected []sourceGroupSummary
+		desc               string
+		rel                string
+		stripIncludePrefix string
+		includePrefix      string
+		input              []fileInfo
+		expected           []sourceGroupSummary
 	}{
 		{
 			desc:  "A source file with no includes should be unassigned",
@@ -185,11 +188,26 @@ func TestSourceGroups(t *testing.T) {
 				{id: "b", sources: []string{"b.cc", "b.h"}},
 			},
 		},
+		{
+			desc:               "Include prefix applies to full include paths",
+			rel:                "src",
+			stripIncludePrefix: "/src",
+			includePrefix:      "foo",
+			input: []fileInfo{
+				fileInfoForTest("a.h"),
+				fileInfoForTest("a.cc", "foo/b.h"),
+				fileInfoForTest("b.h"),
+				fileInfoForTest("b.cc", "foo/a.h"),
+			},
+			expected: []sourceGroupSummary{
+				{id: "a", sources: []string{"a.cc", "a.h", "b.cc", "b.h"}},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			actual := summarizeSourceGroups(groupSourcesByUnits("", tc.input))
+			actual := summarizeSourceGroups(groupSourcesByUnits(tc.rel, tc.stripIncludePrefix, tc.includePrefix, tc.input))
 			assert.Equal(t, tc.expected, actual)
 		})
 	}

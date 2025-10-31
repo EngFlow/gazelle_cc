@@ -1,0 +1,20 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_group unit
+# gazelle:cc_strip_include_prefix /src
+# gazelle:cc_include_prefix foo
+
+cc_library(
+    name = "a",
+    srcs = [
+        "a.cc",
+        "b.cc",
+    ],
+    hdrs = [
+        "a.h",
+        "b.h",
+    ],
+    include_prefix = "foo",
+    strip_include_prefix = "/src",
+    visibility = ["//visibility:public"],
+)

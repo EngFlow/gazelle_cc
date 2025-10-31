@@ -1,0 +1,3 @@
+# gazelle:cc_group unit
+# gazelle:cc_strip_include_prefix /src
+# gazelle:cc_include_prefix foo
