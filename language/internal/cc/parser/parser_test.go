@@ -17,6 +17,7 @@ package parser
 import (
 	"testing"
 
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/lexer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,6 +54,7 @@ func TestParseIncludes(t *testing.T) {
 `,
 			expected: []Directive{
 				IncludeDirective{Path: "valid.h", LineNumber: 2},
+				IncludeDirective{Path: "multiple", IsSystem: false, LineNumber: 7},
 				IncludeDirective{Path: "other_valid", IsSystem: true, LineNumber: 8},
 			},
 		},
@@ -114,10 +116,15 @@ func TestParseIncludes(t *testing.T) {
 				DefineDirective{Name: "MACRO", Args: []string{}, Body: []string{}},
 			},
 		},
+		{
+			// Malformed input
+			input:    "\\,\n",
+			expected: []Directive{},
+		},
 	}
 
 	for _, tc := range testCases {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
@@ -174,6 +181,24 @@ func TestParseConditionalIncludes(t *testing.T) {
 						},
 					}},
 					IncludeDirective{Path: "last.h", LineNumber: 13},
+				},
+			},
+		},
+		// whitespace between '#' and directive keyword
+		{
+			input: `
+		# ifdef _WIN32
+		# endif
+		`,
+			expected: SourceInfo{
+				Directives: []Directive{
+					IfBlock{Branches: []ConditionalBranch{
+						{
+							Kind:      IfBranch,
+							Condition: Defined{Ident("_WIN32")},
+							Body:      []Directive{},
+						},
+					}},
 				},
 			},
 		},
@@ -349,7 +374,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 					IfBlock{Branches: []ConditionalBranch{
 						{
 							Kind:      IfBranch,
-							Condition: Compare{Left: Ident("__WINT_WIDTH__"), Op: ">=", Right: ConstantInt(32)},
+							Condition: Compare{Left: Ident("__WINT_WIDTH__"), Op: lexer.TokenType_OperatorGreaterOrEqual, Right: ConstantInt(32)},
 							Body: []Directive{
 								IncludeDirective{Path: "wideint.h", LineNumber: 3},
 							},
@@ -380,21 +405,21 @@ func TestParseConditionalIncludes(t *testing.T) {
 					IfBlock{Branches: []ConditionalBranch{
 						{
 							Kind:      IfBranch,
-							Condition: Compare{Left: ConstantInt(1), Op: "==", Right: Ident("__LITTLE_ENDIAN__")},
+							Condition: Compare{Left: ConstantInt(1), Op: lexer.TokenType_OperatorEqual, Right: Ident("__LITTLE_ENDIAN__")},
 							Body: []Directive{
 								IncludeDirective{Path: "a.h", LineNumber: 3},
 							},
 						},
 						{
 							Kind:      ElifBranch,
-							Condition: Compare{ConstantInt(0), "!=", Ident("TARGET_IOS")},
+							Condition: Compare{Left: ConstantInt(0), Op: lexer.TokenType_OperatorNotEqual, Right: Ident("TARGET_IOS")},
 							Body: []Directive{
 								IncludeDirective{Path: "b.h", LineNumber: 5},
 							},
 						},
 						{
 							Kind:      ElifBranch,
-							Condition: Compare{Left: ConstantInt(32), Op: ">", Right: Ident("POINTER_SIZE")},
+							Condition: Compare{Left: ConstantInt(32), Op: lexer.TokenType_OperatorGreater, Right: Ident("POINTER_SIZE")},
 							Body: []Directive{
 								IncludeDirective{Path: "c.h", LineNumber: 7},
 							},
@@ -419,14 +444,14 @@ func TestParseConditionalIncludes(t *testing.T) {
 					IfBlock{Branches: []ConditionalBranch{
 						{
 							Kind:      IfBranch,
-							Condition: Compare{Left: Ident("__ARM_ARCH"), Op: "==", Right: ConstantInt(8)},
+							Condition: Compare{Left: Ident("__ARM_ARCH"), Op: lexer.TokenType_OperatorEqual, Right: ConstantInt(8)},
 							Body: []Directive{
 								IncludeDirective{Path: "armv8.h", LineNumber: 3},
 							},
 						},
 						{
 							Kind:      ElifBranch,
-							Condition: Compare{Left: Ident("__ARM_ARCH"), Op: ">", Right: ConstantInt(8)},
+							Condition: Compare{Left: Ident("__ARM_ARCH"), Op: lexer.TokenType_OperatorGreater, Right: ConstantInt(8)},
 							Body: []Directive{
 								IncludeDirective{Path: "armv9.h", LineNumber: 5},
 							},
@@ -515,7 +540,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 					IfBlock{Branches: []ConditionalBranch{
 						{
 							Kind:      IfBranch,
-							Condition: Compare{Left: Not{Ident("A")}, Op: "==", Right: Ident("B")},
+							Condition: Compare{Left: Not{Ident("A")}, Op: lexer.TokenType_OperatorEqual, Right: Ident("B")},
 							Body:      []Directive{IncludeDirective{Path: "unistd.h", IsSystem: true, LineNumber: 3}},
 						},
 					}},
@@ -606,10 +631,20 @@ func TestParseConditionalIncludes(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Unclosed conditional block
+			input: `
+			#ifdef FOO
+				#include "foo.h"
+			`,
+			expected: SourceInfo{
+				Directives: []Directive{},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}
@@ -698,7 +733,7 @@ func TestParseSourceHasMain(t *testing.T) {
 	}
 
 	for idx, tc := range testCases {
-		result, err := ParseSource(tc.input)
+		result, err := ParseSource([]byte(tc.input))
 		if err != nil {
 			t.Errorf("Failed to parse %q, reason: %v", tc.input, err)
 		}

@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/EngFlow/gazelle_cc/language/internal/cc/lexer"
 )
 
 type (
@@ -52,9 +54,9 @@ type (
 
 	// Compare represents a comparison between two values, e.g. A == B, A < B.
 	Compare struct {
-		Left  Expr   // Left-hand side of the comparison
-		Op    string // Comparison operator: "==", "!=", "<", "<=", ">", ">="
-		Right Expr   // Right-hand side of the comparison
+		Left  Expr            // Left-hand side of the comparison
+		Op    lexer.TokenType // Comparison operator: "==", "!=", "<", "<=", ">", ">="
+		Right Expr            // Right-hand side of the comparison
 	}
 	Apply struct {
 		// Name or macro being applied.
@@ -112,17 +114,17 @@ func (expr Compare) Eval(env Environment) (int, error) {
 		return 0, err
 	}
 	switch expr.Op {
-	case "==":
+	case lexer.TokenType_OperatorEqual:
 		return booleanToInt(lv == rv), nil
-	case "!=":
+	case lexer.TokenType_OperatorNotEqual:
 		return booleanToInt(lv != rv), nil
-	case "<":
+	case lexer.TokenType_OperatorLess:
 		return booleanToInt(lv < rv), nil
-	case "<=":
+	case lexer.TokenType_OperatorLessOrEqual:
 		return booleanToInt(lv <= rv), nil
-	case ">":
+	case lexer.TokenType_OperatorGreater:
 		return booleanToInt(lv > rv), nil
-	case ">=":
+	case lexer.TokenType_OperatorGreaterOrEqual:
 		return booleanToInt(lv >= rv), nil
 	default:
 		log.Panicf("Unknown compare operation type: %v", expr)
@@ -183,29 +185,6 @@ func (expr Ident) Eval(env Environment) (int, error) {
 	return v, nil
 }
 func (expr ConstantInt) Eval(env Environment) (int, error) { return int(expr), nil }
-
-// Negate returns a new Compare expression with the comparison operator logically negated.
-// For example, == becomes !=, < becomes >=, and so on. Panics on unknown operator.
-func (expr Compare) Negate() Compare {
-	var newOperator string
-	switch expr.Op {
-	case "==":
-		newOperator = "!="
-	case "!=":
-		newOperator = "=="
-	case "<":
-		newOperator = ">="
-	case "<=":
-		newOperator = ">"
-	case ">":
-		newOperator = "<="
-	case ">=":
-		newOperator = "<"
-	default:
-		panic(fmt.Sprintf("unknown compare operation type: %s", expr.Op))
-	}
-	return Compare{Left: expr.Left, Op: newOperator, Right: expr.Right}
-}
 
 func booleanToInt(b bool) int {
 	if b {
