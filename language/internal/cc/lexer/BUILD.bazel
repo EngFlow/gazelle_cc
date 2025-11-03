@@ -18,13 +18,3 @@ go_test(
     embed = [":lexer"],
     deps = ["@com_github_stretchr_testify//assert"],
 )
-
-go_test(
-    name = "lexer_benchmark",
-    srcs = ["lexer_benchmark.go"],
-    embed = [":lexer"],
-    tags = [
-        "benchmark",
-        "manual",
-    ],
-)

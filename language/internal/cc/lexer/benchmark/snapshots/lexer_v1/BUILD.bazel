@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "lexer_v1",
+    testonly = True,
+    srcs = [
+        "cursor.go",
+        "lexer.go",
+        "rules.go",
+        "token.go",
+    ],
+    importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc/lexer/benchmark/snapshots/lexer_v1",
+    visibility = ["//language/internal/cc/lexer/benchmark:__pkg__"],
+)
+
+go_test(
+    name = "lexer_v1_test",
+    srcs = ["lexer_test.go"],
+    embed = [":lexer_v1"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)

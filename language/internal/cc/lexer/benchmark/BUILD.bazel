@@ -1,0 +1,28 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "benchmark_lib",
+    testonly = True,
+    srcs = ["benchmark.go"],
+    deps = [
+        "//language/internal/cc/lexer",
+        "//language/internal/cc/lexer/benchmark/snapshots/lexer_v1",
+    ],
+)
+
+go_test(
+    name = "benchmark",
+    args = [
+        "-test.bench=.",
+        "-test.count=5",
+    ],
+    embed = [":benchmark_lib"],
+    tags = [
+        "benchmark",
+        "manual",
+    ],
+    deps = [
+        "//language/internal/cc/lexer",
+        "//language/internal/cc/lexer/benchmark/snapshots/lexer_v1",
+    ],
+)
