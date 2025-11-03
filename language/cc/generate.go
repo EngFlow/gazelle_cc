@@ -83,9 +83,9 @@ func shouldSkipSubdirectory(args language.GenerateArgs) bool {
 		return false
 	}
 	name := path.Base(args.Rel)
-	return conf.matchesSubdirectorySrcsPatterns(name) ||
-		conf.matchesSubdirectoryHdrsPatterns(name) ||
-		conf.matchesSubdirectoryTestPatterns(name)
+	return conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectoryIncludePatterns, "include") ||
+		conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectorySrcPatterns, "src") ||
+		conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectoryTestPatterns, "test")
 }
 
 // extractImports returns two lists of include directives read from the
@@ -429,7 +429,23 @@ func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rules
 func collectFileInfos(args language.GenerateArgs, buildFileDirRels collections.Set[string]) []fileInfo {
 	conf := getCcConfig(args.Config)
 	platformEnvs := conf.getPlatformEnvironments()
-	names := args.RegularFiles[:len(args.RegularFiles):len(args.RegularFiles)]
+
+	fileInfos := make([]fileInfo, 0, len(args.RegularFiles))
+	addFile := func(name string, subdirKind subdirKind) {
+		fi, err := getFileInfo(args, platformEnvs, buildFileDirRels, name, subdirKind)
+		if err != nil {
+			if !errors.Is(err, errUnmatchedExtension) {
+				log.Printf("gazelle_cc: %v", err)
+			}
+			return
+		}
+		fileInfos = append(fileInfos, fi)
+	}
+
+	for _, name := range args.RegularFiles {
+		addFile(name, noSubdir)
+	}
+
 	if conf.groupingMode == groupSourcesBySubdirectory {
 		// TODO(#73): recursively collect files from subdirectories that don't have
 		// build files. For now, we only consider immediate subdirectories.
@@ -448,22 +464,11 @@ func collectFileInfos(args language.GenerateArgs, buildFileDirRels collections.S
 				continue
 			}
 			for _, name := range di.RegularFiles {
-				names = append(names, path.Join(subdir, name))
+				addFile(path.Join(subdir, name), subdirKind)
 			}
 		}
 	}
 
-	fileInfos := make([]fileInfo, 0, len(names))
-	for _, name := range names {
-		fi, err := getFileInfo(args, platformEnvs, buildFileDirRels, name)
-		if errors.Is(err, errUnmatchedExtension) {
-			continue
-		} else if err != nil {
-			log.Printf("gazelle_cc: %v", err)
-			continue
-		}
-		fileInfos = append(fileInfos, fi)
-	}
 	return fileInfos
 }
 

@@ -82,13 +82,10 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		conf = parentConf.(*ccConfig).clone()
 	}
 	config.Exts[languageName] = conf
-	if f != nil {
-		c.buildFileDirRels.Add(rel)
-	}
-
 	if f == nil {
 		return
 	}
+	c.buildFileDirRels.Add(rel)
 
 	for _, d := range f.Directives {
 		switch d.Key {
@@ -97,9 +94,9 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		case cc_group_unit_cycles:
 			selectDirectiveChoice(&conf.groupsCycleHandlingMode, groupsCycleHandlingModes, d)
 		case cc_group_subdirectory_src:
-			parsePatternListDirective(&conf.groupSubdirectorySrcsPatterns, d.Key, d.Value)
+			parsePatternListDirective(&conf.groupSubdirectorySrcPatterns, d.Key, d.Value)
 		case cc_group_subdirectory_include:
-			parsePatternListDirective(&conf.groupSubdirectoryHdrsPatterns, d.Key, d.Value)
+			parsePatternListDirective(&conf.groupSubdirectoryIncludePatterns, d.Key, d.Value)
 		case cc_group_subdirectory_test:
 			parsePatternListDirective(&conf.groupSubdirectoryTestPatterns, d.Key, d.Value)
 		case cc_generate:
@@ -251,13 +248,17 @@ func parseBoolDirective(target *bool, d rule.Directive) {
 func parsePatternListDirective(patterns *[]string, key, value string) {
 	if value == "" {
 		*patterns = nil
-	} else {
-		if !doublestar.ValidatePattern(value) {
-			log.Printf("gazelle_cc: invalid glob pattern for %s: %q", key, value)
-			return
-		}
-		*patterns = append(*patterns, value)
+		return
 	}
+	if !doublestar.ValidatePattern(value) {
+		log.Printf("gazelle_cc: %s: invalid glob pattern: %q", key, value)
+		return
+	}
+	if strings.Contains(value, "/") || strings.Contains(value, "**") {
+		log.Printf("gazelle_cc: %s: glob pattern may not match nested subdirectories with / or **: %q", key, value)
+		return
+	}
+	*patterns = append(*patterns, value)
 }
 
 type ccConfig struct {
@@ -284,9 +285,9 @@ type ccConfig struct {
 	// Value of "strip_include_prefix" attribute set in generated cc_library rules
 	ccStripIncludePrefix string
 	// Glob patterns for subdirectories whose contents should be added to srcs (used in subdirectory mode)
-	groupSubdirectorySrcsPatterns []string
+	groupSubdirectorySrcPatterns []string
 	// Glob patterns for subdirectories whose headers should be added to hdrs (used in subdirectory mode)
-	groupSubdirectoryHdrsPatterns []string
+	groupSubdirectoryIncludePatterns []string
 	// Glob patterns for subdirectories whose contents should be added to test srcs (used in subdirectory mode)
 	groupSubdirectoryTestPatterns []string
 }
@@ -327,8 +328,8 @@ func (conf *ccConfig) clone() *ccConfig {
 	copy.dependencyIndexes = conf.dependencyIndexes[:len(conf.dependencyIndexes):len(conf.dependencyIndexes)]
 	copy.ccSearch = conf.ccSearch[:len(conf.ccSearch):len(conf.ccSearch)]
 	copy.platforms = maps.Clone(conf.platforms)
-	copy.groupSubdirectorySrcsPatterns = conf.groupSubdirectorySrcsPatterns[:len(conf.groupSubdirectorySrcsPatterns):len(conf.groupSubdirectorySrcsPatterns)]
-	copy.groupSubdirectoryHdrsPatterns = conf.groupSubdirectoryHdrsPatterns[:len(conf.groupSubdirectoryHdrsPatterns):len(conf.groupSubdirectoryHdrsPatterns)]
+	copy.groupSubdirectorySrcPatterns = conf.groupSubdirectorySrcPatterns[:len(conf.groupSubdirectorySrcPatterns):len(conf.groupSubdirectorySrcPatterns)]
+	copy.groupSubdirectoryIncludePatterns = conf.groupSubdirectoryIncludePatterns[:len(conf.groupSubdirectoryIncludePatterns):len(conf.groupSubdirectoryIncludePatterns)]
 	copy.groupSubdirectoryTestPatterns = conf.groupSubdirectoryTestPatterns[:len(conf.groupSubdirectoryTestPatterns):len(conf.groupSubdirectoryTestPatterns)]
 	return &copy
 }
@@ -361,48 +362,14 @@ func (conf *ccConfig) getPlatformEnvironments() map[platform.Platform]parser.Env
 	return result
 }
 
-// Returns whether a directory name matches any subdirectory srcs pattern.
-func (conf *ccConfig) matchesSubdirectorySrcsPatterns(name string) bool {
+// Returns whether a directory name matches a list of glob patterns or a
+// default pattern if the list is empty.
+func (conf *ccConfig) matchesSubdirectoryPatterns(name string, patterns []string, defaultPattern string) bool {
 	if name == "" || name == "." {
 		return false
 	}
-	patterns := conf.groupSubdirectorySrcsPatterns
 	if patterns == nil {
-		patterns = []string{"src"}
-	}
-	for _, pattern := range patterns {
-		if doublestar.MatchUnvalidated(pattern, name) {
-			return true
-		}
-	}
-	return false
-}
-
-// Returns whether a directory name matches any subdirectory include pattern.
-func (conf *ccConfig) matchesSubdirectoryHdrsPatterns(name string) bool {
-	if name == "" || name == "." {
-		return false
-	}
-	patterns := conf.groupSubdirectoryHdrsPatterns
-	if patterns == nil {
-		patterns = []string{"include"}
-	}
-	for _, pattern := range patterns {
-		if doublestar.MatchUnvalidated(pattern, name) {
-			return true
-		}
-	}
-	return false
-}
-
-// Returns whether a directory name matches any subdirectory test pattern.
-func (conf *ccConfig) matchesSubdirectoryTestPatterns(name string) bool {
-	if name == "" || name == "." {
-		return false
-	}
-	patterns := conf.groupSubdirectoryTestPatterns
-	if patterns == nil {
-		patterns = []string{"test"}
+		return doublestar.MatchUnvalidated(defaultPattern, name)
 	}
 	for _, pattern := range patterns {
 		if doublestar.MatchUnvalidated(pattern, name) {

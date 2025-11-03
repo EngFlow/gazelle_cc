@@ -26,7 +26,6 @@ import (
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
-	"github.com/bazelbuild/bazel-gazelle/walk"
 )
 
 // fileKind determines how a file should be added to rules, based on its
@@ -76,7 +75,8 @@ func getFileInfo(
 	args language.GenerateArgs,
 	platformEnvs map[platform.Platform]parser.Environment,
 	buildFileDirRels collections.Set[string],
-	name string) (fileInfo, error) {
+	name string,
+	subdirKind subdirKind) (fileInfo, error) {
 
 	if !hasMatchingExtension(name, ccExtensions) {
 		return fileInfo{}, errUnmatchedExtension
@@ -117,23 +117,12 @@ func getFileInfo(
 	base := path.Base(name)
 	stem := base[:len(base)-len(path.Ext(base))]
 	isTest := strings.HasPrefix(stem, "test") || strings.HasSuffix(stem, "test")
-	var subdirKind subdirKind
-	if conf.groupingMode == groupSourcesBySubdirectory {
-		subdirKind, err = checkSubdirKind(conf, buildFileDirRels, args.Rel, path.Dir(name))
-		if err != nil {
-			return fileInfo{}, err
-		}
-	}
 	var kind fileKind
 	if subdirKind != noSubdir {
 		// In subdirectory mode, classify files mostly based on their directory
 		// names. File extensions are less important.
-		subdirKind, err := checkSubdirKind(conf, buildFileDirRels, args.Rel, path.Dir(name))
-		if err != nil {
-			return fileInfo{}, err
-		}
 		switch {
-		case subdirKind == hdrsSubdir && fileNameIsHeader(name):
+		case subdirKind == includeSubidr && fileNameIsHeader(name):
 			kind = libHdrKind
 		case isTest || subdirKind == testSubdir:
 			kind = testSrcKind
@@ -147,8 +136,7 @@ func getFileInfo(
 		// subdirectory, classify files mostly based on their extension.
 		inTestDirectory := pathtools.Index(args.Rel, "test") >= 0 ||
 			pathtools.Index(args.Rel, "tests") >= 0 ||
-			(conf.groupingMode == groupSourcesBySubdirectory &&
-				conf.matchesSubdirectoryTestPatterns(path.Dir(name)))
+			conf.matchesSubdirectoryPatterns(path.Dir(name), conf.groupSubdirectoryTestPatterns, "test")
 
 		switch {
 		case inTestDirectory:
@@ -176,8 +164,8 @@ type subdirKind byte
 
 const (
 	noSubdir subdirKind = iota
-	srcsSubdir
-	hdrsSubdir
+	srcSubdir
+	includeSubidr
 	testSubdir
 )
 
@@ -191,25 +179,21 @@ func checkSubdirKind(conf *ccConfig, buildFileDirRels collections.Set[string], r
 	if conf.groupingMode != groupSourcesBySubdirectory || buildFileDirRels.Contains(subdirRel) {
 		return noSubdir, nil
 	}
-	di, err := walk.GetDirInfo(subdirRel)
-	if err != nil {
-		return noSubdir, err
-	}
-	if di.File != nil {
+	if buildFileDirRels.Contains(subdirRel) {
 		return noSubdir, nil
 	}
 
 	var sty subdirKind
 	matchCount := 0
-	if conf.matchesSubdirectorySrcsPatterns(subdir) {
-		sty = srcsSubdir
+	if conf.matchesSubdirectoryPatterns(subdir, conf.groupSubdirectorySrcPatterns, "src") {
+		sty = srcSubdir
 		matchCount++
 	}
-	if conf.matchesSubdirectoryHdrsPatterns(subdir) {
-		sty = hdrsSubdir
+	if conf.matchesSubdirectoryPatterns(subdir, conf.groupSubdirectoryIncludePatterns, "include") {
+		sty = includeSubidr
 		matchCount++
 	}
-	if conf.matchesSubdirectoryTestPatterns(subdir) {
+	if conf.matchesSubdirectoryPatterns(subdir, conf.groupSubdirectoryTestPatterns, "test") {
 		sty = testSubdir
 		matchCount++
 	}
