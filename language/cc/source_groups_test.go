@@ -197,7 +197,7 @@ func TestSourceGroups(t *testing.T) {
 				fileInfoForTest("a.h"),
 				fileInfoForTest("a.cc", "foo/b.h"),
 				fileInfoForTest("b.h"),
-				fileInfoForTest("b.cc", "foo/a.h"),
+				fileInfoForTest("b.cc", "src/a.h"), // full untransformed path still valid
 			},
 			expected: []sourceGroupSummary{
 				{id: "a", sources: []string{"a.cc", "a.h", "b.cc", "b.h"}},
