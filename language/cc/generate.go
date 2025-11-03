@@ -83,9 +83,9 @@ func shouldSkipSubdirectory(args language.GenerateArgs) bool {
 		return false
 	}
 	name := path.Base(args.Rel)
-	return conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectoryIncludePatterns, "include") ||
-		conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectorySrcPatterns, "src") ||
-		conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectoryTestPatterns, "test")
+	return conf.matchesSubdirectoryIncludePatterns(name) ||
+		conf.matchesSubdirectorySrcPatterns(name) ||
+		conf.matchesSubdirectoryTestPatterns(name)
 }
 
 // extractImports returns two lists of include directives read from the

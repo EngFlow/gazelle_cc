@@ -362,6 +362,18 @@ func (conf *ccConfig) getPlatformEnvironments() map[platform.Platform]parser.Env
 	return result
 }
 
+func (conf *ccConfig) matchesSubdirectoryIncludePatterns(name string) bool {
+	return conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectoryIncludePatterns, "include")
+}
+
+func (conf *ccConfig) matchesSubdirectorySrcPatterns(name string) bool {
+	return conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectorySrcPatterns, "src")
+}
+
+func (conf *ccConfig) matchesSubdirectoryTestPatterns(name string) bool {
+	return conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectoryTestPatterns, "test")
+}
+
 // Returns whether a directory name matches a list of glob patterns or a
 // default pattern if the list is empty.
 func (conf *ccConfig) matchesSubdirectoryPatterns(name string, patterns []string, defaultPattern string) bool {

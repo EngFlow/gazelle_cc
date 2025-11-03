@@ -136,7 +136,7 @@ func getFileInfo(
 		// subdirectory, classify files mostly based on their extension.
 		inTestDirectory := pathtools.Index(args.Rel, "test") >= 0 ||
 			pathtools.Index(args.Rel, "tests") >= 0 ||
-			conf.matchesSubdirectoryPatterns(path.Dir(name), conf.groupSubdirectoryTestPatterns, "test")
+			conf.matchesSubdirectoryTestPatterns(path.Dir(name))
 
 		switch {
 		case inTestDirectory:
@@ -185,15 +185,15 @@ func checkSubdirKind(conf *ccConfig, buildFileDirRels collections.Set[string], r
 
 	var sty subdirKind
 	matchCount := 0
-	if conf.matchesSubdirectoryPatterns(subdir, conf.groupSubdirectorySrcPatterns, "src") {
+	if conf.matchesSubdirectorySrcPatterns(subdir) {
 		sty = srcSubdir
 		matchCount++
 	}
-	if conf.matchesSubdirectoryPatterns(subdir, conf.groupSubdirectoryIncludePatterns, "include") {
+	if conf.matchesSubdirectoryIncludePatterns(subdir) {
 		sty = includeSubidr
 		matchCount++
 	}
-	if conf.matchesSubdirectoryPatterns(subdir, conf.groupSubdirectoryTestPatterns, "test") {
+	if conf.matchesSubdirectoryTestPatterns(subdir) {
 		sty = testSubdir
 		matchCount++
 	}
