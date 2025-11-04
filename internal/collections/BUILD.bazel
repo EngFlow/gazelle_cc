@@ -4,6 +4,7 @@ go_library(
     name = "collections",
     srcs = [
         "collections.go",
+        "priority_queue.go",
         "set.go",
     ],
     importpath = "github.com/EngFlow/gazelle_cc/internal/collections",
@@ -14,8 +15,12 @@ go_test(
     name = "collections_test",
     srcs = [
         "collections_test.go",
+        "priority_queue_test.go",
         "set_test.go",
     ],
     embed = [":collections"],
-    deps = ["@com_github_stretchr_testify//assert"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
 )
