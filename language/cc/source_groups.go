@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/pathtools"
 )
 
 // groupId represents a unique identifier for a group of source files
@@ -102,8 +101,8 @@ func (g *sourceGroups) renameOrMergeWith(current groupId, replacement groupId) b
 // Header (.h) and it's corresponding implemention (.cc) are always grouped together.
 // Source files without corresponding headers are assigned to single-element groups and can never become dependency of any other group.
 // Each source file is guaranteed to be assigned to exactly 1 group.
-func groupSourcesByUnits(rel string, fileInfos []fileInfo) sourceGroups {
-	graph := buildDependencyGraph(rel, fileInfos)
+func groupSourcesByUnits(rel, stripIncludePrefix, includePrefix string, fileInfos []fileInfo) sourceGroups {
+	graph := buildDependencyGraph(rel, stripIncludePrefix, includePrefix, fileInfos)
 	sccs := graph.findStronglyConnectedComponents()
 	groups := splitIntoSourceGroups(fileInfos, sccs, graph)
 	groups.resolveGroupDependencies(graph)
@@ -127,34 +126,49 @@ type sourceDependencyGraph map[groupId]*sourceGroupNode
 // Source file (.cc) and it's corresponsing header are always grouped together and become a node in a dependency graph.
 // Nodes of the graph are constructed base on sources having the same name (excluding extension suffix)
 // Edges of the dependency graph are constructed based on include directives to local headers defined in sources of the graph node
-func buildDependencyGraph(rel string, fileInfos []fileInfo) sourceDependencyGraph {
-	// Initialize graph nodes
+func buildDependencyGraph(rel, stripIncludePrefix, includePrefix string, fileInfos []fileInfo) sourceDependencyGraph {
+	// Initialize graph nodes and build maps from include paths to group IDs.
+	// We consider three types of includes:
+	// 1. Full include paths, relative to the repository root. These paths are
+	//    usable even when strip_include_prefix / include_prefix are set.
+	// 2. Transformed include paths with strip_include_prefix / include_prefix
+	//    applied.
+	// 3. Local include paths, relative to the including file's directory.
+	//    But map keys are relative to THIS directory.
+	// This list should also be modified by the includes attribute, but we don't
+	// generate those in new rules, and at this point, we haven't associated
+	// files with existing rules, so we don't have an includes list to apply.
 	graph := make(sourceDependencyGraph)
-	fileNames := make(collections.Set[string])
+	includeToGroup := make(map[string]groupId)
 	for _, fi := range fileInfos {
 		id := fileNameToGroupId(fi.name)
 		graph[id] = &sourceGroupNode{adjacency: make(collections.Set[groupId])}
-		fileNames.Add(fi.name)
+
+		fullRel := path.Join(rel, fi.name)
+		includeToGroup[fullRel] = id
+		transformed := transformIncludePath(rel, stripIncludePrefix, includePrefix, fullRel)
+		includeToGroup[transformed] = id
+		includeToGroup[fi.name] = id
 	}
 
-	// Create edges based on include dependencies
+	// Create edges based on includes between these files, using the graph above.
+	// Don't consider system includes or includes of files outside this set.
+	// The latter are handled separately during dependency resolution.
 	for _, file := range fileInfos {
 		id := fileNameToGroupId(file.name)
 		node := graph[id]
 		node.sources = append(node.sources, file.name)
 		for _, include := range file.includes {
-			// Check if the include refers to a file in this graph. It can be a path
-			// relative to the current directory or to the repo root. Exclude other
-			// headers. These are treated as deps.
 			if include.isSystemInclude {
 				continue
 			}
-			if fileNames.Contains(include.path) {
-				includeId := fileNameToGroupId(include.path)
-				node.adjacency.Add(includeId)
-			} else if trimmed := pathtools.TrimPrefix(include.path, rel); len(trimmed) < len(include.path) && fileNames.Contains(trimmed) {
-				includeId := fileNameToGroupId(trimmed)
-				node.adjacency.Add(includeId)
+			if id, ok := includeToGroup[include.path]; ok {
+				node.adjacency.Add(id)
+				continue
+			}
+			relInclude := path.Join(path.Dir(file.name), include.path)
+			if id, ok := includeToGroup[relInclude]; ok {
+				node.adjacency.Add(id)
 			}
 		}
 	}
