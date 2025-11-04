@@ -24,17 +24,18 @@ on:
 
 jobs:
   publish-to-bcr:
-    uses: bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@v0.1.0
+    uses: "bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@v0.2.3"
     with:
-      tag_name: ${{ inputs.tag_name }}
-      # bazelbuild/bazel-central-registry fork used to open a pull request.
-      registry_fork: EngFlow/bazel-central-registry
-      # No need to create a draft since PRs are opened by a machine account
+      tag_name: "${{ inputs.tag_name }}"
+      registry_fork: "EngFlow/bazel-central-registry"
       draft: false
+      # Use `@engflow-automation-public` as public-facing identity in pushes to
+      # BCR via `.github/workflows/publish-to-bcr.yaml`.
+      author_name: "EngFlow Inc."
+      author_email: "engflow-github-automation+public@engflow.com"
     permissions:
       attestations: write
       contents: write
       id-token: write
     secrets:
-      # Necessary to push to the BCR fork and open a pull request.
-      publish_token: ${{ secrets.ENGFLOW_AUTOMATION_PUBLIC_PAT }}
+      publish_token: "${{ secrets.ENGFLOW_AUTOMATION_PUBLIC_PAT }}"
