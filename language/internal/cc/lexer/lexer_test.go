@@ -111,6 +111,10 @@ func TestNextToken(t *testing.T) {
 			input:    []byte("0b1101;"),
 			expected: Token{Type: TokenType_LiteralInteger, Location: CursorInit, Content: "0b1101"},
 		},
+		{
+			input:    []byte("???"),
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: "???"},
+		},
 	}
 
 	for _, tc := range testCases {

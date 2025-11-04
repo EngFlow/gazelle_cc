@@ -10,6 +10,7 @@ go_library(
     ],
     importpath = "github.com/EngFlow/gazelle_cc/language/internal/cc/lexer",
     visibility = ["//language:__subpackages__"],
+    deps = ["//internal/collections"],
 )
 
 go_test(

@@ -12,10 +12,7 @@ go_library(
 
 go_test(
     name = "benchmark",
-    args = [
-        "-test.bench=.",
-        "-test.count=5",
-    ],
+    args = ["-test.bench=."],
     embed = [":benchmark_lib"],
     tags = [
         "benchmark",
