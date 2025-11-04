@@ -26,18 +26,21 @@ func (a Int) Less(b Int) bool {
 	return a < b
 }
 
+func expectPop(t *testing.T, q *PriorityQueue[Int], expected Int) {
+	t.Helper()
+	require.False(t, q.Empty())
+	require.Equal(t, expected, q.Peek())
+	require.Equal(t, expected, q.Pop())
+}
+
 func TestNewPriorityQueue(t *testing.T) {
 	q := NewPriorityQueue([]Int{4, 3, 5, 1, 2})
-	require.False(t, q.Empty())
-	require.Equal(t, Int(1), q.Pop())
-	require.False(t, q.Empty())
-	require.Equal(t, Int(2), q.Pop())
-	require.False(t, q.Empty())
-	require.Equal(t, Int(3), q.Pop())
-	require.False(t, q.Empty())
-	require.Equal(t, Int(4), q.Pop())
-	require.False(t, q.Empty())
-	require.Equal(t, Int(5), q.Pop())
+
+	expectPop(t, q, Int(1))
+	expectPop(t, q, Int(2))
+	expectPop(t, q, Int(3))
+	expectPop(t, q, Int(4))
+	expectPop(t, q, Int(5))
 	require.True(t, q.Empty())
 }
 
@@ -49,15 +52,10 @@ func TestNewEmptyPriorityQueue(t *testing.T) {
 		q.Push(i)
 	}
 
-	require.False(t, q.Empty())
-	require.Equal(t, Int(1), q.Pop())
-	require.False(t, q.Empty())
-	require.Equal(t, Int(2), q.Pop())
-	require.False(t, q.Empty())
-	require.Equal(t, Int(3), q.Pop())
-	require.False(t, q.Empty())
-	require.Equal(t, Int(4), q.Pop())
-	require.False(t, q.Empty())
-	require.Equal(t, Int(5), q.Pop())
+	expectPop(t, q, Int(1))
+	expectPop(t, q, Int(2))
+	expectPop(t, q, Int(3))
+	expectPop(t, q, Int(4))
+	expectPop(t, q, Int(5))
 	require.True(t, q.Empty())
 }

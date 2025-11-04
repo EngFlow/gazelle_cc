@@ -72,3 +72,9 @@ func (q *PriorityQueue[T]) Push(item T) {
 func (q *PriorityQueue[T]) Pop() T {
 	return heap.Pop(&q.base).(T)
 }
+
+// Peeks at the lowest value as determined by Ordered.Less in the priority queue
+// without removing it. Will panic if the queue is empty.
+func (q *PriorityQueue[T]) Peek() T {
+	return q.base[0]
+}
