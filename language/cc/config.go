@@ -31,6 +31,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language/proto"
 	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 // config.Configurer methods
@@ -38,23 +39,29 @@ func (*ccLanguage) RegisterFlags(fs *flag.FlagSet, cmd string, c *config.Config)
 func (*ccLanguage) CheckFlags(fs *flag.FlagSet, c *config.Config) error          { return nil }
 
 const (
-	cc_group                    = "cc_group"
-	cc_group_unit_cycles        = "cc_group_unit_cycles"
-	cc_indexfile                = "cc_indexfile"
-	cc_use_builtin_bzlmod_index = "cc_use_builtin_bzlmod_index"
-	cc_search                   = "cc_search"
-	cc_generate                 = "cc_generate"
-	cc_generate_proto           = "cc_generate_proto"
-	cc_unresolved_deps          = "cc_unresolved_deps"
-	cc_platform                 = "cc_platform"
-	cc_include_prefix           = "cc_include_prefix"
-	cc_strip_include_prefix     = "cc_strip_include_prefix"
+	cc_group                      = "cc_group"
+	cc_group_unit_cycles          = "cc_group_unit_cycles"
+	cc_group_subdirectory_src     = "cc_group_subdirectory_src"
+	cc_group_subdirectory_include = "cc_group_subdirectory_include"
+	cc_group_subdirectory_test    = "cc_group_subdirectory_test"
+	cc_indexfile                  = "cc_indexfile"
+	cc_use_builtin_bzlmod_index   = "cc_use_builtin_bzlmod_index"
+	cc_search                     = "cc_search"
+	cc_generate                   = "cc_generate"
+	cc_generate_proto             = "cc_generate_proto"
+	cc_unresolved_deps            = "cc_unresolved_deps"
+	cc_platform                   = "cc_platform"
+	cc_include_prefix             = "cc_include_prefix"
+	cc_strip_include_prefix       = "cc_strip_include_prefix"
 )
 
 func (c *ccLanguage) KnownDirectives() []string {
 	return []string{
 		cc_group,
 		cc_group_unit_cycles,
+		cc_group_subdirectory_src,
+		cc_group_subdirectory_include,
+		cc_group_subdirectory_test,
 		cc_indexfile,
 		cc_use_builtin_bzlmod_index,
 		cc_search,
@@ -75,10 +82,10 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		conf = parentConf.(*ccConfig).clone()
 	}
 	config.Exts[languageName] = conf
-
 	if f == nil {
 		return
 	}
+	c.buildFileDirRels.Add(rel)
 
 	for _, d := range f.Directives {
 		switch d.Key {
@@ -86,6 +93,12 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 			selectDirectiveChoice(&conf.groupingMode, sourceGroupingModes, d)
 		case cc_group_unit_cycles:
 			selectDirectiveChoice(&conf.groupsCycleHandlingMode, groupsCycleHandlingModes, d)
+		case cc_group_subdirectory_src:
+			parsePatternListDirective(&conf.groupSubdirectorySrcPatterns, d.Key, d.Value)
+		case cc_group_subdirectory_include:
+			parsePatternListDirective(&conf.groupSubdirectoryIncludePatterns, d.Key, d.Value)
+		case cc_group_subdirectory_test:
+			parsePatternListDirective(&conf.groupSubdirectoryTestPatterns, d.Key, d.Value)
 		case cc_generate:
 			parseBoolDirective(&conf.generateCC, d)
 		case cc_generate_proto:
@@ -230,6 +243,24 @@ func parseBoolDirective(target *bool, d rule.Directive) {
 	}
 }
 
+// Parses a directive that accumulates glob patterns into a list.
+// If value is empty, clears the list. Otherwise validates the pattern and appends it to the list.
+func parsePatternListDirective(patterns *[]string, key, value string) {
+	if value == "" {
+		*patterns = nil
+		return
+	}
+	if !doublestar.ValidatePattern(value) {
+		log.Printf("gazelle_cc: %s: invalid glob pattern: %q", key, value)
+		return
+	}
+	if strings.Contains(value, "/") || strings.Contains(value, "**") {
+		log.Printf("gazelle_cc: %s: glob pattern may not match nested subdirectories with / or **: %q", key, value)
+		return
+	}
+	*patterns = append(*patterns, value)
+}
+
 type ccConfig struct {
 	// Defines how sources should be grouped when defining rules
 	groupingMode sourceGroupingMode
@@ -253,6 +284,12 @@ type ccConfig struct {
 	ccIncludePrefix string
 	// Value of "strip_include_prefix" attribute set in generated cc_library rules
 	ccStripIncludePrefix string
+	// Glob patterns for subdirectories whose contents should be added to srcs (used in subdirectory mode)
+	groupSubdirectorySrcPatterns []string
+	// Glob patterns for subdirectories whose headers should be added to hdrs (used in subdirectory mode)
+	groupSubdirectoryIncludePatterns []string
+	// Glob patterns for subdirectories whose contents should be added to test srcs (used in subdirectory mode)
+	groupSubdirectoryTestPatterns []string
 }
 
 type ccSearch struct {
@@ -291,6 +328,9 @@ func (conf *ccConfig) clone() *ccConfig {
 	copy.dependencyIndexes = conf.dependencyIndexes[:len(conf.dependencyIndexes):len(conf.dependencyIndexes)]
 	copy.ccSearch = conf.ccSearch[:len(conf.ccSearch):len(conf.ccSearch)]
 	copy.platforms = maps.Clone(conf.platforms)
+	copy.groupSubdirectorySrcPatterns = conf.groupSubdirectorySrcPatterns[:len(conf.groupSubdirectorySrcPatterns):len(conf.groupSubdirectorySrcPatterns)]
+	copy.groupSubdirectoryIncludePatterns = conf.groupSubdirectoryIncludePatterns[:len(conf.groupSubdirectoryIncludePatterns):len(conf.groupSubdirectoryIncludePatterns)]
+	copy.groupSubdirectoryTestPatterns = conf.groupSubdirectoryTestPatterns[:len(conf.groupSubdirectoryTestPatterns):len(conf.groupSubdirectoryTestPatterns)]
 	return &copy
 }
 
@@ -314,7 +354,7 @@ func (pc platformConfig) getPlatformEnvironment() parser.Environment {
 	return env
 }
 
-func (conf ccConfig) getPlatformEnvironments() map[platform.Platform]parser.Environment {
+func (conf *ccConfig) getPlatformEnvironments() map[platform.Platform]parser.Environment {
 	result := map[platform.Platform]parser.Environment{}
 	for platform, config := range conf.platforms {
 		result[platform] = config.getPlatformEnvironment()
@@ -322,15 +362,46 @@ func (conf ccConfig) getPlatformEnvironments() map[platform.Platform]parser.Envi
 	return result
 }
 
+func (conf *ccConfig) matchesSubdirectoryIncludePatterns(name string) bool {
+	return conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectoryIncludePatterns, "include")
+}
+
+func (conf *ccConfig) matchesSubdirectorySrcPatterns(name string) bool {
+	return conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectorySrcPatterns, "src")
+}
+
+func (conf *ccConfig) matchesSubdirectoryTestPatterns(name string) bool {
+	return conf.matchesSubdirectoryPatterns(name, conf.groupSubdirectoryTestPatterns, "test")
+}
+
+// Returns whether a directory name matches a list of glob patterns or a
+// default pattern if the list is empty.
+func (conf *ccConfig) matchesSubdirectoryPatterns(name string, patterns []string, defaultPattern string) bool {
+	if name == "" || name == "." {
+		return false
+	}
+	if patterns == nil {
+		return doublestar.MatchUnvalidated(defaultPattern, name)
+	}
+	for _, pattern := range patterns {
+		if doublestar.MatchUnvalidated(pattern, name) {
+			return true
+		}
+	}
+	return false
+}
+
 type sourceGroupingMode string
 
-var sourceGroupingModes = []sourceGroupingMode{groupSourcesByDirectory, groupSourcesByUnit}
+var sourceGroupingModes = []sourceGroupingMode{groupSourcesByDirectory, groupSourcesByUnit, groupSourcesBySubdirectory}
 
 const (
 	// single cc_library per directory
 	groupSourcesByDirectory sourceGroupingMode = "directory"
 	// cc_library per translation unit or group of recursivelly dependant translation units
 	groupSourcesByUnit sourceGroupingMode = "unit"
+	// single cc_library per directory including files from matching subdirectories (src, include, test)
+	groupSourcesBySubdirectory sourceGroupingMode = "subdirectory"
 )
 
 type groupsCycleHandlingMode string

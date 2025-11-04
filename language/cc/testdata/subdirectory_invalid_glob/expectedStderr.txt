@@ -1,0 +1,6 @@
+gazelle: gazelle_cc: cc_group_subdirectory_include: glob pattern may not match nested subdirectories with / or **: "src/**"
+gazelle: gazelle_cc: cc_group_subdirectory_include: invalid glob pattern: "["
+gazelle: gazelle_cc: cc_group_subdirectory_src: glob pattern may not match nested subdirectories with / or **: "src/**"
+gazelle: gazelle_cc: cc_group_subdirectory_src: invalid glob pattern: "["
+gazelle: gazelle_cc: cc_group_subdirectory_test: glob pattern may not match nested subdirectories with / or **: "src/**"
+gazelle: gazelle_cc: cc_group_subdirectory_test: invalid glob pattern: "["

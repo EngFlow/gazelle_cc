@@ -29,17 +29,29 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/bazelbuild/bazel-gazelle/walk"
 )
 
-func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.GenerateResult {
-	fileInfos := collectFileInfos(args)
+func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.GenerateResult) {
+	defer func() {
+		if args.File != nil || len(args.OtherGen) > 0 || len(result.Gen) > 0 {
+			c.buildFileDirRels.Add(args.Rel)
+		}
+	}()
+
+	conf := getCcConfig(args.Config)
+
+	if shouldSkipSubdirectory(args) {
+		return language.GenerateResult{}
+	}
+
+	fileInfos := collectFileInfos(args, c.buildFileDirRels)
 	rulesInfo := extractRulesInfo(args)
 
 	// The order of rules generation matters - name conflict and renaming is based on result.Gen content
-	var result = language.GenerateResult{}
 	result.RelsToIndex = c.listRelsToIndex(args, fileInfos)
 
-	if !getCcConfig(args.Config).generateCC {
+	if !conf.generateCC {
 		// No need to generate or remove any rules
 		return result
 	}
@@ -56,17 +68,57 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) language.Generate
 	return result
 }
 
-func extractImports(fileInfos []fileInfo) ccImports {
+// shouldSkipSubdirectory returns true if we're in
+// `# gazelle:cc_group subdirectory` mode, this directory doesn't have a
+// build file, and this directory's name matches one of the patterns
+// specified with cc_subdirectory_{hdrs,srcs,test}. If true, we should not
+// generate rules in this directory; its contents should be included in
+// the parent directory's rules.
+func shouldSkipSubdirectory(args language.GenerateArgs) bool {
+	conf := getCcConfig(args.Config)
+	if args.Rel == "" ||
+		conf.groupingMode != groupSourcesBySubdirectory ||
+		args.File != nil ||
+		len(args.OtherGen) > 0 {
+		return false
+	}
+	name := path.Base(args.Rel)
+	return conf.matchesSubdirectoryIncludePatterns(name) ||
+		conf.matchesSubdirectorySrcPatterns(name) ||
+		conf.matchesSubdirectoryTestPatterns(name)
+}
+
+// extractImports returns two lists of include directives read from the
+// given list of files. The lists contain includes from headers and source
+// files so that deps and implementation_deps attributes can be generated
+// separately. Includes of files in the fileInfos list are not reported.
+func extractImports(rel string, fileInfos []fileInfo) ccImports {
+	selfFiles := make(collections.Set[string], len(fileInfos))
+	for _, fi := range fileInfos {
+		selfFiles.Add(path.Join(rel, fi.name))
+	}
+
 	var imports ccImports
 	for _, fi := range fileInfos {
+		var includes *[]ccInclude
 		if fileNameIsHeader(fi.name) {
 			// Dependencies from .h files in the "srcs" attribute should go in
 			// "deps" rather than "implementation_deps" because they still need
 			// to be made available as inputs for other libraries that depend
 			// on this one. "hdrs" files may include "srcs" files.
-			imports.hdrIncludes = append(imports.hdrIncludes, fi.includes...)
+			includes = &imports.hdrIncludes
 		} else {
-			imports.srcIncludes = append(imports.srcIncludes, fi.includes...)
+			includes = &imports.srcIncludes
+		}
+		for _, include := range fi.includes {
+			if !include.isSystemInclude && (selfFiles.Contains(include.path) || selfFiles.Contains(path.Join(rel, include.path))) {
+				// Skip the include if the file comes from the same target. We can
+				// identify self-imports during dependency resolution only for files
+				// in the hdrs list, but included files may appear in srcs too, so
+				// it's easier to skip them now.
+				continue
+			}
+			*includes = append(*includes, include)
 		}
 	}
 	return imports
@@ -76,7 +128,7 @@ func splitSourcesIntoGroups(args language.GenerateArgs, fileInfos []fileInfo) so
 	conf := getCcConfig(args.Config)
 	var srcGroups sourceGroups
 	switch conf.groupingMode {
-	case groupSourcesByDirectory:
+	case groupSourcesByDirectory, groupSourcesBySubdirectory:
 		// All sources grouped together
 		groupName := args.Rel
 		if groupName == "" {
@@ -176,7 +228,7 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, fileInfos 
 		}
 
 		result.Gen = append(result.Gen, newRule)
-		result.Imports = append(result.Imports, extractImports(group.sources))
+		result.Imports = append(result.Imports, extractImports(args.Rel, group.sources))
 	}
 }
 
@@ -189,7 +241,7 @@ func (c *ccLanguage) generateBinaryRules(args language.GenerateArgs, fileInfos [
 		newRule := newOrExistingRule("cc_binary", ruleName, srcGroups, rulesInfo, args)
 		newRule.SetAttr("srcs", toRelativePaths(group.sources))
 		result.Gen = append(result.Gen, newRule)
-		result.Imports = append(result.Imports, extractImports(group.sources))
+		result.Imports = append(result.Imports, extractImports(args.Rel, group.sources))
 	}
 }
 
@@ -208,7 +260,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, fileInfos []f
 	var testRunnerGroupId groupId = groupId("")
 	var testGroupIds []groupId
 	switch conf.groupingMode {
-	case groupSourcesByDirectory:
+	case groupSourcesByDirectory, groupSourcesBySubdirectory:
 		testGroupIds = srcGroups.groupIds()
 	case groupSourcesByUnit:
 		// In unit mode some files might be a test runners (having main method)
@@ -286,7 +338,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, fileInfos []f
 			newRule.SetAttr("srcs", srcs)
 		}
 		result.Gen = append(result.Gen, newRule)
-		result.Imports = append(result.Imports, extractImports(group.sources))
+		result.Imports = append(result.Imports, extractImports(args.Rel, group.sources))
 	}
 
 	// Generate actual cc_test rules
@@ -314,7 +366,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, fileInfos []f
 			newRule.SetPrivateAttr(ccTestRunnerDepKey, testRunnerRuleName)
 		}
 		result.Gen = append(result.Gen, newRule)
-		result.Imports = append(result.Imports, extractImports(group.sources))
+		result.Imports = append(result.Imports, extractImports(args.Rel, group.sources))
 	}
 }
 
@@ -374,20 +426,49 @@ func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rules
 
 // Collects files that can be used to generate CC rules based on local context.
 // Parses all matched CC source files to extract additional context.
-func collectFileInfos(args language.GenerateArgs) []fileInfo {
+func collectFileInfos(args language.GenerateArgs, buildFileDirRels collections.Set[string]) []fileInfo {
 	conf := getCcConfig(args.Config)
 	platformEnvs := conf.getPlatformEnvironments()
+
 	fileInfos := make([]fileInfo, 0, len(args.RegularFiles))
-	for _, name := range args.RegularFiles {
-		fi, err := getFileInfo(args, platformEnvs, name)
-		if errors.Is(err, errUnmatchedExtension) {
-			continue
-		} else if err != nil {
-			log.Printf("gazelle_cc: %v", err)
-			continue
+	addFile := func(name string, subdirKind subdirKind) {
+		fi, err := getFileInfo(args, platformEnvs, buildFileDirRels, name, subdirKind)
+		if err != nil {
+			if !errors.Is(err, errUnmatchedExtension) {
+				log.Printf("gazelle_cc: %v", err)
+			}
+			return
 		}
 		fileInfos = append(fileInfos, fi)
 	}
+
+	for _, name := range args.RegularFiles {
+		addFile(name, noSubdir)
+	}
+
+	if conf.groupingMode == groupSourcesBySubdirectory {
+		// TODO(#73): recursively collect files from subdirectories that don't have
+		// build files. For now, we only consider immediate subdirectories.
+		for _, subdir := range args.Subdirs {
+			subdirKind, err := checkSubdirKind(conf, buildFileDirRels, args.Rel, subdir)
+			if err != nil {
+				log.Printf("gazelle_cc: %v", err)
+				continue
+			}
+			if subdirKind == noSubdir {
+				continue
+			}
+			di, err := walk.GetDirInfo(path.Join(args.Rel, subdir))
+			if err != nil {
+				log.Printf("gazelle_cc: %v", err)
+				continue
+			}
+			for _, name := range di.RegularFiles {
+				addFile(path.Join(subdir, name), subdirKind)
+			}
+		}
+	}
+
 	return fileInfos
 }
 
@@ -442,7 +523,7 @@ func (c *ccLanguage) handleAmbigiousRulesAssignment(
 		// Merge rules creating a cyclic dependency into a single rule and remove old ones
 		var mergeReason string
 		switch conf.groupingMode {
-		case groupSourcesByDirectory:
+		case groupSourcesByDirectory, groupSourcesBySubdirectory:
 			mergeReason = "are invalidating the 'cc_group directive' setting"
 		case groupSourcesByUnit:
 			mergeReason = "create a cyclic dependency"
@@ -475,20 +556,23 @@ func (c *ccLanguage) handleAmbigiousRulesAssignment(
 				"  - Manually combine targets to avoid cyclic dependencies.\n"+
 				"  - Remove `#include`s from source files that cause cyclic dependencies: %v",
 			ambigiousRuleAssignments, args.File.Path, cc_group_unit_cycles, mergeOnGroupsCycle, toRelativePaths(group.sources))
-		// Collect labels to rules creating a cycle
-		deps := make([]label.Label, len(ambigiousRuleAssignments))
-		for idx, group := range ambigiousRuleAssignments {
-			deps[idx] = label.New("", "", group)
-		}
-		// Set recursive dependencies to all rules creating a cycle
+		// Preserve existing rules forming a cycle, but add them to result.Gen
+		// and result.Imports so that dependency resolution is still performed.
 		for _, subGroupId := range group.subGroups {
 			rule, exists := rulesInfo.definedRules[string(subGroupId)]
 			if !exists {
 				continue
 			}
-			rule.SetAttr("deps", deps)
 			result.Gen = append(result.Gen, rule)
-			result.Imports = append(result.Imports, extractImports(group.sources))
+			// Add imports for this specific rule's sources by finding sources that belong to this rule
+			var ruleSources []fileInfo
+			ruleFiles := rulesInfo.ccRuleSources[string(subGroupId)]
+			for _, fi := range group.sources {
+				if ruleFiles[fi.name] {
+					ruleSources = append(ruleSources, fi)
+				}
+			}
+			result.Imports = append(result.Imports, extractImports(args.Rel, ruleSources))
 		}
 		return false // Skip processing these groups, keep existing rules unchanged
 	default:
