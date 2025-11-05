@@ -33,6 +33,20 @@ type (
 	// Matcher for fixed strings. No need to use regexp.Regexp for such simple
 	// cases.
 	fixedStringMatcher string
+
+	// Represents a way of matching a specific token type.
+	matchingRule struct {
+		matchedType  TokenType
+		matchingImpl matcher
+	}
+
+	// Result of matching a specific token type against the input data. Results
+	// are comparable to prioritize which token to extract next.
+	matchingResult struct {
+		rule       matchingRule
+		beginIndex int
+		endIndex   int
+	}
 )
 
 func (fs fixedStringMatcher) FindIndex(content []byte) []int {
@@ -46,49 +60,74 @@ func preprocessorMatcher(directiveName string) matcher {
 	return regexp.MustCompile(`#[\t\v\f\r ]*` + directiveName)
 }
 
+// Finds the leftmost match of the given token type in content starting at
+// offset. If found, returns the matchingResult and true. Otherwise, returns
+// false.
+func (r matchingRule) match(content []byte, offset int) (matchingResult, bool) {
+	if match := r.matchingImpl.FindIndex(content[offset:]); match != nil {
+		return matchingResult{rule: r, beginIndex: match[0] + offset, endIndex: match[1] + offset}, true
+	}
+	return matchingResult{}, false
+}
+
+func (r matchingResult) Less(other matchingResult) bool {
+	if r.beginIndex != other.beginIndex {
+		// Prefer earlier matches.
+		return r.beginIndex < other.beginIndex
+	}
+	if r.endIndex != other.endIndex {
+		// When they start at the same position, prefer longer matches.
+		return r.endIndex > other.endIndex
+	}
+	// When they match the same range, prefer lower TokenType values. E.g.
+	// "defined" matches both PreprocessorDefined and Identifier, so we want to
+	// prefer PreprocessorDefined.
+	return r.rule.matchedType < other.rule.matchedType
+}
+
 // Matching logic for all token types apart from:
 //   - TokenType_EOF which is returned when no input data is left to process and
 //     it is never used for another purpose.
 //   - TokenType_Unassigned which is the default fallback type when no other
 //     matchingRule apply.
-var matchingRules = map[TokenType]matcher{
-	TokenType_Newline:                 fixedStringMatcher("\n"),
-	TokenType_Whitespace:              regexp.MustCompile(`[\t\v\f\r ]+`),
-	TokenType_ContinueLine:            regexp.MustCompile(`\\[\t\v\f\r ]*\n`),
-	TokenType_PreprocessorSystemPath:  regexp.MustCompile(`<[\w-+./]+>`),
-	TokenType_PreprocessorDefined:     fixedStringMatcher("defined"),
-	TokenType_Identifier:              regexp.MustCompile(`(?i)[a-z_][a-z0-9_]*`),
-	TokenType_LiteralInteger:          regexp.MustCompile(`(?i)0x[0-9a-f]+|0b[01]+|0[0-7]*|[1-9][0-9]*`),
-	TokenType_LiteralString:           regexp.MustCompile(`"(?:[^"\\\n]|\\.)*"`),
-	TokenType_CommentSingleLine:       regexp.MustCompile(`//[^\n]*`),
-	TokenType_CommentMultiLine:        regexp.MustCompile(`(?s)/\*.*?\*/`),
-	TokenType_PreprocessorDefine:      preprocessorMatcher("define"),
-	TokenType_PreprocessorElif:        preprocessorMatcher("elif"),
-	TokenType_PreprocessorElifdef:     preprocessorMatcher("elifdef"),
-	TokenType_PreprocessorElifndef:    preprocessorMatcher("elifndef"),
-	TokenType_PreprocessorElse:        preprocessorMatcher("else"),
-	TokenType_PreprocessorEndif:       preprocessorMatcher("endif"),
-	TokenType_PreprocessorIf:          preprocessorMatcher("if"),
-	TokenType_PreprocessorIfdef:       preprocessorMatcher("ifdef"),
-	TokenType_PreprocessorIfndef:      preprocessorMatcher("ifndef"),
-	TokenType_PreprocessorInclude:     preprocessorMatcher("include"),
-	TokenType_PreprocessorIncludeNext: preprocessorMatcher("include_next"),
-	TokenType_PreprocessorUndef:       preprocessorMatcher("undef"),
-	TokenType_OperatorEqual:           fixedStringMatcher("=="),
-	TokenType_OperatorGreater:         fixedStringMatcher(">"),
-	TokenType_OperatorGreaterOrEqual:  fixedStringMatcher(">="),
-	TokenType_OperatorLess:            fixedStringMatcher("<"),
-	TokenType_OperatorLessOrEqual:     fixedStringMatcher("<="),
-	TokenType_OperatorLogicalAnd:      fixedStringMatcher("&&"),
-	TokenType_OperatorLogicalNot:      fixedStringMatcher("!"),
-	TokenType_OperatorLogicalOr:       fixedStringMatcher("||"),
-	TokenType_OperatorNotEqual:        fixedStringMatcher("!="),
-	TokenType_BraceLeft:               fixedStringMatcher("{"),
-	TokenType_BraceRight:              fixedStringMatcher("}"),
-	TokenType_BracketLeft:             fixedStringMatcher("["),
-	TokenType_BracketRight:            fixedStringMatcher("]"),
-	TokenType_Comma:                   fixedStringMatcher(","),
-	TokenType_ParenthesisLeft:         fixedStringMatcher("("),
-	TokenType_ParenthesisRight:        fixedStringMatcher(")"),
-	TokenType_Semicolon:               fixedStringMatcher(";"),
+var matchingRules = []matchingRule{
+	{matchedType: TokenType_Newline, matchingImpl: fixedStringMatcher("\n")},
+	{matchedType: TokenType_Whitespace, matchingImpl: regexp.MustCompile(`[\t\v\f\r ]+`)},
+	{matchedType: TokenType_ContinueLine, matchingImpl: regexp.MustCompile(`\\[\t\v\f\r ]*\n`)},
+	{matchedType: TokenType_PreprocessorSystemPath, matchingImpl: regexp.MustCompile(`<[\w-+./]+>`)},
+	{matchedType: TokenType_PreprocessorDefined, matchingImpl: fixedStringMatcher("defined")},
+	{matchedType: TokenType_Identifier, matchingImpl: regexp.MustCompile(`(?i)[a-z_][a-z0-9_]*`)},
+	{matchedType: TokenType_LiteralInteger, matchingImpl: regexp.MustCompile(`(?i)0x[0-9a-f]+|0b[01]+|0[0-7]*|[1-9][0-9]*`)},
+	{matchedType: TokenType_LiteralString, matchingImpl: regexp.MustCompile(`"(?:[^"\\\n]|\\.)*"`)},
+	{matchedType: TokenType_CommentSingleLine, matchingImpl: regexp.MustCompile(`//[^\n]*`)},
+	{matchedType: TokenType_CommentMultiLine, matchingImpl: regexp.MustCompile(`(?s)/\*.*?\*/`)},
+	{matchedType: TokenType_PreprocessorDefine, matchingImpl: preprocessorMatcher("define")},
+	{matchedType: TokenType_PreprocessorElif, matchingImpl: preprocessorMatcher("elif")},
+	{matchedType: TokenType_PreprocessorElifdef, matchingImpl: preprocessorMatcher("elifdef")},
+	{matchedType: TokenType_PreprocessorElifndef, matchingImpl: preprocessorMatcher("elifndef")},
+	{matchedType: TokenType_PreprocessorElse, matchingImpl: preprocessorMatcher("else")},
+	{matchedType: TokenType_PreprocessorEndif, matchingImpl: preprocessorMatcher("endif")},
+	{matchedType: TokenType_PreprocessorIf, matchingImpl: preprocessorMatcher("if")},
+	{matchedType: TokenType_PreprocessorIfdef, matchingImpl: preprocessorMatcher("ifdef")},
+	{matchedType: TokenType_PreprocessorIfndef, matchingImpl: preprocessorMatcher("ifndef")},
+	{matchedType: TokenType_PreprocessorInclude, matchingImpl: preprocessorMatcher("include")},
+	{matchedType: TokenType_PreprocessorIncludeNext, matchingImpl: preprocessorMatcher("include_next")},
+	{matchedType: TokenType_PreprocessorUndef, matchingImpl: preprocessorMatcher("undef")},
+	{matchedType: TokenType_OperatorEqual, matchingImpl: fixedStringMatcher("==")},
+	{matchedType: TokenType_OperatorGreater, matchingImpl: fixedStringMatcher(">")},
+	{matchedType: TokenType_OperatorGreaterOrEqual, matchingImpl: fixedStringMatcher(">=")},
+	{matchedType: TokenType_OperatorLess, matchingImpl: fixedStringMatcher("<")},
+	{matchedType: TokenType_OperatorLessOrEqual, matchingImpl: fixedStringMatcher("<=")},
+	{matchedType: TokenType_OperatorLogicalAnd, matchingImpl: fixedStringMatcher("&&")},
+	{matchedType: TokenType_OperatorLogicalNot, matchingImpl: fixedStringMatcher("!")},
+	{matchedType: TokenType_OperatorLogicalOr, matchingImpl: fixedStringMatcher("||")},
+	{matchedType: TokenType_OperatorNotEqual, matchingImpl: fixedStringMatcher("!=")},
+	{matchedType: TokenType_BraceLeft, matchingImpl: fixedStringMatcher("{")},
+	{matchedType: TokenType_BraceRight, matchingImpl: fixedStringMatcher("}")},
+	{matchedType: TokenType_BracketLeft, matchingImpl: fixedStringMatcher("[")},
+	{matchedType: TokenType_BracketRight, matchingImpl: fixedStringMatcher("]")},
+	{matchedType: TokenType_Comma, matchingImpl: fixedStringMatcher(",")},
+	{matchedType: TokenType_ParenthesisLeft, matchingImpl: fixedStringMatcher("(")},
+	{matchedType: TokenType_ParenthesisRight, matchingImpl: fixedStringMatcher(")")},
+	{matchedType: TokenType_Semicolon, matchingImpl: fixedStringMatcher(";")},
 }

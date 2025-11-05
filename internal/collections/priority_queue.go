@@ -58,7 +58,7 @@ func NewEmptyPriorityQueue[T Ordered[T]]() *PriorityQueue[T] {
 }
 
 // Checks whether the priority queue is empty.
-func (q *PriorityQueue[T]) Empty() bool {
+func (q PriorityQueue[T]) Empty() bool {
 	return q.base.Len() == 0
 }
 
@@ -75,6 +75,6 @@ func (q *PriorityQueue[T]) Pop() T {
 
 // Peeks at the lowest value as determined by Ordered.Less in the priority queue
 // without removing it. Will panic if the queue is empty.
-func (q *PriorityQueue[T]) Peek() T {
+func (q PriorityQueue[T]) Peek() T {
 	return q.base[0]
 }
