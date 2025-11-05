@@ -2,7 +2,7 @@ bcr_test_module:
   module_path: "example/bzlmod"
   matrix:
     platform: ["macos", "ubuntu2004"]
-    bazel: [7.x, 8.x, rolling, last_green]
+    bazel: [7.x, 8.x, 9.x]
   tasks:
     run_tests:
       name: "Build and test the example module"
