@@ -9,11 +9,21 @@ on:
 concurrency:
   group: ci-${{ github.head_ref }}-${{ github.event_name }}
   cancel-in-progress: true
-      
+
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    strategy:
+      # Keep in sync with configurations in .bcr/presubmit.yml. We cannot run
+      # those tests in CI: they are post-release only. So we need to cover the
+      # same configurations here.
+      matrix:
+        os: [ubuntu-24.04, macos-26]
+        # "" means use the version in .bazelversion. Add 8.x if that changes.
+        bazel-version: ["", "7.x", "9.x"]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    env:
+      USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
     steps:
       - uses: actions/checkout@v4
       - name: Build
