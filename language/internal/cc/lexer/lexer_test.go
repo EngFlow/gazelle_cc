@@ -15,6 +15,7 @@
 package lexer
 
 import (
+	"bytes"
 	"slices"
 	"testing"
 
@@ -264,4 +265,32 @@ func TestAllTokens(t *testing.T) {
 		lx := NewLexer(tc.input)
 		assert.Equal(t, tc.expected, slices.Collect(lx.AllTokens()), "input: %q", tc.input)
 	}
+}
+
+func runBenchmark(b *testing.B, input []byte) {
+	b.Helper()
+	for b.Loop() {
+		_ = slices.Collect(NewLexer(input).AllTokens())
+	}
+}
+
+func BenchmarkRepeatedToken(b *testing.B) {
+	runBenchmark(b, bytes.Repeat([]byte(";"), 1000))
+}
+
+const helloWorldInput = `
+#include <iostream>
+
+int main(int argc, char **argv) {
+    std::cout << "Hello, World!" << std::endl;
+	return 0;
+}
+`
+
+func BenchmarkHelloWorld(b *testing.B) {
+	runBenchmark(b, []byte(helloWorldInput))
+}
+
+func BenchmarkRepeatedHelloWorld(b *testing.B) {
+	runBenchmark(b, bytes.Repeat([]byte(helloWorldInput), 100))
 }

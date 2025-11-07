@@ -1,6 +1,6 @@
 module github.com/EngFlow/gazelle_cc
 
-go 1.23.2
+go 1.24.0
 
 require (
 	github.com/bazelbuild/bazel-gazelle v0.45.0

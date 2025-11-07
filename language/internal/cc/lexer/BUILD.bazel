@@ -14,10 +14,7 @@ go_library(
 
 go_test(
     name = "lexer_test",
-    srcs = [
-        "lexer_benchmark.go",
-        "lexer_test.go",
-    ],
+    srcs = ["lexer_test.go"],
     embed = [":lexer"],
     deps = ["@com_github_stretchr_testify//assert"],
 )
