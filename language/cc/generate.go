@@ -432,7 +432,7 @@ func collectFileInfos(args language.GenerateArgs, buildFileDirRels collections.S
 
 	fileInfos := make([]fileInfo, 0, len(args.RegularFiles))
 	addFile := func(name string, subdirKind subdirKind) {
-		fi, err := getFileInfo(args, platformEnvs, buildFileDirRels, name, subdirKind)
+		fi, err := getFileInfo(args, platformEnvs, name, subdirKind)
 		if err != nil {
 			if !errors.Is(err, errUnmatchedExtension) {
 				log.Printf("gazelle_cc: %v", err)
