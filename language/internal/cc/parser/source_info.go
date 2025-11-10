@@ -14,10 +14,6 @@
 
 package parser
 
-import (
-	"log"
-)
-
 // SourceInfo contains the structural information extracted from a C/C++ source file.
 type SourceInfo struct {
 	Directives []Directive // Top-level parsed preprocessor directives (may be nested)
@@ -85,18 +81,7 @@ func (si SourceInfo) CollectReachableIncludes(environment Environment) []Include
 
 			case IfBlock:
 				for _, branch := range v.Branches {
-					shouldVisit := true // By default we visit the branch, unless the condition is present and evaluates to false
-					if branch.Condition != nil {
-						result, err := Evaluate(branch.Condition, env)
-						if err != nil {
-							if debug {
-								log.Printf("Failed to evaluate condition %v: %v", branch.Condition, err)
-							}
-							continue
-						}
-						shouldVisit = result
-					}
-					if shouldVisit {
+					if branch.Condition == nil || Evaluate(branch.Condition, env) {
 						walk(branch.Body)
 						break
 					}
