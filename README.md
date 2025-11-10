@@ -157,6 +157,15 @@ Controls how to react in case of unresolved `#include` directive (see [Dependenc
 - `error_fast`: Raise an error on the first encountered unresolved `#include` and immediately stop further processing with a non-zero return code; `BUILD` files won't be changed then
 - `error`: Raise an error after collecting all unresolved `#include` directives and stop further processing with a non-zero return code; `BUILD` files won't be changed then
 
+### `# gazelle:cc_parsing_errors [ignore|warn|error_fast|error]`
+
+Controls how to react in case of encountered parsing errors during processing C++ files. Gazelle involves a simplified parsing of C++ files to look for `#include` directives (see [Dependency Resolution section](#dependency-resolution)). By default, errors are silently ignored, and parsing continues, following the "best possible effort" policy. Even though the user will encounter compilation errors anyway, this option may help to investigate unexpected generation of Bazel rules at an early phase. The following options are possible:
+
+- `ignore`: Do nothing with parsing errors **(default)**
+- `warn`: Raise a warning on every encountered parsing error and proceed with further processing
+- `error_fast`: Raise an error on the first encountered parsing error and immediately stop further processing with a non-zero return code; `BUILD` files won't be changed then
+- `error`: Raise an error after collecting all parsing errors and stop further processing with a non-zero return code; `BUILD` files won't be changed then
+
 ### `# gazelle:cc_platform <os> <arch> <constraint_label> [<macro>=<value> …]`
 
 Tells gazelle_cc to emit a platform-aware `select()` statement for header dependencies whose `#include` directives are wrapped in pre-processor conditions (`#if`, `#ifdef`, etc).

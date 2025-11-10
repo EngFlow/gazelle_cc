@@ -50,6 +50,7 @@ const (
 	cc_generate                   = "cc_generate"
 	cc_generate_proto             = "cc_generate_proto"
 	cc_unresolved_deps            = "cc_unresolved_deps"
+	cc_parsing_errors             = "cc_parsing_errors"
 	cc_platform                   = "cc_platform"
 	cc_include_prefix             = "cc_include_prefix"
 	cc_strip_include_prefix       = "cc_strip_include_prefix"
@@ -68,6 +69,7 @@ func (c *ccLanguage) KnownDirectives() []string {
 		cc_generate,
 		cc_generate_proto,
 		cc_unresolved_deps,
+		cc_parsing_errors,
 		cc_platform,
 		cc_include_prefix,
 		cc_strip_include_prefix,
@@ -164,7 +166,8 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 			}
 		case cc_unresolved_deps:
 			selectDirectiveChoice(&conf.unresolvedDepsMode, errorReportingModes, d)
-
+		case cc_parsing_errors:
+			selectDirectiveChoice(&conf.parsingErrorsMode, errorReportingModes, d)
 		case cc_platform:
 			// Reset existing platforms
 			if d.Value == "" {
@@ -270,6 +273,8 @@ type ccConfig struct {
 	useBuiltinBzlmodIndex bool
 	// Defines how to handle unresolved dependencies
 	unresolvedDepsMode errorReportingMode
+	// Defines how to handle C++ source parsing errors
+	parsingErrorsMode errorReportingMode
 	// User defined dependency indexes based on the filename
 	dependencyIndexes []ccDependencyIndex
 	// List of 'gazelle:cc_search' directives, used to construct RelsToIndex.
@@ -314,6 +319,7 @@ func newCcConfig() *ccConfig {
 		groupsCycleHandlingMode: mergeOnGroupsCycle,
 		useBuiltinBzlmodIndex:   true,
 		unresolvedDepsMode:      errorReportingMode_warn,
+		parsingErrorsMode:       errorReportingMode_ignore,
 		dependencyIndexes:       []ccDependencyIndex{},
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
