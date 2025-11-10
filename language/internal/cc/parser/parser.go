@@ -307,7 +307,7 @@ func (p *parser) expectNextToken(expected lexer.TokenType) (lexer.Token, error) 
 // returns true. It handles main(), #include, and preprocessor blocks, and
 // builds the nested directive structure.
 func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) bool) ([]Directive, error) {
-	directives := []Directive{}
+	var directives []Directive
 	for !shouldStop(p.peekToken()) {
 		if p.peekToken() == lexer.TokenType_EOF {
 			if debug {

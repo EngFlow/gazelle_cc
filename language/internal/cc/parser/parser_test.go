@@ -119,7 +119,7 @@ func TestParseIncludes(t *testing.T) {
 		{
 			// Malformed input
 			input:    "\\,\n",
-			expected: []Directive{},
+			expected: nil,
 		},
 	}
 
@@ -196,7 +196,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 						{
 							Kind:      IfBranch,
 							Condition: Defined{Ident("_WIN32")},
-							Body:      []Directive{},
+							Body:      nil,
 						},
 					}},
 				},
@@ -589,7 +589,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 									{
 										Kind:      IfBranch,
 										Condition: Apply{Name: Ident("__has_builtin"), Args: []Expr{Ident("__builtin_add_overflow")}},
-										Body:      []Directive{},
+										Body:      nil,
 									},
 								},
 								},
@@ -638,7 +638,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 				#include "foo.h"
 			`,
 			expected: SourceInfo{
-				Directives: []Directive{},
+				Directives: nil,
 			},
 		},
 	}
