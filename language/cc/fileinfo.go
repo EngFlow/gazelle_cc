@@ -74,7 +74,6 @@ type fileInfo struct {
 func getFileInfo(
 	args language.GenerateArgs,
 	platformEnvs map[platform.Platform]parser.Environment,
-	buildFileDirRels collections.Set[string],
 	name string,
 	subdirKind subdirKind) (fileInfo, error) {
 
