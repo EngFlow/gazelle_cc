@@ -149,7 +149,7 @@ func TestExprEvaluation(t *testing.T) {
 	for _, tc := range cases {
 		availableInPresets := []macrosPreset{}
 		for platform, macros := range macroPresets {
-			if isAvailable, err := Evaluate(tc.expr, macros); err == nil && isAvailable {
+			if Evaluate(tc.expr, macros) {
 				availableInPresets = append(availableInPresets, platform)
 			}
 		}

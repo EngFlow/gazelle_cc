@@ -31,7 +31,7 @@ type (
 		// Eval returns the result of evaluations the expression in given
 		// environemt (macro set). It may return 0 if the expression depends on
 		// unknown definitions.
-		Eval(env Environment) (int, error)
+		Eval(env Environment) int
 	}
 
 	// Defined represents the defined(X) operator in #if expressions, checking
@@ -99,99 +99,53 @@ func (expr Or) String() string          { return expr.L.String() + " || " + expr
 func (expr Ident) String() string       { return string(expr) }
 func (expr ConstantInt) String() string { return fmt.Sprintf("%d", expr) }
 
-func Evaluate(expr Expr, env Environment) (bool, error) {
-	intValue, err := expr.Eval(env)
-	if err != nil {
-		return false, fmt.Errorf("failed to evaluate expression %s: %w", expr, err)
-	}
-	return intValue != 0, nil
-}
+func Evaluate(expr Expr, env Environment) bool { return expr.Eval(env) != 0 }
 
-func (expr Defined) Eval(env Environment) (int, error) {
+func (expr Defined) Eval(env Environment) int {
 	_, exists := env[string(expr.Name)]
-	return booleanToInt(exists), nil
+	return booleanToInt(exists)
 }
-func (expr Compare) Eval(env Environment) (int, error) {
-	lv, err := expr.Left.Eval(env)
-	if err != nil {
-		return 0, err
-	}
-	rv, err := expr.Right.Eval(env)
-	if err != nil {
-		return 0, err
-	}
+func (expr Compare) Eval(env Environment) int {
+	lv := expr.Left.Eval(env)
+	rv := expr.Right.Eval(env)
 	switch expr.Op {
 	case lexer.TokenType_OperatorEqual:
-		return booleanToInt(lv == rv), nil
+		return booleanToInt(lv == rv)
 	case lexer.TokenType_OperatorNotEqual:
-		return booleanToInt(lv != rv), nil
+		return booleanToInt(lv != rv)
 	case lexer.TokenType_OperatorLess:
-		return booleanToInt(lv < rv), nil
+		return booleanToInt(lv < rv)
 	case lexer.TokenType_OperatorLessOrEqual:
-		return booleanToInt(lv <= rv), nil
+		return booleanToInt(lv <= rv)
 	case lexer.TokenType_OperatorGreater:
-		return booleanToInt(lv > rv), nil
+		return booleanToInt(lv > rv)
 	case lexer.TokenType_OperatorGreaterOrEqual:
-		return booleanToInt(lv >= rv), nil
+		return booleanToInt(lv >= rv)
 	default:
 		log.Panicf("Unknown compare operation type: %v", expr)
-		return 0, nil
+		return 0
 	}
 }
-func (expr Apply) Eval(env Environment) (int, error) {
+func (expr Apply) Eval(env Environment) int {
 	// We do not support evaluating env with arguments in #if expressions.
 	// Assume that the macro is defined and return true.
-	return 1, nil
+	return 1
 }
-func (expr Not) Eval(env Environment) (int, error) {
-	result, err := expr.X.Eval(env)
-	if err != nil {
-		return 0, err
-	}
-	if result == 0 {
-		result = 1
-	} else {
-		result = 0
-	}
-	return result, nil
+func (expr Not) Eval(env Environment) int { return booleanToInt(expr.X.Eval(env) == 0) }
+func (expr And) Eval(env Environment) int {
+	return booleanToInt(expr.L.Eval(env) != 0 && expr.R.Eval(env) != 0)
 }
-func (expr And) Eval(env Environment) (int, error) {
-	lValue, err := expr.L.Eval(env)
-	if err != nil || lValue == 0 {
-		return 0, err
-	}
-	rValue, err := expr.R.Eval(env)
-	if err != nil || rValue == 0 {
-		return 0, err
-	}
-	return 1, nil
+func (expr Or) Eval(env Environment) int {
+	return booleanToInt(expr.L.Eval(env) != 0 || expr.R.Eval(env) != 0)
 }
-func (expr Or) Eval(env Environment) (int, error) {
-	lValue, err := expr.L.Eval(env)
-	if err != nil {
-		return lValue, err
-	}
-	if lValue != 0 {
-		return 1, nil
-	}
-
-	rValue, err := expr.R.Eval(env)
-	if err != nil {
-		return rValue, err
-	}
-	if rValue != 0 {
-		return 1, nil
-	}
-	return 0, nil
-}
-func (expr Ident) Eval(env Environment) (int, error) {
+func (expr Ident) Eval(env Environment) int {
 	v, defined := env[string(expr)]
 	if !defined {
-		return 0, nil
+		return 0
 	}
-	return v, nil
+	return v
 }
-func (expr ConstantInt) Eval(env Environment) (int, error) { return int(expr), nil }
+func (expr ConstantInt) Eval(env Environment) int { return int(expr) }
 
 func booleanToInt(b bool) int {
 	if b {
