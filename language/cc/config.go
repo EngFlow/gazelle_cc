@@ -163,7 +163,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				conf.ccSearch = append(conf.ccSearch, s)
 			}
 		case cc_unresolved_deps:
-			selectDirectiveChoice(&conf.unresolvedDepsMode, unresolvedDepsModes, d)
+			selectDirectiveChoice(&conf.unresolvedDepsMode, errorReportingModes, d)
 
 		case cc_platform:
 			// Reset existing platforms
@@ -269,7 +269,7 @@ type ccConfig struct {
 	// Control wheter built-in bzlmod based index file should be used
 	useBuiltinBzlmodIndex bool
 	// Defines how to handle unresolved dependencies
-	unresolvedDepsMode unresolvedDepsMode
+	unresolvedDepsMode errorReportingMode
 	// User defined dependency indexes based on the filename
 	dependencyIndexes []ccDependencyIndex
 	// List of 'gazelle:cc_search' directives, used to construct RelsToIndex.
@@ -313,7 +313,7 @@ func newCcConfig() *ccConfig {
 		groupingMode:            groupSourcesByDirectory,
 		groupsCycleHandlingMode: mergeOnGroupsCycle,
 		useBuiltinBzlmodIndex:   true,
-		unresolvedDepsMode:      warnAboutUnresolvedDeps,
+		unresolvedDepsMode:      errorReportingMode_warn,
 		dependencyIndexes:       []ccDependencyIndex{},
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
@@ -415,19 +415,19 @@ const (
 	warnOnGroupsCycle groupsCycleHandlingMode = "warn"
 )
 
-type unresolvedDepsMode string
+type errorReportingMode string
 
-var unresolvedDepsModes = []unresolvedDepsMode{ignoreUnresolvedDeps, warnAboutUnresolvedDeps, failImmediatelyOnUnresolvedDeps, failEventuallyOnUnresolvedDeps}
+var errorReportingModes = []errorReportingMode{errorReportingMode_ignore, errorReportingMode_warn, errorReportingMode_failImmediately, errorReportingMode_failEventually}
 
 const (
-	// Ignore unresolved dependencies and proceed with the build
-	ignoreUnresolvedDeps unresolvedDepsMode = "ignore"
-	// Warn about unresolved dependencies but proceed with the build
-	warnAboutUnresolvedDeps unresolvedDepsMode = "warn"
-	// Fail immediately on the first occurred unresolved dependency
-	failImmediatelyOnUnresolvedDeps unresolvedDepsMode = "error_fast"
-	// Collect all unresolved dependencies and fail at the end if the list is not empty
-	failEventuallyOnUnresolvedDeps unresolvedDepsMode = "error"
+	// Ignore encountered errors and proceed with the build
+	errorReportingMode_ignore errorReportingMode = "ignore"
+	// Warn about encountered errors but proceed with the build
+	errorReportingMode_warn errorReportingMode = "warn"
+	// Fail immediately on the first encountered error
+	errorReportingMode_failImmediately errorReportingMode = "error_fast"
+	// Collect all encountered errors and fail at the end if the list is not empty
+	errorReportingMode_failEventually errorReportingMode = "error"
 )
 
 // splitQuoted splits the string s around each instance of one or more consecutive
