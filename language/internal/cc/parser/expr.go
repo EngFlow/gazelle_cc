@@ -23,16 +23,19 @@ import (
 )
 
 type (
-	// Expr represents an abstract syntax tree (AST) node for a C/C++ preprocessor #if condition.
-	// Each Expr node implements fmt.Stringer for debugging and round-tripping.
+	// Expr represents an abstract syntax tree (AST) node for a C/C++
+	// preprocessor #if condition. Each Expr node implements fmt.Stringer for
+	// debugging and round-tripping.
 	Expr interface {
 		fmt.Stringer
-		// Eval returns the result of evaluations the expression in given environemt (macro set). It may return 0 if the expression is not depends on unknown definitions.
+		// Eval returns the result of evaluations the expression in given
+		// environemt (macro set). It may return 0 if the expression depends on
+		// unknown definitions.
 		Eval(env Environment) (int, error)
 	}
 
-	// Defined represents the defined(X) operator in #if expressions,
-	// checking if a macro identifier is defined.
+	// Defined represents the defined(X) operator in #if expressions, checking
+	// if a macro identifier is defined.
 	Defined struct {
 		Name Ident
 	}
@@ -54,9 +57,12 @@ type (
 
 	// Compare represents a comparison between two values, e.g. A == B, A < B.
 	Compare struct {
-		Left  Expr            // Left-hand side of the comparison
-		Op    lexer.TokenType // Comparison operator: "==", "!=", "<", "<=", ">", ">="
-		Right Expr            // Right-hand side of the comparison
+		// Left-hand side of the comparison
+		Left Expr
+		// Comparison operator: "==", "!=", "<", "<=", ">", ">="
+		Op lexer.TokenType
+		// Right-hand side of the comparison
+		Right Expr
 	}
 	Apply struct {
 		// Name or macro being applied.
@@ -67,7 +73,8 @@ type (
 )
 
 type (
-	// Value is a sub-interface of Expr, representing a literal value in a #if expression.
+	// Value is a sub-interface of Expr, representing a literal value in a #if
+	// expression.
 	Value interface {
 		Expr
 	}
@@ -132,8 +139,8 @@ func (expr Compare) Eval(env Environment) (int, error) {
 	}
 }
 func (expr Apply) Eval(env Environment) (int, error) {
-	// We do not support evaluating env with arguments in #if expressions
-	// Assume that the macro is defined and return true
+	// We do not support evaluating env with arguments in #if expressions.
+	// Assume that the macro is defined and return true.
 	return 1, nil
 }
 func (expr Not) Eval(env Environment) (int, error) {
