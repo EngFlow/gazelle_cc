@@ -25,10 +25,17 @@ type Cursor struct {
 	Line, Column int
 }
 
-// Initial cursor position, at the beginning of the file or string.
-var CursorInit = Cursor{Line: 1, Column: 1}
+var (
+	// Initial cursor position, at the beginning of the file or string.
+	CursorInit = Cursor{Line: 1, Column: 1}
+	// Special cursor value indicating the end of the file or string.
+	CursorEOF = Cursor{}
+)
 
 func (c Cursor) String() string {
+	if c == CursorEOF {
+		return "EOF"
+	}
 	return fmt.Sprintf("%d:%d", c.Line, c.Column)
 }
 

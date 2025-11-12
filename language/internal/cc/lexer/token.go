@@ -202,4 +202,4 @@ type Token struct {
 	Content  string
 }
 
-var TokenEOF = Token{Type: TokenType_EOF}
+var TokenEOF = Token{Type: TokenType_EOF, Location: CursorEOF}
