@@ -18,6 +18,7 @@ package parser
 type SourceInfo struct {
 	Directives []Directive // Top-level parsed preprocessor directives (may be nested)
 	HasMain    bool        // True if a main() function is detected
+	Errors     []error     // List of non-critical errors encountered during parsing
 }
 
 // CollectIncludes recursively traverses the directive tree and returns all IncludeDirective

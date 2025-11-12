@@ -25,7 +25,6 @@ package parser
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"slices"
@@ -46,14 +45,12 @@ func isRelevantTokenType(token lexer.Token) bool {
 }
 
 // ParseSource reads and parses C/C++ source, returning structured SourceInfo.
-func ParseSource(input []byte) (SourceInfo, error) {
+func ParseSource(input []byte) SourceInfo {
 	allTokens := lexer.NewLexer(input).AllTokens()
 	filteredTokens := collections.FilterSeq(allTokens, isRelevantTokenType)
 	p := parser{tokensLeft: slices.Collect(filteredTokens)}
-	directives, err := p.parseDirectivesUntil(func(tokenType lexer.TokenType) bool { return tokenType == lexer.TokenType_EOF })
-	p.sourceInfo.Directives = directives
-
-	return p.sourceInfo, err
+	p.sourceInfo.Directives = p.parseDirectivesUntil(func(tokenType lexer.TokenType) bool { return tokenType == lexer.TokenType_EOF })
+	return p.sourceInfo
 }
 
 // ParseSourceFile opens filename and feeds its contents to the extractor.
@@ -62,7 +59,7 @@ func ParseSourceFile(filename string) (SourceInfo, error) {
 	if err != nil {
 		return SourceInfo{}, err
 	}
-	return ParseSource(content)
+	return ParseSource(content), nil
 }
 
 type (
@@ -105,10 +102,6 @@ func init() {
 		lexer.TokenType_OperatorLessOrEqual:    {precedence: precedenceCompare, infixParser: parseBinaryCompareOperator},
 	}
 }
-
-// switch to enable logging of errors found when parsing sources
-// used only for development purpuses, we don't log log errors in normal mode
-const debug = false
 
 // parseExprPrecedence implements Pratt parsing for expressions, handling C
 // preprocessor conditionals. minPrecedence controls operator binding
@@ -306,14 +299,12 @@ func (p *parser) expectNextToken(expected lexer.TokenType) (lexer.Token, error) 
 // parseDirectivesUntil reads tokens and parses directives until shouldStop
 // returns true. It handles main(), #include, and preprocessor blocks, and
 // builds the nested directive structure.
-func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) bool) ([]Directive, error) {
+func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) bool) []Directive {
 	var directives []Directive
 	for !shouldStop(p.peekToken()) {
 		if p.peekToken() == lexer.TokenType_EOF {
-			if debug {
-				log.Printf("unexpected end of input")
-			}
-			return directives, nil
+			p.sourceInfo.Errors = append(p.sourceInfo.Errors, errors.New("unexpected end of input"))
+			return directives
 		}
 
 		if p.tryParseMainFunction() {
@@ -324,15 +315,15 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) boo
 			directive, err := p.parseDirective()
 			if err == nil {
 				directives = append(directives, directive)
-			} else if debug {
-				log.Printf("Failed to parse %s directive: %v", tokenType, err)
+			} else {
+				p.sourceInfo.Errors = append(p.sourceInfo.Errors, err)
 			}
 		} else {
 			p.nextToken()
 		}
 	}
 
-	return directives, nil
+	return directives
 }
 
 // parseExpr parses a preprocessor expression (#if/#elif condition) as an Expr
@@ -405,11 +396,7 @@ func (p *parser) parseIfBranch(kind BranchKind) (ConditionalBranch, error) {
 		return ConditionalBranch{}, fmt.Errorf("unsupported branch directive: %s", directive)
 	}
 
-	body, err := p.parseDirectivesUntil(isEndOfIfBranch)
-	if err != nil {
-		return ConditionalBranch{}, err
-	}
-
+	body := p.parseDirectivesUntil(isEndOfIfBranch)
 	return ConditionalBranch{
 		Kind:      kind,
 		Condition: cond,
@@ -439,10 +426,7 @@ func (p *parser) parseIfBlock() (IfBlock, error) {
 
 		case lexer.TokenType_PreprocessorElse:
 			p.nextToken()
-			body, err := p.parseDirectivesUntil(func(tokenType lexer.TokenType) bool { return tokenType == lexer.TokenType_PreprocessorEndif })
-			if err != nil {
-				return IfBlock{}, err
-			}
+			body := p.parseDirectivesUntil(func(tokenType lexer.TokenType) bool { return tokenType == lexer.TokenType_PreprocessorEndif })
 			branches = append(branches, ConditionalBranch{
 				Kind:      ElseBranch,
 				Condition: nil,
