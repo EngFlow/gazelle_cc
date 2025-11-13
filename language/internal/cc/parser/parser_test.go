@@ -730,6 +730,10 @@ func TestParseSourceHasMain(t *testing.T) {
 			expected: true,
 			input:    `/* that our main */ int main(int argCount, char** values){return 0;}`,
 		},
+		{
+			expected: true,
+			input:    "int wmain( int argc, wchar_t *argv[ ], wchar_t *envp[ ] ) {return 0;}",
+		},
 	}
 
 	for idx, tc := range testCases {
