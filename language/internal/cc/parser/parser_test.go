@@ -23,8 +23,9 @@ import (
 
 func TestParseIncludes(t *testing.T) {
 	testCases := []struct {
-		input    string
-		expected []Directive
+		input          string
+		expected       []Directive
+		expectedErrors []string
 	}{
 		{
 			// Parses valid source code
@@ -56,6 +57,12 @@ func TestParseIncludes(t *testing.T) {
 				IncludeDirective{Path: "valid.h", LineNumber: 2},
 				IncludeDirective{Path: "multiple", IsSystem: false, LineNumber: 7},
 				IncludeDirective{Path: "other_valid", IsSystem: true, LineNumber: 8},
+			},
+			expectedErrors: []string{
+				`3:10: expected <system_include_path> or "string literal", got unknown token`,
+				`4:10: expected <system_include_path> or "string literal", got identifier`,
+				`5:10: expected <system_include_path> or "string literal", got operator '<'`,
+				`6:10: expected <system_include_path> or "string literal", got identifier`,
 			},
 		},
 		{
@@ -125,14 +132,20 @@ func TestParseIncludes(t *testing.T) {
 
 	for _, tc := range testCases {
 		result := ParseSource([]byte(tc.input))
-		assert.Equal(t, tc.expected, result.Directives, "Input:%v", tc.input)
+		assert.Equal(t, tc.expected, result.Directives, "Input:%s", tc.input)
+		if assert.Equal(t, len(tc.expectedErrors), len(result.Errors), "Input:%s", tc.input) {
+			for i, err := range result.Errors {
+				assert.EqualError(t, err, tc.expectedErrors[i], "Input:%s", tc.input)
+			}
+		}
 	}
 }
 
 func TestParseConditionalIncludes(t *testing.T) {
 	testCases := []struct {
-		input    string
-		expected SourceInfo
+		input          string
+		expected       []Directive
+		expectedErrors []string
 	}{
 		// ifdef syntax
 		{
@@ -150,35 +163,33 @@ func TestParseConditionalIncludes(t *testing.T) {
 #endif
 #include "last.h"
 `,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IncludeDirective{Path: "common.h", LineNumber: 2},
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Defined{Ident("_WIN32")},
-							Body: []Directive{
-								IncludeDirective{Path: "windows.h", IsSystem: true, LineNumber: 4},
-							},
-						}, {
-							Kind:      ElifBranch,
-							Condition: Defined{Ident("__APPLE__")},
-							Body:      []Directive{IncludeDirective{Path: "unistd.h", IsSystem: true, LineNumber: 7}},
-						}, {
-							Kind:      ElifBranch,
-							Condition: Not{Defined{Ident("__linux__")}},
-							Body: []Directive{
-								IncludeDirective{Path: "fcntl.h", IsSystem: true, LineNumber: 9},
-							},
-						}, {
-							Kind: ElseBranch,
-							Body: []Directive{
-								IncludeDirective{Path: "other.h", LineNumber: 11},
-							},
+			expected: []Directive{
+				IncludeDirective{Path: "common.h", LineNumber: 2},
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Defined{Ident("_WIN32")},
+						Body: []Directive{
+							IncludeDirective{Path: "windows.h", IsSystem: true, LineNumber: 4},
 						},
-					}},
-					IncludeDirective{Path: "last.h", LineNumber: 13},
-				},
+					}, {
+						Kind:      ElifBranch,
+						Condition: Defined{Ident("__APPLE__")},
+						Body:      []Directive{IncludeDirective{Path: "unistd.h", IsSystem: true, LineNumber: 7}},
+					}, {
+						Kind:      ElifBranch,
+						Condition: Not{Defined{Ident("__linux__")}},
+						Body: []Directive{
+							IncludeDirective{Path: "fcntl.h", IsSystem: true, LineNumber: 9},
+						},
+					}, {
+						Kind: ElseBranch,
+						Body: []Directive{
+							IncludeDirective{Path: "other.h", LineNumber: 11},
+						},
+					},
+				}},
+				IncludeDirective{Path: "last.h", LineNumber: 13},
 			},
 		},
 		// whitespace between '#' and directive keyword
@@ -187,16 +198,14 @@ func TestParseConditionalIncludes(t *testing.T) {
 		# ifdef _WIN32
 		# endif
 		`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Defined{Ident("_WIN32")},
-							Body:      nil,
-						},
-					}},
-				},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Defined{Ident("_WIN32")},
+						Body:      nil,
+					},
+				}},
 			},
 		},
 		// if defined syntax
@@ -214,33 +223,31 @@ func TestParseConditionalIncludes(t *testing.T) {
 		#include "other.h"
 		#endif
 		`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Defined{Ident("_WIN32")},
-							Body: []Directive{
-								IncludeDirective{Path: "windows.h", LineNumber: 3},
-							},
-						}, {
-							Kind:      ElifBranch,
-							Condition: Defined{Ident("__APPLE__")},
-							Body:      []Directive{IncludeDirective{Path: "unistd.h", LineNumber: 5}},
-						}, {
-							Kind:      ElifBranch,
-							Condition: Not{Defined{Ident("__linux__")}},
-							Body: []Directive{
-								IncludeDirective{Path: "fcntl.h", LineNumber: 9},
-							},
-						}, {
-							Kind: ElseBranch,
-							Body: []Directive{
-								IncludeDirective{Path: "other.h", LineNumber: 11},
-							},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Defined{Ident("_WIN32")},
+						Body: []Directive{
+							IncludeDirective{Path: "windows.h", LineNumber: 3},
 						},
-					}},
-				},
+					}, {
+						Kind:      ElifBranch,
+						Condition: Defined{Ident("__APPLE__")},
+						Body:      []Directive{IncludeDirective{Path: "unistd.h", LineNumber: 5}},
+					}, {
+						Kind:      ElifBranch,
+						Condition: Not{Defined{Ident("__linux__")}},
+						Body: []Directive{
+							IncludeDirective{Path: "fcntl.h", LineNumber: 9},
+						},
+					}, {
+						Kind: ElseBranch,
+						Body: []Directive{
+							IncludeDirective{Path: "other.h", LineNumber: 11},
+						},
+					},
+				}},
 			},
 		},
 		{
@@ -252,31 +259,29 @@ func TestParseConditionalIncludes(t *testing.T) {
 		#include "cli.h"
 		#endif
 		`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind: IfBranch,
-							Condition: Or{
-								And{
-									Defined{Ident("_WIN32")},
-									Defined{Ident("ENABLE_GUI")},
-								},
-								Defined{Ident("__ANDROID__")},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind: IfBranch,
+						Condition: Or{
+							And{
+								Defined{Ident("_WIN32")},
+								Defined{Ident("ENABLE_GUI")},
 							},
-							Body: []Directive{
-								IncludeDirective{Path: "ui.h", LineNumber: 3},
-							},
+							Defined{Ident("__ANDROID__")},
 						},
-						{
-							Kind:      ElifBranch,
-							Condition: Defined{Ident("_WIN32")},
-							Body: []Directive{
-								IncludeDirective{Path: "cli.h", LineNumber: 5},
-							},
+						Body: []Directive{
+							IncludeDirective{Path: "ui.h", LineNumber: 3},
 						},
-					}},
-				},
+					},
+					{
+						Kind:      ElifBranch,
+						Condition: Defined{Ident("_WIN32")},
+						Body: []Directive{
+							IncludeDirective{Path: "cli.h", LineNumber: 5},
+						},
+					},
+				}},
 			},
 		},
 		{
@@ -290,33 +295,31 @@ func TestParseConditionalIncludes(t *testing.T) {
 		#include "nofeature.h"
 		#endif
 		`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind: IfBranch,
-							Condition: Or{
-								And{
-									Defined{Ident("_WIN32")},
-									Not{Defined{Ident("DISABLE_FEATURE")}},
-								},
-								And{
-									Defined{Ident("__APPLE__")},
-									Defined{Ident("ENABLE_COCOA")},
-								},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind: IfBranch,
+						Condition: Or{
+							And{
+								Defined{Ident("_WIN32")},
+								Not{Defined{Ident("DISABLE_FEATURE")}},
 							},
-							Body: []Directive{
-								IncludeDirective{Path: "feature.h", LineNumber: 5},
+							And{
+								Defined{Ident("__APPLE__")},
+								Defined{Ident("ENABLE_COCOA")},
 							},
 						},
-						{
-							Kind: ElseBranch,
-							Body: []Directive{
-								IncludeDirective{Path: "nofeature.h", LineNumber: 7},
-							},
+						Body: []Directive{
+							IncludeDirective{Path: "feature.h", LineNumber: 5},
 						},
-					}},
-				},
+					},
+					{
+						Kind: ElseBranch,
+						Body: []Directive{
+							IncludeDirective{Path: "nofeature.h", LineNumber: 7},
+						},
+					},
+				}},
 			},
 		},
 		{
@@ -330,31 +333,29 @@ func TestParseConditionalIncludes(t *testing.T) {
 			#include "windows_api.h"
 		#endif
 		`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Ident("TARGET_IOS"),
-							Body: []Directive{
-								IncludeDirective{Path: "ios_api.h", LineNumber: 3},
-							},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Ident("TARGET_IOS"),
+						Body: []Directive{
+							IncludeDirective{Path: "ios_api.h", LineNumber: 3},
 						},
-						{
-							Kind:      ElifBranch,
-							Condition: Not{Ident("TARGET_WINDOWS")},
-							Body: []Directive{
-								IncludeDirective{Path: "unix_api.h", LineNumber: 5},
-							},
+					},
+					{
+						Kind:      ElifBranch,
+						Condition: Not{Ident("TARGET_WINDOWS")},
+						Body: []Directive{
+							IncludeDirective{Path: "unix_api.h", LineNumber: 5},
 						},
-						{
-							Kind: ElseBranch,
-							Body: []Directive{
-								IncludeDirective{Path: "windows_api.h", LineNumber: 7},
-							},
+					},
+					{
+						Kind: ElseBranch,
+						Body: []Directive{
+							IncludeDirective{Path: "windows_api.h", LineNumber: 7},
 						},
-					}},
-				},
+					},
+				}},
 			},
 		},
 		{
@@ -366,24 +367,22 @@ func TestParseConditionalIncludes(t *testing.T) {
 		#include "narrowint.h"
 		#endif
 		`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Compare{Left: Ident("__WINT_WIDTH__"), Op: lexer.TokenType_OperatorGreaterOrEqual, Right: ConstantInt(32)},
-							Body: []Directive{
-								IncludeDirective{Path: "wideint.h", LineNumber: 3},
-							},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Compare{Left: Ident("__WINT_WIDTH__"), Op: lexer.TokenType_OperatorGreaterOrEqual, Right: ConstantInt(32)},
+						Body: []Directive{
+							IncludeDirective{Path: "wideint.h", LineNumber: 3},
 						},
-						{
-							Kind: ElseBranch,
-							Body: []Directive{
-								IncludeDirective{Path: "narrowint.h", LineNumber: 5},
-							},
+					},
+					{
+						Kind: ElseBranch,
+						Body: []Directive{
+							IncludeDirective{Path: "narrowint.h", LineNumber: 5},
 						},
-					}},
-				},
+					},
+				}},
 			},
 		},
 		{
@@ -397,32 +396,30 @@ func TestParseConditionalIncludes(t *testing.T) {
 				#include "c.h"
 				#endif
 				`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Compare{Left: ConstantInt(1), Op: lexer.TokenType_OperatorEqual, Right: Ident("__LITTLE_ENDIAN__")},
-							Body: []Directive{
-								IncludeDirective{Path: "a.h", LineNumber: 3},
-							},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Compare{Left: ConstantInt(1), Op: lexer.TokenType_OperatorEqual, Right: Ident("__LITTLE_ENDIAN__")},
+						Body: []Directive{
+							IncludeDirective{Path: "a.h", LineNumber: 3},
 						},
-						{
-							Kind:      ElifBranch,
-							Condition: Compare{Left: ConstantInt(0), Op: lexer.TokenType_OperatorNotEqual, Right: Ident("TARGET_IOS")},
-							Body: []Directive{
-								IncludeDirective{Path: "b.h", LineNumber: 5},
-							},
+					},
+					{
+						Kind:      ElifBranch,
+						Condition: Compare{Left: ConstantInt(0), Op: lexer.TokenType_OperatorNotEqual, Right: Ident("TARGET_IOS")},
+						Body: []Directive{
+							IncludeDirective{Path: "b.h", LineNumber: 5},
 						},
-						{
-							Kind:      ElifBranch,
-							Condition: Compare{Left: ConstantInt(32), Op: lexer.TokenType_OperatorGreater, Right: Ident("POINTER_SIZE")},
-							Body: []Directive{
-								IncludeDirective{Path: "c.h", LineNumber: 7},
-							},
+					},
+					{
+						Kind:      ElifBranch,
+						Condition: Compare{Left: ConstantInt(32), Op: lexer.TokenType_OperatorGreater, Right: Ident("POINTER_SIZE")},
+						Body: []Directive{
+							IncludeDirective{Path: "c.h", LineNumber: 7},
 						},
-					}},
-				},
+					},
+				}},
 			},
 		},
 		{
@@ -436,31 +433,29 @@ func TestParseConditionalIncludes(t *testing.T) {
 		#include "armlegacy.h"
 		#endif
 		`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Compare{Left: Ident("__ARM_ARCH"), Op: lexer.TokenType_OperatorEqual, Right: ConstantInt(8)},
-							Body: []Directive{
-								IncludeDirective{Path: "armv8.h", LineNumber: 3},
-							},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Compare{Left: Ident("__ARM_ARCH"), Op: lexer.TokenType_OperatorEqual, Right: ConstantInt(8)},
+						Body: []Directive{
+							IncludeDirective{Path: "armv8.h", LineNumber: 3},
 						},
-						{
-							Kind:      ElifBranch,
-							Condition: Compare{Left: Ident("__ARM_ARCH"), Op: lexer.TokenType_OperatorGreater, Right: ConstantInt(8)},
-							Body: []Directive{
-								IncludeDirective{Path: "armv9.h", LineNumber: 5},
-							},
+					},
+					{
+						Kind:      ElifBranch,
+						Condition: Compare{Left: Ident("__ARM_ARCH"), Op: lexer.TokenType_OperatorGreater, Right: ConstantInt(8)},
+						Body: []Directive{
+							IncludeDirective{Path: "armv9.h", LineNumber: 5},
 						},
-						{
-							Kind: ElseBranch,
-							Body: []Directive{
-								IncludeDirective{Path: "armlegacy.h", LineNumber: 7},
-							},
+					},
+					{
+						Kind: ElseBranch,
+						Body: []Directive{
+							IncludeDirective{Path: "armlegacy.h", LineNumber: 7},
 						},
-					}},
-				},
+					},
+				}},
 			},
 		},
 		{
@@ -484,46 +479,44 @@ func TestParseConditionalIncludes(t *testing.T) {
 							#include "nofoo.h"
 						#endif
 						`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Defined{Ident("FOO")},
-							Body: []Directive{
-								IncludeDirective{Path: "foo.h", LineNumber: 3},
-								IfBlock{Branches: []ConditionalBranch{
-									{
-										Kind:      IfBranch,
-										Condition: Defined{Ident("BAR")},
-										Body: []Directive{
-											IncludeDirective{Path: "bar.h", LineNumber: 5},
-											IfBlock{Branches: []ConditionalBranch{
-												{
-													Kind:      IfBranch,
-													Condition: Defined{Ident("BAZ")},
-													Body:      []Directive{IncludeDirective{Path: "baz.h", LineNumber: 7}},
-												},
-												{
-													Kind:      ElifBranch,
-													Condition: Defined{Ident("QUX")},
-													Body:      []Directive{IncludeDirective{Path: "qux.h", LineNumber: 9}},
-												},
-												{
-													Kind: ElseBranch,
-													Body: []Directive{IncludeDirective{Path: "nobaz.h", LineNumber: 11}},
-												},
-											}},
-										}}, {
-										Kind: ElseBranch,
-										Body: []Directive{IncludeDirective{Path: "nobar.h", LineNumber: 14}},
-									}}}}},
-						{
-							Kind: ElseBranch,
-							Body: []Directive{IncludeDirective{Path: "nofoo.h", LineNumber: 17}},
-						},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Defined{Ident("FOO")},
+						Body: []Directive{
+							IncludeDirective{Path: "foo.h", LineNumber: 3},
+							IfBlock{Branches: []ConditionalBranch{
+								{
+									Kind:      IfBranch,
+									Condition: Defined{Ident("BAR")},
+									Body: []Directive{
+										IncludeDirective{Path: "bar.h", LineNumber: 5},
+										IfBlock{Branches: []ConditionalBranch{
+											{
+												Kind:      IfBranch,
+												Condition: Defined{Ident("BAZ")},
+												Body:      []Directive{IncludeDirective{Path: "baz.h", LineNumber: 7}},
+											},
+											{
+												Kind:      ElifBranch,
+												Condition: Defined{Ident("QUX")},
+												Body:      []Directive{IncludeDirective{Path: "qux.h", LineNumber: 9}},
+											},
+											{
+												Kind: ElseBranch,
+												Body: []Directive{IncludeDirective{Path: "nobaz.h", LineNumber: 11}},
+											},
+										}},
+									}}, {
+									Kind: ElseBranch,
+									Body: []Directive{IncludeDirective{Path: "nobar.h", LineNumber: 14}},
+								}}}}},
+					{
+						Kind: ElseBranch,
+						Body: []Directive{IncludeDirective{Path: "nofoo.h", LineNumber: 17}},
 					},
-					},
+				},
 				},
 			},
 		},
@@ -532,16 +525,14 @@ func TestParseConditionalIncludes(t *testing.T) {
 				#if !A == B
 					#include <unistd.h>
 				#endif`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Compare{Left: Not{Ident("A")}, Op: lexer.TokenType_OperatorEqual, Right: Ident("B")},
-							Body:      []Directive{IncludeDirective{Path: "unistd.h", IsSystem: true, LineNumber: 3}},
-						},
-					}},
-				},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Compare{Left: Not{Ident("A")}, Op: lexer.TokenType_OperatorEqual, Right: Ident("B")},
+						Body:      []Directive{IncludeDirective{Path: "unistd.h", IsSystem: true, LineNumber: 3}},
+					},
+				}},
 			},
 		},
 		{
@@ -551,20 +542,18 @@ func TestParseConditionalIncludes(t *testing.T) {
 					#include "bar.h"
 					#undef FOO_H
 				#endif`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Not{Defined{Ident("FOO_H")}},
-							Body: []Directive{
-								DefineDirective{Name: "FOO_H", Args: []string{}, Body: []string{}},
-								IncludeDirective{Path: "bar.h", LineNumber: 4},
-								UndefineDirective{Name: "FOO_H"},
-							},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Not{Defined{Ident("FOO_H")}},
+						Body: []Directive{
+							DefineDirective{Name: "FOO_H", Args: []string{}, Body: []string{}},
+							IncludeDirective{Path: "bar.h", LineNumber: 4},
+							UndefineDirective{Name: "FOO_H"},
 						},
-					}},
-				},
+					},
+				}},
 			},
 		},
 		{
@@ -575,24 +564,22 @@ func TestParseConditionalIncludes(t *testing.T) {
 				#endif
 			#endif
 			`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Defined{Ident("__has_builtin")},
-							Body: []Directive{
-								IfBlock{Branches: []ConditionalBranch{
-									{
-										Kind:      IfBranch,
-										Condition: Apply{Name: Ident("__has_builtin"), Args: []Expr{Ident("__builtin_add_overflow")}},
-										Body:      nil,
-									},
-								},
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Defined{Ident("__has_builtin")},
+						Body: []Directive{
+							IfBlock{Branches: []ConditionalBranch{
+								{
+									Kind:      IfBranch,
+									Condition: Apply{Name: Ident("__has_builtin"), Args: []Expr{Ident("__builtin_add_overflow")}},
+									Body:      nil,
 								},
 							},
-						}},
-					},
+							},
+						},
+					}},
 				},
 			},
 		},
@@ -606,25 +593,23 @@ func TestParseConditionalIncludes(t *testing.T) {
 				#include "bar.h"
 			#endif
 			`,
-			expected: SourceInfo{
-				Directives: []Directive{
-					DefineDirective{Name: "IS_EQUAL", Args: []string{"a", "b"}, Body: []string{"(", "(", "a", ")", "==", "(", "b", ")", ")"}},
-					IfBlock{Branches: []ConditionalBranch{
-						{
-							Kind:      IfBranch,
-							Condition: Apply{Name: Ident("IS_EQUAL"), Args: []Expr{Ident("FOO"), Ident("BAR")}},
-							Body: []Directive{
-								IncludeDirective{Path: "foo.h", LineNumber: 4},
-							},
-						},
-						{
-							Kind: ElseBranch,
-							Body: []Directive{
-								IncludeDirective{Path: "bar.h", LineNumber: 6},
-							},
+			expected: []Directive{
+				DefineDirective{Name: "IS_EQUAL", Args: []string{"a", "b"}, Body: []string{"(", "(", "a", ")", "==", "(", "b", ")", ")"}},
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Apply{Name: Ident("IS_EQUAL"), Args: []Expr{Ident("FOO"), Ident("BAR")}},
+						Body: []Directive{
+							IncludeDirective{Path: "foo.h", LineNumber: 4},
 						},
 					},
+					{
+						Kind: ElseBranch,
+						Body: []Directive{
+							IncludeDirective{Path: "bar.h", LineNumber: 6},
+						},
 					},
+				},
 				},
 			},
 		},
@@ -634,15 +619,61 @@ func TestParseConditionalIncludes(t *testing.T) {
 			#ifdef FOO
 				#include "foo.h"
 			`,
-			expected: SourceInfo{
-				Directives: nil,
+			expected: nil,
+			expectedErrors: []string{
+				"2:4: missing directive '#endif' for directive '#ifdef'",
+			},
+		},
+		{
+			// Unclosed nested conditional block
+			input: `
+			#ifdef FOO
+				#ifdef BAR
+				#else
+			`,
+			expected: nil,
+			expectedErrors: []string{
+				"4:5: missing directive '#endif' for directive '#else'",
+				"2:4: missing directive '#endif' for directive '#ifdef'",
+			},
+		},
+		{
+			// Unclosed parent conditional block
+			input: `
+			#if defined(FOO)
+				#if defined(BAR)
+				#endif
+			`,
+			expected: nil,
+			expectedErrors: []string{
+				"2:4: missing directive '#endif' for directive '#if'",
+			},
+		},
+		{
+			// Invalid expression
+			input: `
+			#include "seen_before_error.h"
+			#if 2 <
+			#endif
+			`,
+			expected: []Directive{
+				IncludeDirective{Path: "seen_before_error.h", LineNumber: 2},
+			},
+			expectedErrors: []string{
+				"3:11: expected integer literal or identifier, got newline",
+				"4:4: unpaired `#if`: directive '#endif'",
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		result := ParseSource([]byte(tc.input))
-		assert.Equal(t, tc.expected, result, "Input:%v", tc.input)
+		assert.Equal(t, tc.expected, result.Directives, "Input:%s", tc.input)
+		if assert.Equal(t, len(tc.expectedErrors), len(result.Errors), "Input:%s", tc.input) {
+			for i, err := range result.Errors {
+				assert.EqualError(t, err, tc.expectedErrors[i], "Input:%s", tc.input)
+			}
+		}
 	}
 }
 

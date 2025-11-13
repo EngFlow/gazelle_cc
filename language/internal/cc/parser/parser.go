@@ -36,7 +36,7 @@ import (
 
 func isRelevantTokenType(token lexer.Token) bool {
 	switch token.Type {
-	case lexer.TokenType_Unassigned, lexer.TokenType_Whitespace, lexer.TokenType_ContinueLine, lexer.TokenType_CommentSingleLine, lexer.TokenType_CommentMultiLine:
+	case lexer.TokenType_Whitespace, lexer.TokenType_ContinueLine, lexer.TokenType_CommentSingleLine, lexer.TokenType_CommentMultiLine:
 		return false
 	default:
 		return true
