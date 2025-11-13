@@ -23,7 +23,6 @@
 package parser
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -161,17 +160,17 @@ func parseBinaryCompareOperator(p *parser, lhs Expr) (Expr, error) {
 }
 
 func parseBinaryApplyOperator(p *parser, lhs Expr) (Expr, error) {
-	p.nextToken()
+	op := p.nextToken()
 	ident, ok := lhs.(Ident)
 	if !ok {
-		return nil, fmt.Errorf("expected identifier for apply operator, got %T", lhs)
+		return nil, fmt.Errorf("%s: expected identifier for apply operator, got %T", op.Location, lhs)
 	}
 
 	args := []Expr{}
 	for {
 		switch p.peekToken() {
 		case lexer.TokenType_EOF, lexer.TokenType_Newline:
-			return nil, fmt.Errorf("unexpected end of input while parsing apply operator %q", ident)
+			return nil, fmt.Errorf("%s: unexpected %s while parsing apply operator %q", p.location(), p.peekToken(), ident)
 		case lexer.TokenType_Comma:
 			p.nextToken()
 			continue
@@ -225,7 +224,7 @@ func (p *parser) parseIncludeDirective() (Directive, error) {
 		path := strings.Trim(pathToken.Content, `"`)
 		return IncludeDirective{Path: path, IsSystem: false, LineNumber: pathToken.Location.Line}, nil
 	default:
-		return nil, errors.New("malformed include directive path")
+		return nil, fmt.Errorf("%s: expected %s or %s, got %s", p.location(), lexer.TokenType_PreprocessorSystemPath, lexer.TokenType_LiteralString, p.peekToken())
 	}
 }
 
@@ -272,6 +271,15 @@ func (p *parser) peekToken() lexer.TokenType {
 	return p.tokensLeft[0].Type
 }
 
+// Return the location of the next token to be read, or CursorEOF if no tokens
+// are left.
+func (p *parser) location() lexer.Cursor {
+	if len(p.tokensLeft) == 0 {
+		return lexer.CursorEOF
+	}
+	return p.tokensLeft[0].Location
+}
+
 // Return the next token and consume it, or TokenEmpty if no tokens are left.
 func (p *parser) nextToken() lexer.Token {
 	if len(p.tokensLeft) == 0 {
@@ -286,14 +294,10 @@ func (p *parser) nextToken() lexer.Token {
 // Return the next token and consume it if it matches expected type. Otherwise
 // return an error, without consuming the token.
 func (p *parser) expectNextToken(expected lexer.TokenType) (lexer.Token, error) {
-	switch p.peekToken() {
-	case expected:
-		return p.nextToken(), nil
-	case lexer.TokenType_EOF:
-		return lexer.TokenEOF, fmt.Errorf("expected %s but reached end of input", expected)
-	default:
-		return lexer.TokenEOF, fmt.Errorf("expected %s but found %s", expected, p.peekToken())
+	if p.peekToken() != expected {
+		return lexer.TokenEOF, fmt.Errorf("%s: expected %s, got %s", p.location(), expected, p.peekToken())
 	}
+	return p.nextToken(), nil
 }
 
 // parseDirectivesUntil reads tokens and parses directives until shouldStop
@@ -303,7 +307,8 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) boo
 	var directives []Directive
 	for !shouldStop(p.peekToken()) {
 		if p.peekToken() == lexer.TokenType_EOF {
-			p.sourceInfo.Errors = append(p.sourceInfo.Errors, errors.New("unexpected end of input"))
+			// missing closing directive for IfBlock or ConditionalBranch; the
+			// error will be handled by parseIfBlock
 			return directives
 		}
 
@@ -408,6 +413,8 @@ func (p *parser) parseIfBranch(kind BranchKind) (ConditionalBranch, error) {
 // #elif/#else/#endif) and all nested directives.
 func (p *parser) parseIfBlock() (IfBlock, error) {
 	var branches []ConditionalBranch
+	lastBranchType := p.peekToken()
+	lastBranchLocation := p.location()
 
 	firstBranch, err := p.parseIfBranch(IfBranch)
 	if err != nil {
@@ -418,6 +425,8 @@ func (p *parser) parseIfBlock() (IfBlock, error) {
 	for {
 		switch p.peekToken() {
 		case lexer.TokenType_PreprocessorElif, lexer.TokenType_PreprocessorElifdef, lexer.TokenType_PreprocessorElifndef:
+			lastBranchType = p.peekToken()
+			lastBranchLocation = p.location()
 			branch, err := p.parseIfBranch(ElifBranch)
 			if err != nil {
 				return IfBlock{}, err
@@ -425,6 +434,8 @@ func (p *parser) parseIfBlock() (IfBlock, error) {
 			branches = append(branches, branch)
 
 		case lexer.TokenType_PreprocessorElse:
+			lastBranchType = p.peekToken()
+			lastBranchLocation = p.location()
 			p.nextToken()
 			body := p.parseDirectivesUntil(func(tokenType lexer.TokenType) bool { return tokenType == lexer.TokenType_PreprocessorEndif })
 			branches = append(branches, ConditionalBranch{
@@ -438,7 +449,7 @@ func (p *parser) parseIfBlock() (IfBlock, error) {
 			return IfBlock{Branches: branches}, nil
 
 		default:
-			return IfBlock{}, fmt.Errorf("unexpected token %v inside #if block", p.peekToken())
+			return IfBlock{}, fmt.Errorf("%s: missing %s for %s", lastBranchLocation, lexer.TokenType_PreprocessorEndif, lastBranchType)
 		}
 	}
 }
@@ -470,7 +481,7 @@ func (p *parser) parseDefineDirective() (DefineDirective, error) {
 				// argument name
 				defineArgs = append(defineArgs, p.nextToken().Content)
 			default:
-				return DefineDirective{}, fmt.Errorf("malformed macro argument list in #define for macro %q", ident)
+				return DefineDirective{}, fmt.Errorf("%s: unexpected %s while parsing macro argument list of %q", p.location(), p.peekToken(), ident)
 			}
 		}
 	}
@@ -490,7 +501,7 @@ func (p *parser) parseUndefineDirective() (UndefineDirective, error) {
 // parseDirective dispatches to the appropriate directive parser based on the
 // token.
 func (p *parser) parseDirective() (Directive, error) {
-	switch directive := p.peekToken(); directive {
+	switch p.peekToken() {
 	case lexer.TokenType_PreprocessorInclude, lexer.TokenType_PreprocessorIncludeNext:
 		return p.parseIncludeDirective()
 	case lexer.TokenType_PreprocessorIf, lexer.TokenType_PreprocessorIfdef, lexer.TokenType_PreprocessorIfndef:
@@ -500,10 +511,11 @@ func (p *parser) parseDirective() (Directive, error) {
 	case lexer.TokenType_PreprocessorUndef:
 		return p.parseUndefineDirective()
 	default:
-		if isEndOfIfBranch(directive) {
-			return nil, fmt.Errorf("malformed input: unpaired #if condition token: %s", directive)
+		token := p.nextToken()
+		if isEndOfIfBranch(token.Type) {
+			return nil, fmt.Errorf("%s: unpaired `#if`: %s", token.Location, token.Type)
 		}
-		return nil, fmt.Errorf("unknown directive: %s", directive)
+		return nil, fmt.Errorf("%s: expected directive, got %s", token.Location, token.Type)
 	}
 }
 
@@ -540,7 +552,7 @@ func parseValue(token lexer.Token) (Value, error) {
 	case lexer.TokenType_Identifier:
 		return Ident(token.Content), nil
 	}
-	return nil, fmt.Errorf("token %q is neither identifier nor integer literal", token.Content)
+	return nil, fmt.Errorf("%s: expected %s or %s, got %s", token.Location, lexer.TokenType_LiteralInteger, lexer.TokenType_Identifier, token.Type)
 }
 
 // parseIntLiteral parses an integer literal in decimal, octal, or hex form,
