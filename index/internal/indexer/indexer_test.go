@@ -15,7 +15,6 @@
 package indexer
 
 import (
-	"log"
 	"testing"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
@@ -60,7 +59,7 @@ func TestIndexableIncludePaths(t *testing.T) {
 			target: Target{
 				Name: label.Label{Pkg: "pkg"},
 			},
-			expected: []string{"header.h", "pkg/header.h"},
+			expected: []string{"pkg/header.h"},
 		},
 		{
 			name:    "strip include prefix with package path",
@@ -78,7 +77,7 @@ func TestIndexableIncludePaths(t *testing.T) {
 				Name:     label.Label{Pkg: "pkg"},
 				Includes: collections.SetOf("include", "include/subdir"),
 			},
-			expected: []string{"include/subdir/header.h", "pkg/include/subdir/header.h", "subdir/header.h", "header.h"},
+			expected: []string{"pkg/include/subdir/header.h", "subdir/header.h", "header.h"},
 		}, {
 			name:    "includes dot allows raw header path",
 			hdrPath: "subdir/header.h",
@@ -124,7 +123,6 @@ func TestIndexableIncludePaths(t *testing.T) {
 				Includes: collections.SetOf("include", "include/a", "include/a/b", "include/a/b/c"),
 			},
 			expected: []string{
-				"include/a/b/c/header.h",
 				"a/b/c/header.h",
 				"b/c/header.h",
 				"c/header.h",
@@ -187,8 +185,7 @@ func TestIndexableIncludePaths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			log.Printf("\ntest %v", tt.name)
-			result := IndexableIncludePaths(tt.hdrPath, tt.target)
+			result := IndexableIncludePaths(label.Label{Name: tt.hdrPath}, tt.target)
 			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}
@@ -207,31 +204,13 @@ func TestShouldExcludeHeader(t *testing.T) {
 		{"underscore prefix", "_header.h", true},
 		{"valid path", "header.h", false},
 		{"valid path with subdir", "dir/header.h", false},
+		{"internal package", "internal/foo.h", true},
+		{"test", "test/foo.h", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := shouldExcludeHeader(tt.path)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestShouldExcludeTarget(t *testing.T) {
-	tests := []struct {
-		name     string
-		label    label.Label
-		expected bool
-	}{
-		{"internal package", label.Label{Pkg: "internal/pkg"}, true},
-		{"impl package", label.Label{Pkg: "impl/pkg"}, true},
-		{"valid package", label.Label{Pkg: "pkg"}, false},
-		{"valid package with subdir", label.Label{Pkg: "pkg/subdir"}, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := shouldExcludeTarget(tt.label)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -258,7 +237,6 @@ func TestCreateHeaderIndex(t *testing.T) {
 			},
 			expected: IndexingResult{
 				HeaderToRule: map[string]label.Label{
-					"header.h":     {Pkg: "pkg", Name: "lib"},
 					"pkg/header.h": {Pkg: "pkg", Name: "lib"},
 				},
 				Ambiguous: map[string][]label.Label{},
