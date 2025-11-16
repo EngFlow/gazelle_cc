@@ -59,7 +59,7 @@ func main() {
 }
 
 func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Module {
-	targets := []*indexer.Target{}
+	targets := []indexer.Target{}
 	libSource := bazel.GetNamedAttribute(foreignDefn, "lib_source").GetStringValue()
 	includeDir := bazel.GetNamedAttribute(foreignDefn, "out_include_dir").GetStringValue()
 	if *cli.Verbose {
@@ -110,7 +110,7 @@ func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Modul
 			if err != nil {
 				continue
 			}
-			targets = append(targets, &indexer.Target{
+			targets = append(targets, indexer.Target{
 				Name: libName,
 				Hdrs: hdrs.Join(
 					collections.ToSet(collections.FilterMapSlice(
