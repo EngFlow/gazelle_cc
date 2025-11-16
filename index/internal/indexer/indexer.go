@@ -50,6 +50,7 @@ type (
 	Target struct {
 		Name               label.Label
 		Hdrs               collections.Set[label.Label] // header files (each header is represented as a Label)
+		Sources            collections.Set[label.Label] // source files
 		Includes           collections.Set[string]      // list of include paths
 		StripIncludePrefix string                       // optional prefix to remove
 		IncludePrefix      string                       // optional prefix to add

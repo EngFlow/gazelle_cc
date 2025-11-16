@@ -160,6 +160,9 @@ func extractIndexerModule(query proto.QueryResult, moduleName string) indexer.Mo
 			Hdrs: collections.ToSet(collections.FilterMapSlice(
 				bazel.GetNamedAttribute(info, "hdrs").GetStringListValue(),
 				tryParseLabel)),
+			Sources: collections.ToSet(collections.FilterMapSlice(
+				bazel.GetNamedAttribute(info, "srcs").GetStringListValue(),
+				tryParseLabel)),
 			Includes:           collections.ToSet(bazel.GetNamedAttribute(info, "includes").GetStringListValue()),
 			StripIncludePrefix: bazel.GetNamedAttribute(info, "strip_include_prefix").GetStringValue(),
 			IncludePrefix:      bazel.GetNamedAttribute(info, "include_prefix").GetStringValue(),
