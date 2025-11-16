@@ -15,9 +15,103 @@
 package indexer
 
 import (
+	"fmt"
+	"log"
+	"maps"
+	"slices"
+
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
+
+func (m Module) WithAmbigiousTargetsResolved() Module {
+	selectedTargets := map[label.Label]Target{}
+	// We need to index only top-level target that depend on all other remaining targets
+	for _, intersectingTargets := range GroupTargetsByHeaders(m.Targets) {
+		roots := SelectRootTargets(intersectingTargets)
+		if len(roots) == 1 { // happy-path, no ambigious headers in targets
+			target := roots[0]
+			if _, exists := selectedTargets[target.Name]; !exists {
+				selectedTargets[target.Name] = target
+			}
+			continue
+		}
+
+		// Exclude header-only targets
+		if len(roots) != 1 {
+			filteredRoots := collections.FilterSlice(roots, func(target Target) bool {
+				return len(target.Sources) > 0
+			})
+			if len(filteredRoots) != 0 {
+				roots = filteredRoots
+			}
+		}
+
+		// Try search for common dependant project and merge with it
+		if len(roots) != 1 {
+			rootNames := collections.MapSlice(roots, func(target Target) label.Label { return target.Name })
+			dependantTargets := collections.FilterSlice(m.Targets, func(target Target) bool {
+				return slices.ContainsFunc(rootNames, func(dep label.Label) bool {
+					dep = dep.Rel(target.Name.Repo, target.Name.Pkg)
+					return target.Deps.Contains(dep)
+				})
+			})
+			selected := SelectRootTargets(dependantTargets)
+			if len(selected) == 1 {
+				selected := selected[0]
+				if target, exists := selectedTargets[selected.Name]; exists {
+					selected = target
+				}
+				for _, target := range intersectingTargets {
+					if target.Name != selected.Name {
+						selected.Hdrs.Join(target.Hdrs)
+						selected.Includes.Join(target.Includes)
+					}
+				}
+				selectedTargets[selected.Name] = selected
+				continue
+			}
+		}
+
+		// Resolve be excluding ambigious headers
+		if len(roots) != 1 {
+			// The hdrs sets might be partially disjoint
+			counts := map[label.Label]int{}
+			for _, root := range roots {
+				for _, header := range root.Hdrs.Values() {
+					counts[header]++
+				}
+			}
+			ambigiousHdrs := collections.SetOf[label.Label]()
+			for header, count := range counts {
+				if count >= 2 {
+					ambigiousHdrs.Add(header)
+				}
+			}
+
+			for _, root := range roots {
+				root.Hdrs = root.Hdrs.Diff(ambigiousHdrs)
+				if len(root.Hdrs) > 0 {
+					selectedTargets[root.Name] = root
+				}
+			}
+			continue
+		}
+
+		if len(roots) != 1 {
+			log.Fatalf("Incosistient state, should be only 1 root target, got %d in %v: %+v", len(roots),
+				m.Repository,
+				collections.MapSlice(roots, func(r Target) string { return fmt.Sprintf("{Name: %q, deps: %v}", r.Name, r.Deps.Values()) }),
+			)
+		}
+	}
+
+	// Create copy of the module with selected targets, *(&m) would be simplified to just m
+	mRef := &m
+	cpy := *mRef
+	cpy.Targets = slices.Collect(maps.Values(selectedTargets))
+	return cpy
+}
 
 // Groups targets into disjoint groups based on the their defined headers.
 // Allows to find targets that contain at least 1 common header defined in their definition.
