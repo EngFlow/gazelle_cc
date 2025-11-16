@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "bzlmod_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/index/bzlmod",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//index/internal/bcr",
+        "//index/internal/indexer",
+        "//index/internal/indexer/cli",
+        "//internal/collections",
+        "@com_github_bazelbuild_buildtools//build",
+    ],
+)
+
+go_binary(
+    name = "bzlmod",
+    embed = [":bzlmod_lib"],
+    visibility = ["//visibility:public"],
+)
