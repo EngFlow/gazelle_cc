@@ -44,7 +44,7 @@ type (
 		// Name of external repository, or empty if targets are defined in the same Bazel repository
 		Repository string
 		// List of targets defined in given module, typically a single cc_library
-		Targets []*Target
+		Targets []Target
 	}
 	// Defines information about structure of rule that might be indexed, typically based on cc_library
 	Target struct {
@@ -77,7 +77,7 @@ func CreateHeaderIndex(modules []Module) IndexingResult {
 			targetLabel := label.New(module.Repository, target.Name.Pkg, target.Name.Name)
 			// Normalize headers and add to mapping
 			for hdr := range target.Hdrs {
-				for _, normalizedPath := range IndexableIncludePaths(hdr, *target) {
+				for _, normalizedPath := range IndexableIncludePaths(hdr, target) {
 					if shouldExcludeHeader(normalizedPath) {
 						continue
 					}

@@ -140,7 +140,7 @@ func main() {
 
 // Processes bazel query result to extrct cc_library targets as a module
 func extractIndexerModule(query proto.QueryResult, moduleName string) indexer.Module {
-	targets := []*indexer.Target{}
+	targets := []indexer.Target{}
 	for _, info := range query.GetTarget() {
 		name, err := label.Parse(info.GetRule().GetName())
 		if err != nil {
@@ -155,7 +155,7 @@ func extractIndexerModule(query proto.QueryResult, moduleName string) indexer.Mo
 			return label.NoLabel, false
 		}
 
-		target := &indexer.Target{
+		target := indexer.Target{
 			Name: name,
 			Hdrs: collections.ToSet(collections.FilterMapSlice(
 				bazel.GetNamedAttribute(info, "hdrs").GetStringListValue(),

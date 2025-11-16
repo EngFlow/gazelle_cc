@@ -227,7 +227,7 @@ func TestCreateHeaderIndex(t *testing.T) {
 			modules: []Module{
 				{
 					Repository: "",
-					Targets: []*Target{
+					Targets: []Target{
 						{
 							Name: label.Label{Pkg: "pkg", Name: "lib"},
 							Hdrs: collections.SetOf(label.Label{Pkg: "pkg", Name: "header.h"}),
@@ -247,7 +247,7 @@ func TestCreateHeaderIndex(t *testing.T) {
 			modules: []Module{
 				{
 					Repository: "",
-					Targets: []*Target{
+					Targets: []Target{
 						{
 							Name:     label.Label{Pkg: "pkg1", Name: "lib1"},
 							Hdrs:     collections.SetOf(label.Label{Pkg: "pkg1", Name: "common.h"}),
