@@ -23,7 +23,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/EngFlow/gazelle_cc/index/conan/internal/targets"
 	"github.com/EngFlow/gazelle_cc/index/internal/bazel"
 	"github.com/EngFlow/gazelle_cc/index/internal/bazel/proto"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
@@ -104,30 +103,8 @@ func main() {
 		if err != nil {
 			fmt.Errorf("Bazel query failed: %w", err)
 		}
-		module := extractIndexerModule(result, repoName)
-
-		// If multiple rules refer to the same headers (typicall in Conan integration) then
-		// pick to targets that are on top of dependency chain - does not depend on other rules in group
-		selectedTargets := []*indexer.Target{}
-		// In conan most of cc_libraries defines filegroup using **/* glob pattern.
-		// We need to index only top-level target that depend on all other remaining targets
-		for _, intersectingTargets := range targets.GroupTargetsByHeaders(module) {
-			roots := targets.SelectRootTargets(intersectingTargets)
-			if len(roots) != 1 {
-				log.Fatal("Incosistient state, should be only 1 root header")
-			}
-			// Typically there should be exacly 1 root, but just for sanity let's merge other ones if needed
-			root := roots[0]
-			for target := range intersectingTargets {
-				if target != root {
-					root.Hdrs.Join(target.Hdrs)
-					root.Includes.Join(target.Includes)
-				}
-			}
-			selectedTargets = append(selectedTargets, root)
-		}
-		module.Targets = selectedTargets
-		modules = append(modules, module)
+		m := extractIndexerModule(result, repoName).WithAmbigiousTargetsResolved()
+		modules = append(modules, m)
 	}
 
 	indexingResult := indexer.CreateHeaderIndex(modules)
