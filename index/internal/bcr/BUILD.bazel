@@ -1,0 +1,27 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "bcr",
+    srcs = ["registry.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/index/internal/bcr",
+    visibility = ["//index:__subpackages__"],
+    deps = [
+        "//index/internal/bazel",
+        "//index/internal/bazel/proto",
+        "//index/internal/indexer",
+        "//internal/collections",
+        "@com_github_bmatcuk_doublestar_v4//:doublestar",
+        "@com_github_ulikunitz_xz//:xz",
+        "@gazelle//label",
+    ],
+)
+
+go_test(
+    name = "bcr_test",
+    srcs = ["registry_test.go"],
+    embed = [":bcr"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@gazelle//label",
+    ],
+)

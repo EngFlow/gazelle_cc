@@ -18,5 +18,6 @@ use_repo(
     "com_github_bazelbuild_buildtools",
     "com_github_bmatcuk_doublestar_v4",
     "com_github_stretchr_testify",
+    "com_github_ulikunitz_xz",
     "org_golang_google_protobuf",
 )
