@@ -74,13 +74,9 @@ func CreateHeaderIndex(modules []Module) IndexingResult {
 			// Create a targetLabel for the target using the module repository.
 			// It's required to correctly map external module to sources found possibly in other rules
 			targetLabel := label.New(module.Repository, target.Name.Pkg, target.Name.Name)
-			if shouldExcludeTarget(targetLabel) {
-				continue
-			}
-
 			// Normalize headers and add to mapping
 			for hdr := range target.Hdrs {
-				for _, normalizedPath := range IndexableIncludePaths(hdr.Name, *target) {
+				for _, normalizedPath := range IndexableIncludePaths(hdr, *target) {
 					if shouldExcludeHeader(normalizedPath) {
 						continue
 					}
@@ -158,46 +154,19 @@ func shouldExcludeHeader(path string) bool {
 	}
 
 	// Exclude possibly hidden files or directories
-	segments := strings.Split(path, string(filepath.Separator))
-	for _, segment := range segments {
+	segments := strings.SplitSeq(path, string(filepath.Separator))
+	for segment := range segments {
 		if strings.HasPrefix(segment, ".") || strings.HasPrefix(segment, "_") {
 			return true
 		}
+		segment = strings.ToLower(segment)
+		switch segment {
+		case "thirdparty", "third-party", "third_party", "3rd_party", "deps", "test", "tests", "internal":
+			return true
+		}
+
 	}
 	return false
-}
-
-// shouldExcludeTarget determines if the given target (label) is possibly internal.
-func shouldExcludeTarget(label label.Label) bool {
-	// Check target's path segments: if any segment (split on non-word characters and filtered to letters)
-	for _, segment := range filepath.SplitList(label.Pkg) {
-		tokens := splitWords(segment)
-		for _, token := range tokens {
-			switch token {
-			case "internal", "impl":
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// splits a string on non-letter characters.
-func splitWords(s string) []string {
-	isLetter := func(r rune) bool {
-		return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
-	}
-	tokens := strings.FieldsFunc(s, func(r rune) bool {
-		return !isLetter(r)
-	})
-	// Filter out any empty tokens.
-	var result []string
-	for _, t := range tokens {
-		if t != "" {
-			result = append(result, t)
-		}
-	}
-	return result
 }
 
 // Returns all possible `#include` paths under which the given header (hdr)
@@ -211,11 +180,13 @@ func splitWords(s string) []string {
 // Returned paths reflect all valid compiler-visible forms for the header within the target’s package.
 // They are useful for detecting which targets may expose a given header or for header-to-target indexing.
 // It does expose possible include paths introduced as sideffects by other targets
-func IndexableIncludePaths(hdr string, target Target) []string {
+func IndexableIncludePaths(header label.Label, target Target) []string {
 	packagePath := target.Name.Pkg
-	headerPath := filepath.ToSlash(filepath.Join(packagePath, hdr))
+	targetRelHdr := header.Rel(target.Name.Repo, target.Name.Pkg)
+	hdr := filepath.ToSlash(filepath.Join(targetRelHdr.Pkg, targetRelHdr.Name))
 
 	// Always include full path relative to workspace root
+	headerPath := filepath.ToSlash(filepath.Join(packagePath, hdr))
 	possibleIncludes := collections.SetOf(headerPath)
 
 	// 1. Handle strip_include_prefix
@@ -223,9 +194,9 @@ func IndexableIncludePaths(hdr string, target Target) []string {
 	if target.StripIncludePrefix != "" {
 		stripPrefix := target.StripIncludePrefix
 		if !path.IsAbs(stripPrefix) {
-			stripPrefix = path.Join(packagePath, stripPrefix)
+			stripPrefix = path.Join(targetRelHdr.Pkg, stripPrefix)
 		}
-		fullHdrPath := path.Join(packagePath, hdr)
+		fullHdrPath := path.Join(header.Pkg, header.Name)
 
 		if rel, err := filepath.Rel(stripPrefix, fullHdrPath); err == nil && !strings.HasPrefix(rel, "..") {
 			stripped = filepath.ToSlash(rel)
@@ -236,17 +207,13 @@ func IndexableIncludePaths(hdr string, target Target) []string {
 		}
 	}
 
-	// 2. Include raw hdr as given unless is stripped
-	if stripped == hdr {
-		possibleIncludes.Add(hdr)
-	}
-	// 3. Apply include_prefix (only valid when include_prefix is set)
+	// 2. Apply include_prefix (only valid when include_prefix is set)
 	if target.IncludePrefix != "" && stripped != "" {
 		withPrefix := filepath.ToSlash(path.Join(target.IncludePrefix, stripped))
 		possibleIncludes.Add(withPrefix)
 	}
 
-	// 4. Derive paths from `includes`
+	// 3. Derive paths from `includes`
 	for include := range target.Includes {
 		includePath := include
 		if includePath == "." {
@@ -263,7 +230,7 @@ func IndexableIncludePaths(hdr string, target Target) []string {
 		}
 	}
 
-	// 5. Also add just the filename if includes would allow it
+	// 4. Also add just the filename if includes would allow it
 	if target.Includes.Contains(".") && !strings.Contains(hdr, "/") {
 		possibleIncludes.Add(hdr)
 		possibleIncludes.Add(path.Join(packagePath, hdr))
