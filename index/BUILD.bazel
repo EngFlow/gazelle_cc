@@ -2,6 +2,7 @@ test_suite(
     name = "integration_tests",
     tags = ["manual"],
     tests = [
+        "//index/bzlmod/integration_tests:integration_test",
         "//index/conan/integration_tests:integration_test",
         "//index/internal/tests/example_integration_test",
         "//index/rules_foreign_cc/integration_tests:integration_test",
