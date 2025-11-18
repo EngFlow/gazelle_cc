@@ -228,11 +228,7 @@ func TestCollectIncludesAndCollectReachableIncludes(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		result, err := ParseSource([]byte(tc.input))
-		if err != nil {
-			t.Errorf("ParseSource failed for %q: %v", tc.name, err)
-			continue
-		}
+		result := ParseSource([]byte(tc.input))
 		gotAll := result.CollectIncludes()
 		assert.ElementsMatch(t, tc.wantAll, gotAll, "CollectIncludes failed for %q", tc.name)
 

@@ -14,8 +14,6 @@
 
 package lexer
 
-import "fmt"
-
 type TokenType int
 
 const (
@@ -108,7 +106,90 @@ const (
 // TODO: we can generate appropriate string representations using tools like
 // https://github.com/dmarkham/enumer
 func (t TokenType) String() string {
-	return fmt.Sprintf("TokenType(%d)", t)
+	switch t {
+	case TokenType_EOF:
+		return "end of file"
+	case TokenType_Newline:
+		return "newline"
+	case TokenType_Whitespace:
+		return "whitespace"
+	case TokenType_ContinueLine:
+		return `line continuation backslash '\'`
+	case TokenType_PreprocessorSystemPath:
+		return "<system_include_path>"
+	case TokenType_PreprocessorDefined:
+		return "keyword 'defined'"
+	case TokenType_Identifier:
+		return "identifier"
+	case TokenType_LiteralInteger:
+		return "integer literal"
+	case TokenType_LiteralString:
+		return `"string literal"`
+	case TokenType_CommentSingleLine:
+		return "single-line comment"
+	case TokenType_CommentMultiLine:
+		return "multi-line comment"
+	case TokenType_PreprocessorDefine:
+		return "directive '#define'"
+	case TokenType_PreprocessorElif:
+		return "directive '#elif'"
+	case TokenType_PreprocessorElifdef:
+		return "directive '#elifdef'"
+	case TokenType_PreprocessorElifndef:
+		return "directive '#elifndef'"
+	case TokenType_PreprocessorElse:
+		return "directive '#else'"
+	case TokenType_PreprocessorEndif:
+		return "directive '#endif'"
+	case TokenType_PreprocessorIf:
+		return "directive '#if'"
+	case TokenType_PreprocessorIfdef:
+		return "directive '#ifdef'"
+	case TokenType_PreprocessorIfndef:
+		return "directive '#ifndef'"
+	case TokenType_PreprocessorInclude:
+		return "directive '#include'"
+	case TokenType_PreprocessorIncludeNext:
+		return "directive '#include_next'"
+	case TokenType_PreprocessorUndef:
+		return "directive '#undef'"
+	case TokenType_OperatorEqual:
+		return "operator '=='"
+	case TokenType_OperatorGreater:
+		return "operator '>'"
+	case TokenType_OperatorGreaterOrEqual:
+		return "operator '>='"
+	case TokenType_OperatorLess:
+		return "operator '<'"
+	case TokenType_OperatorLessOrEqual:
+		return "operator '<='"
+	case TokenType_OperatorLogicalAnd:
+		return "operator '&&'"
+	case TokenType_OperatorLogicalNot:
+		return "operator '!'"
+	case TokenType_OperatorLogicalOr:
+		return "operator '||'"
+	case TokenType_OperatorNotEqual:
+		return "operator '!='"
+	case TokenType_BraceLeft:
+		return "symbol '{'"
+	case TokenType_BraceRight:
+		return "symbol '}'"
+	case TokenType_BracketLeft:
+		return "symbol '['"
+	case TokenType_BracketRight:
+		return "symbol ']'"
+	case TokenType_Comma:
+		return "symbol ','"
+	case TokenType_ParenthesisLeft:
+		return "symbol '('"
+	case TokenType_ParenthesisRight:
+		return "symbol ')'"
+	case TokenType_Semicolon:
+		return "symbol ';'"
+	default:
+		return "unknown token"
+	}
 }
 
 func (t TokenType) IsPreprocessorDirective() bool {
@@ -121,4 +202,4 @@ type Token struct {
 	Content  string
 }
 
-var TokenEOF = Token{Type: TokenType_EOF}
+var TokenEOF = Token{Type: TokenType_EOF, Location: CursorEOF}
