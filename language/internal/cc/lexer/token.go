@@ -57,6 +57,9 @@ const (
 	// String literal, enclosed in double quotes, e.g. "example".
 	TokenType_LiteralString
 
+	// Raw string literal, enclosed in R"delimiter(...contents...)delimiter".
+	TokenType_LiteralRawString
+
 	// Single-line comment, starting with // and ending at the end of the line.
 	TokenType_CommentSingleLine
 
@@ -125,6 +128,8 @@ func (t TokenType) String() string {
 		return "integer literal"
 	case TokenType_LiteralString:
 		return `"string literal"`
+	case TokenType_LiteralRawString:
+		return `R"raw string literal"`
 	case TokenType_CommentSingleLine:
 		return "single-line comment"
 	case TokenType_CommentMultiLine:

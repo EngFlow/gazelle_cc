@@ -104,9 +104,32 @@ func TestNextToken(t *testing.T) {
 			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `U"utf-32 string literal"`},
 		},
 		{
-			// TODO handle raw string literals as whole tokens
 			input:    []byte(`R"(abc)" fake-end)"`),
-			expected: Token{Type: TokenType_Identifier, Location: CursorInit, Content: "R"},
+			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `R"(abc)"`},
+		},
+		{
+			input:    []byte(`R"delim(abc)delim" fake-end)"`),
+			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `R"delim(abc)delim"`},
+		},
+		{
+			input:    []byte(`R"delim(abc fake-end)" )delim"`),
+			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `R"delim(abc fake-end)" )delim"`},
+		},
+		{
+			input:    []byte(`LR"(wide raw string literal)"`),
+			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `LR"(wide raw string literal)"`},
+		},
+		{
+			input:    []byte(`u8R"(utf-8 raw string literal)"`),
+			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `u8R"(utf-8 raw string literal)"`},
+		},
+		{
+			input:    []byte(`uR"(utf-16 raw string literal)"`),
+			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `uR"(utf-16 raw string literal)"`},
+		},
+		{
+			input:    []byte(`UR"(utf-32 raw string literal)"`),
+			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `UR"(utf-32 raw string literal)"`},
 		},
 		{
 			input:    []byte("identifier123;"),
