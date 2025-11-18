@@ -88,6 +88,22 @@ func TestNextToken(t *testing.T) {
 			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `"I contain a '\\' backslash"`},
 		},
 		{
+			input:    []byte(`L"wide string literal"`),
+			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `L"wide string literal"`},
+		},
+		{
+			input:    []byte(`u8"utf-8 string literal"`),
+			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `u8"utf-8 string literal"`},
+		},
+		{
+			input:    []byte(`u"utf-16 string literal"`),
+			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `u"utf-16 string literal"`},
+		},
+		{
+			input:    []byte(`U"utf-32 string literal"`),
+			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `U"utf-32 string literal"`},
+		},
+		{
 			// TODO handle raw string literals as whole tokens
 			input:    []byte(`R"(abc)" fake-end)"`),
 			expected: Token{Type: TokenType_Identifier, Location: CursorInit, Content: "R"},

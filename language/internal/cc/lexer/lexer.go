@@ -28,11 +28,15 @@ import (
 	"strings"
 )
 
+const (
+	kwDefined = "defined"
+)
+
 var (
 	reContinueLine           = regexp.MustCompile(`^\\[\t\v\f\r ]*\n`)
 	rePreprocessorSystemPath = regexp.MustCompile(`^<[\w-+./]+>`)
 	reLiteralInteger         = regexp.MustCompile(`^(?i)0x[0-9a-f]+|0b[01]+|0[0-7]*|[1-9][0-9]*`)
-	reLiteralString          = regexp.MustCompile(`^"(?:[^"\\\n]|\\.)*"`)
+	reLiteralString          = regexp.MustCompile(`^(?:|[LuU]|u8)"(?:[^"\\\n]|\\.)*"`)
 	reIdentifier             = regexp.MustCompile(`^(?i)[a-z_][a-z0-9_]*`)
 	reTokenBeginning         = regexp.MustCompile(`[\s\\"/#=><!&|{}[\],();\w]`)
 
@@ -112,10 +116,6 @@ func (lx *Lexer) NextToken() Token {
 		if match := reContinueLine.Find(lx.dataLeft); match != nil {
 			lxm = lexeme{tokenType: TokenType_ContinueLine, length: len(match)}
 		}
-	case '"':
-		if match := reLiteralString.Find(lx.dataLeft); match != nil {
-			lxm = lexeme{tokenType: TokenType_LiteralString, length: len(match)}
-		}
 	case '/':
 		if bytes.HasPrefix(lx.dataLeft, []byte("//")) {
 			end := bytes.IndexByte(lx.dataLeft, '\n')
@@ -185,12 +185,12 @@ func (lx *Lexer) NextToken() Token {
 	case ';':
 		lxm = lexeme{tokenType: TokenType_Semicolon, length: 1}
 	default:
-		if match := reIdentifier.Find(lx.dataLeft); match != nil {
-			if string(match) == "defined" {
-				lxm = lexeme{tokenType: TokenType_PreprocessorDefined, length: len(match)}
-			} else {
-				lxm = lexeme{tokenType: TokenType_Identifier, length: len(match)}
-			}
+		if match := reLiteralString.Find(lx.dataLeft); match != nil {
+			lxm = lexeme{tokenType: TokenType_LiteralString, length: len(match)}
+		} else if bytes.HasPrefix(lx.dataLeft, []byte(kwDefined)) {
+			lxm = lexeme{tokenType: TokenType_PreprocessorDefined, length: len(kwDefined)}
+		} else if match := reIdentifier.Find(lx.dataLeft); match != nil {
+			lxm = lexeme{tokenType: TokenType_Identifier, length: len(match)}
 		} else if match := reLiteralInteger.Find(lx.dataLeft); match != nil {
 			lxm = lexeme{tokenType: TokenType_LiteralInteger, length: len(match)}
 		}
