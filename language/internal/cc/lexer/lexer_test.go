@@ -89,47 +89,47 @@ func TestNextToken(t *testing.T) {
 		},
 		{
 			input:    []byte(`L"wide string literal"`),
-			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `L"wide string literal"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `L"wide string literal"`},
 		},
 		{
 			input:    []byte(`u8"utf-8 string literal"`),
-			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `u8"utf-8 string literal"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `u8"utf-8 string literal"`},
 		},
 		{
 			input:    []byte(`u"utf-16 string literal"`),
-			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `u"utf-16 string literal"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `u"utf-16 string literal"`},
 		},
 		{
 			input:    []byte(`U"utf-32 string literal"`),
-			expected: Token{Type: TokenType_LiteralString, Location: CursorInit, Content: `U"utf-32 string literal"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `U"utf-32 string literal"`},
 		},
 		{
 			input:    []byte(`R"(abc)" fake-end)"`),
-			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `R"(abc)"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `R"(abc)"`},
 		},
 		{
 			input:    []byte(`R"delim(abc)delim" fake-end)"`),
-			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `R"delim(abc)delim"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `R"delim(abc)delim"`},
 		},
 		{
 			input:    []byte(`R"delim(abc fake-end)" )delim"`),
-			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `R"delim(abc fake-end)" )delim"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `R"delim(abc fake-end)" )delim"`},
 		},
 		{
 			input:    []byte(`LR"(wide raw string literal)"`),
-			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `LR"(wide raw string literal)"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `LR"(wide raw string literal)"`},
 		},
 		{
 			input:    []byte(`u8R"(utf-8 raw string literal)"`),
-			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `u8R"(utf-8 raw string literal)"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `u8R"(utf-8 raw string literal)"`},
 		},
 		{
 			input:    []byte(`uR"(utf-16 raw string literal)"`),
-			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `uR"(utf-16 raw string literal)"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `uR"(utf-16 raw string literal)"`},
 		},
 		{
 			input:    []byte(`UR"(utf-32 raw string literal)"`),
-			expected: Token{Type: TokenType_LiteralRawString, Location: CursorInit, Content: `UR"(utf-32 raw string literal)"`},
+			expected: Token{Type: TokenType_Unassigned, Location: CursorInit, Content: `UR"(utf-32 raw string literal)"`},
 		},
 		{
 			input:    []byte("identifier123;"),

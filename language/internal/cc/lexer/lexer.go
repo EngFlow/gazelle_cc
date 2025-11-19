@@ -131,8 +131,7 @@ func (lx *Lexer) NextToken() Token {
 		return TokenEOF
 	}
 
-	lxm := lexeme{tokenType: TokenType_Unassigned, length: len(lx.dataLeft)}
-
+	var lxm lexeme
 	switch lx.dataLeft[0] {
 	case '\n':
 		lxm = lexeme{tokenType: TokenType_Newline, length: 1}
@@ -141,6 +140,21 @@ func (lx *Lexer) NextToken() Token {
 	case '\\':
 		if match := reContinueLine.Find(lx.dataLeft); match != nil {
 			lxm = lexeme{tokenType: TokenType_ContinueLine, length: len(match)}
+		}
+	case '"':
+		if match := reLiteralString.Find(lx.dataLeft); match != nil {
+			lxm = lexeme{tokenType: TokenType_LiteralString, length: len(match)}
+		}
+	case 'L', 'u', 'U', 'R':
+		// parser is interested in neither wide nor raw string literals, so we
+		// set unassigned token type
+		if match := reLiteralString.Find(lx.dataLeft); match != nil {
+			lxm = lexeme{tokenType: TokenType_Unassigned, length: len(match)}
+		} else if length := parseLiteralRawString(lx.dataLeft); length > 0 {
+			lxm = lexeme{tokenType: TokenType_Unassigned, length: length}
+		} else if match := reIdentifier.Find(lx.dataLeft); match != nil {
+			// still could be an identifier
+			lxm = lexeme{tokenType: TokenType_Identifier, length: len(match)}
 		}
 	case '/':
 		if bytes.HasPrefix(lx.dataLeft, []byte("//")) {
@@ -211,11 +225,7 @@ func (lx *Lexer) NextToken() Token {
 	case ';':
 		lxm = lexeme{tokenType: TokenType_Semicolon, length: 1}
 	default:
-		if match := reLiteralString.Find(lx.dataLeft); match != nil {
-			lxm = lexeme{tokenType: TokenType_LiteralString, length: len(match)}
-		} else if length := parseLiteralRawString(lx.dataLeft); length > 0 {
-			lxm = lexeme{tokenType: TokenType_LiteralRawString, length: length}
-		} else if bytes.HasPrefix(lx.dataLeft, []byte(kwDefined)) {
+		if bytes.HasPrefix(lx.dataLeft, []byte(kwDefined)) {
 			lxm = lexeme{tokenType: TokenType_PreprocessorDefined, length: len(kwDefined)}
 		} else if match := reIdentifier.Find(lx.dataLeft); match != nil {
 			lxm = lexeme{tokenType: TokenType_Identifier, length: len(match)}
@@ -224,10 +234,10 @@ func (lx *Lexer) NextToken() Token {
 		}
 	}
 
-	if lxm.tokenType == TokenType_Unassigned {
+	if lxm.length == 0 {
 		// scan forward to some well-understood characters
 		if begin := reTokenBegin.FindIndex(lx.dataLeft[1:]); begin != nil {
-			lxm.length = 1 + begin[0]
+			lxm = lexeme{tokenType: TokenType_Unassigned, length: 1 + begin[0]}
 		}
 	}
 
