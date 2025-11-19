@@ -770,6 +770,15 @@ func TestParseSourceHasMain(t *testing.T) {
 			expected: true,
 			input:    "int wmain( int argc, wchar_t *argv[ ], wchar_t *envp[ ] ) {return 0;}",
 		},
+		{
+			expected: true,
+			input: `
+			int
+			main
+			() {
+				return 0;
+			}`,
+		},
 	}
 
 	for idx, tc := range testCases {
