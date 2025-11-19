@@ -28,13 +28,19 @@ import (
 	"strings"
 )
 
+const (
+	kwDefined          = "defined"
+	reWideStringPrefix = `(?:|[LuU]|u8)`
+)
+
 var (
 	reContinueLine           = regexp.MustCompile(`^\\[\t\v\f\r ]*\n`)
 	rePreprocessorSystemPath = regexp.MustCompile(`^<[\w-+./]+>`)
 	reLiteralInteger         = regexp.MustCompile(`^(?i)0x[0-9a-f]+|0b[01]+|0[0-7]*|[1-9][0-9]*`)
-	reLiteralString          = regexp.MustCompile(`^"(?:[^"\\\n]|\\.)*"`)
+	reLiteralString          = regexp.MustCompile(`^` + reWideStringPrefix + `"(?:[^"\\\n]|\\.)*"`)
+	reLiteralRawStringBegin  = regexp.MustCompile(`^` + reWideStringPrefix + `R"([^()\\\s]{0,16})\(`)
 	reIdentifier             = regexp.MustCompile(`^(?i)[a-z_][a-z0-9_]*`)
-	reTokenBeginning         = regexp.MustCompile(`[\s\\"/#=><!&|{}[\],();\w]`)
+	reTokenBegin             = regexp.MustCompile(`[\s\\"/#=><!&|{}[\],();\w]`)
 
 	preprocessorDirectives = []struct {
 		keyword   string
@@ -82,6 +88,30 @@ func findNonWhitespace(data []byte) int {
 	return len(data)
 }
 
+// Parse a raw string literal starting at the beginning of the data slice.
+// Returns the length of the raw string literal, or 0 if no valid raw string
+// literal is found.
+func parseLiteralRawString(data []byte) int {
+	submatch := reLiteralRawStringBegin.FindSubmatch(data)
+	if submatch == nil {
+		return 0
+	}
+
+	beginIndex := len(submatch[0])
+	delimiter := submatch[1]
+	endSequence := make([]byte, 0, len(delimiter)+2)
+	endSequence = append(endSequence, ')')
+	endSequence = append(endSequence, delimiter...)
+	endSequence = append(endSequence, '"')
+
+	endIndex := bytes.Index(data[beginIndex:], endSequence)
+	if endIndex < 0 {
+		return 0
+	}
+
+	return beginIndex + endIndex + len(endSequence)
+}
+
 // Update the lexer state accordingly to the extracted token content.
 func (lx *Lexer) consume(lxm lexeme) Token {
 	token := Token{
@@ -101,8 +131,7 @@ func (lx *Lexer) NextToken() Token {
 		return TokenEOF
 	}
 
-	lxm := lexeme{tokenType: TokenType_Unassigned, length: len(lx.dataLeft)}
-
+	var lxm lexeme
 	switch lx.dataLeft[0] {
 	case '\n':
 		lxm = lexeme{tokenType: TokenType_Newline, length: 1}
@@ -115,6 +144,17 @@ func (lx *Lexer) NextToken() Token {
 	case '"':
 		if match := reLiteralString.Find(lx.dataLeft); match != nil {
 			lxm = lexeme{tokenType: TokenType_LiteralString, length: len(match)}
+		}
+	case 'L', 'u', 'U', 'R':
+		// parser is interested in neither wide nor raw string literals, so we
+		// set unassigned token type
+		if match := reLiteralString.Find(lx.dataLeft); match != nil {
+			lxm = lexeme{tokenType: TokenType_Unassigned, length: len(match)}
+		} else if length := parseLiteralRawString(lx.dataLeft); length > 0 {
+			lxm = lexeme{tokenType: TokenType_Unassigned, length: length}
+		} else if match := reIdentifier.Find(lx.dataLeft); match != nil {
+			// still could be an identifier
+			lxm = lexeme{tokenType: TokenType_Identifier, length: len(match)}
 		}
 	case '/':
 		if bytes.HasPrefix(lx.dataLeft, []byte("//")) {
@@ -185,21 +225,19 @@ func (lx *Lexer) NextToken() Token {
 	case ';':
 		lxm = lexeme{tokenType: TokenType_Semicolon, length: 1}
 	default:
-		if match := reIdentifier.Find(lx.dataLeft); match != nil {
-			if string(match) == "defined" {
-				lxm = lexeme{tokenType: TokenType_PreprocessorDefined, length: len(match)}
-			} else {
-				lxm = lexeme{tokenType: TokenType_Identifier, length: len(match)}
-			}
+		if bytes.HasPrefix(lx.dataLeft, []byte(kwDefined)) {
+			lxm = lexeme{tokenType: TokenType_PreprocessorDefined, length: len(kwDefined)}
+		} else if match := reIdentifier.Find(lx.dataLeft); match != nil {
+			lxm = lexeme{tokenType: TokenType_Identifier, length: len(match)}
 		} else if match := reLiteralInteger.Find(lx.dataLeft); match != nil {
 			lxm = lexeme{tokenType: TokenType_LiteralInteger, length: len(match)}
 		}
 	}
 
-	if lxm.tokenType == TokenType_Unassigned {
+	if lxm.length == 0 {
 		// scan forward to some well-understood characters
-		if begin := reTokenBeginning.FindIndex(lx.dataLeft[1:]); begin != nil {
-			lxm.length = 1 + begin[0]
+		if begin := reTokenBegin.FindIndex(lx.dataLeft[1:]); begin != nil {
+			lxm = lexeme{tokenType: TokenType_Unassigned, length: 1 + begin[0]}
 		}
 	}
 

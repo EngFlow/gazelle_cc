@@ -756,6 +756,17 @@ func TestParseSourceHasMain(t *testing.T) {
 			input:    `/* that our main */ int main(int argCount, char** values){return 0;}`,
 		},
 		{
+			expected: false,
+			input:    `static constexpr auto LITERAL = "int main() {return 0;}";`,
+		},
+		{
+			expected: false,
+			input: `
+			static constexpr auto RAW_LITERAL = R"(
+				int main() {return 0;}
+			)";`,
+		},
+		{
 			expected: true,
 			input:    "int wmain( int argc, wchar_t *argv[ ], wchar_t *envp[ ] ) {return 0;}",
 		},
