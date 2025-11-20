@@ -6,7 +6,6 @@ go_library(
     importpath = "github.com/EngFlow/gazelle_cc/index/conan",
     visibility = ["//visibility:private"],
     deps = [
-        "//index/conan/internal/targets",
         "//index/internal/bazel",
         "//index/internal/bazel/proto",
         "//index/internal/indexer",
