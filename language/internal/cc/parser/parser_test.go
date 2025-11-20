@@ -781,6 +781,15 @@ func TestParseSourceHasMain(t *testing.T) {
 			RetVal main() {}
 			`,
 		},
+		{
+			expected: true,
+			input: `
+			int
+			main
+			() {
+				return 0;
+			}`,
+		},
 	}
 
 	for idx, tc := range testCases {
