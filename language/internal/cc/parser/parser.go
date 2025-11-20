@@ -519,15 +519,6 @@ func (p *parser) parseDirective() (Directive, error) {
 	}
 }
 
-func isMainFunctionReturnType(ident string) bool {
-	switch ident {
-	case "auto", "int":
-		return true
-	default:
-		return false
-	}
-}
-
 func isMainFunctionIdentifier(ident string) bool {
 	switch ident {
 	case "main", "wmain", "_tmain", "WinMain", "wWinMain", "_tWinMain":
@@ -538,7 +529,7 @@ func isMainFunctionIdentifier(ident string) bool {
 }
 
 func (p *parser) tryParseMainFunction() bool {
-	if len(p.tokensLeft) >= 3 && isMainFunctionReturnType(p.tokensLeft[0].Content) && isMainFunctionIdentifier(p.tokensLeft[1].Content) && p.tokensLeft[2].Content == "(" {
+	if len(p.tokensLeft) >= 3 && p.tokensLeft[0].Type == lexer.TokenType_Identifier && isMainFunctionIdentifier(p.tokensLeft[1].Content) && p.tokensLeft[2].Type == lexer.TokenType_ParenthesisLeft {
 		p.dropTokens(3)
 		return true
 	}
