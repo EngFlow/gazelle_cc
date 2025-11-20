@@ -535,9 +535,8 @@ func isMainFunctionIdentifier(ident string) bool {
 }
 
 func (p *parser) tryParseMainFunction() bool {
-	if p.nextToken().Content != "int" {
-		return false
-	}
+	// consume return type identifier
+	p.nextToken()
 
 	p.dropNewlines()
 	if len(p.tokensLeft) < 2 || !isMainFunctionIdentifier(p.tokensLeft[0].Content) {
