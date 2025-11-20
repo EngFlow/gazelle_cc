@@ -772,6 +772,17 @@ func TestParseSourceHasMain(t *testing.T) {
 		},
 		{
 			expected: true,
+			input:    "auto main() -> int {return 0;}",
+		},
+		{
+			expected: true,
+			input: `
+			using RetVal = int;
+			RetVal main() {}
+			`,
+		},
+		{
+			expected: true,
 			input: `
 			int
 			main
