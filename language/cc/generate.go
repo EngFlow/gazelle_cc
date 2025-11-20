@@ -45,7 +45,7 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.
 		return language.GenerateResult{}
 	}
 
-	fileInfos := collectFileInfos(args, c.buildFileDirRels)
+	fileInfos := c.collectFileInfos(args)
 	rulesInfo := extractRulesInfo(args)
 
 	// The order of rules generation matters - name conflict and renaming is based on result.Gen content
@@ -426,13 +426,13 @@ func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rules
 
 // Collects files that can be used to generate CC rules based on local context.
 // Parses all matched CC source files to extract additional context.
-func collectFileInfos(args language.GenerateArgs, buildFileDirRels collections.Set[string]) []fileInfo {
+func (c *ccLanguage) collectFileInfos(args language.GenerateArgs) []fileInfo {
 	conf := getCcConfig(args.Config)
 	platformEnvs := conf.getPlatformEnvironments()
 
 	fileInfos := make([]fileInfo, 0, len(args.RegularFiles))
 	addFile := func(name string, subdirKind subdirKind) {
-		fi, err := getFileInfo(args, platformEnvs, name, subdirKind)
+		fi, err := getFileInfo(c, args, platformEnvs, name, subdirKind)
 		if err != nil {
 			if !errors.Is(err, errUnmatchedExtension) {
 				log.Printf("gazelle_cc: %v", err)
@@ -450,7 +450,7 @@ func collectFileInfos(args language.GenerateArgs, buildFileDirRels collections.S
 		// TODO(#73): recursively collect files from subdirectories that don't have
 		// build files. For now, we only consider immediate subdirectories.
 		for _, subdir := range args.Subdirs {
-			subdirKind, err := checkSubdirKind(conf, buildFileDirRels, args.Rel, subdir)
+			subdirKind, err := checkSubdirKind(conf, c.buildFileDirRels, args.Rel, subdir)
 			if err != nil {
 				log.Printf("gazelle_cc: %v", err)
 				continue
