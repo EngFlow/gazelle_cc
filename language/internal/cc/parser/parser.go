@@ -529,7 +529,7 @@ func isMainFunctionIdentifier(ident string) bool {
 }
 
 func (p *parser) tryParseMainFunction() bool {
-	if len(p.tokensLeft) >= 3 && p.tokensLeft[0].Content == "int" && isMainFunctionIdentifier(p.tokensLeft[1].Content) && p.tokensLeft[2].Content == "(" {
+	if len(p.tokensLeft) >= 3 && p.tokensLeft[0].Type == lexer.TokenType_Identifier && isMainFunctionIdentifier(p.tokensLeft[1].Content) && p.tokensLeft[2].Type == lexer.TokenType_ParenthesisLeft {
 		p.dropTokens(3)
 		return true
 	}
