@@ -161,17 +161,6 @@ func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel stri
 	return cleanRel
 }
 
-func (lang *ccLanguage) handleUnresolvedIncludeDirective(mode unresolvedDepsMode, err error) {
-	switch mode {
-	case warnAboutUnresolvedDeps:
-		log.Print(err)
-	case failImmediatelyOnUnresolvedDeps:
-		log.Fatal(err)
-	case failEventuallyOnUnresolvedDeps:
-		lang.collectedErrors = append(lang.collectedErrors, err)
-	}
-}
-
 func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports any, from label.Label) {
 	if imports == nil {
 		return
@@ -218,7 +207,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			case errors.Is(err, errUnresolved):
 				// Warn about unresolved non-system include directives
 				if !include.isSystemInclude {
-					lang.handleUnresolvedIncludeDirective(getCcConfig(c).unresolvedDepsMode, err)
+					lang.handleReportedError(getCcConfig(c).unresolvedDepsMode, err)
 				}
 				continue
 			}

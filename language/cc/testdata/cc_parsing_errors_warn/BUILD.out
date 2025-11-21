@@ -1,0 +1,9 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+# gazelle:cc_parsing_errors warn
+
+cc_binary(
+    name = "main",
+    srcs = ["main.cc"],
+    deps = ["@fmt"],
+)

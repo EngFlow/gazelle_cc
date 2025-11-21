@@ -176,6 +176,15 @@ func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rul
 }
 func (*ccLanguage) Fix(c *config.Config, f *rule.File) {}
 
+func (lang *ccLanguage) handleReportedError(mode errorReportingMode, err error) {
+	switch mode {
+	case errorReportingMode_warn:
+		log.Print(err)
+	case errorReportingMode_error:
+		lang.collectedErrors = append(lang.collectedErrors, err)
+	}
+}
+
 var sourceExtensions = []string{".c", ".cc", ".cpp", ".cxx", ".c++", ".S"}
 var headerExtensions = []string{".h", ".hh", ".hpp", ".hxx"}
 var ccExtensions = append(sourceExtensions, headerExtensions...)

@@ -50,6 +50,7 @@ const (
 	cc_generate                   = "cc_generate"
 	cc_generate_proto             = "cc_generate_proto"
 	cc_unresolved_deps            = "cc_unresolved_deps"
+	cc_parsing_errors             = "cc_parsing_errors"
 	cc_platform                   = "cc_platform"
 	cc_include_prefix             = "cc_include_prefix"
 	cc_strip_include_prefix       = "cc_strip_include_prefix"
@@ -68,6 +69,7 @@ func (c *ccLanguage) KnownDirectives() []string {
 		cc_generate,
 		cc_generate_proto,
 		cc_unresolved_deps,
+		cc_parsing_errors,
 		cc_platform,
 		cc_include_prefix,
 		cc_strip_include_prefix,
@@ -163,8 +165,9 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				conf.ccSearch = append(conf.ccSearch, s)
 			}
 		case cc_unresolved_deps:
-			selectDirectiveChoice(&conf.unresolvedDepsMode, unresolvedDepsModes, d)
-
+			selectDirectiveChoice(&conf.unresolvedDepsMode, errorReportingModes, d)
+		case cc_parsing_errors:
+			selectDirectiveChoice(&conf.parsingErrorsMode, errorReportingModes, d)
 		case cc_platform:
 			// Reset existing platforms
 			if d.Value == "" {
@@ -269,7 +272,9 @@ type ccConfig struct {
 	// Control wheter built-in bzlmod based index file should be used
 	useBuiltinBzlmodIndex bool
 	// Defines how to handle unresolved dependencies
-	unresolvedDepsMode unresolvedDepsMode
+	unresolvedDepsMode errorReportingMode
+	// Defines how to handle C++ source parsing errors
+	parsingErrorsMode errorReportingMode
 	// User defined dependency indexes based on the filename
 	dependencyIndexes []ccDependencyIndex
 	// List of 'gazelle:cc_search' directives, used to construct RelsToIndex.
@@ -313,7 +318,8 @@ func newCcConfig() *ccConfig {
 		groupingMode:            groupSourcesByDirectory,
 		groupsCycleHandlingMode: mergeOnGroupsCycle,
 		useBuiltinBzlmodIndex:   true,
-		unresolvedDepsMode:      warnAboutUnresolvedDeps,
+		unresolvedDepsMode:      errorReportingMode_warn,
+		parsingErrorsMode:       errorReportingMode_ignore,
 		dependencyIndexes:       []ccDependencyIndex{},
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
@@ -415,19 +421,17 @@ const (
 	warnOnGroupsCycle groupsCycleHandlingMode = "warn"
 )
 
-type unresolvedDepsMode string
+type errorReportingMode string
 
-var unresolvedDepsModes = []unresolvedDepsMode{ignoreUnresolvedDeps, warnAboutUnresolvedDeps, failImmediatelyOnUnresolvedDeps, failEventuallyOnUnresolvedDeps}
+var errorReportingModes = []errorReportingMode{errorReportingMode_ignore, errorReportingMode_warn, errorReportingMode_error}
 
 const (
-	// Ignore unresolved dependencies and proceed with the build
-	ignoreUnresolvedDeps unresolvedDepsMode = "ignore"
-	// Warn about unresolved dependencies but proceed with the build
-	warnAboutUnresolvedDeps unresolvedDepsMode = "warn"
-	// Fail immediately on the first occurred unresolved dependency
-	failImmediatelyOnUnresolvedDeps unresolvedDepsMode = "error_fast"
-	// Collect all unresolved dependencies and fail at the end if the list is not empty
-	failEventuallyOnUnresolvedDeps unresolvedDepsMode = "error"
+	// Ignore encountered errors and proceed with the build
+	errorReportingMode_ignore errorReportingMode = "ignore"
+	// Warn about encountered errors but proceed with the build
+	errorReportingMode_warn errorReportingMode = "warn"
+	// Collect all encountered errors and fail at the end if the list is not empty
+	errorReportingMode_error errorReportingMode = "error"
 )
 
 // splitQuoted splits the string s around each instance of one or more consecutive

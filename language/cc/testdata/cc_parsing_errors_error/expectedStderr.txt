@@ -1,0 +1,2 @@
+gazelle: Found 1 error(s):
+gazelle:   %WORKSPACEPATH%/main.cc:2:10: expected <system_include_path> or "string literal", got identifier
