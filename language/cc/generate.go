@@ -432,7 +432,7 @@ func (c *ccLanguage) collectFileInfos(args language.GenerateArgs) []fileInfo {
 
 	fileInfos := make([]fileInfo, 0, len(args.RegularFiles))
 	addFile := func(name string, subdirKind subdirKind) {
-		fi, err := getFileInfo(c, args, platformEnvs, name, subdirKind)
+		fi, err := c.getFileInfo(args, platformEnvs, name, subdirKind)
 		if err != nil {
 			if !errors.Is(err, errUnmatchedExtension) {
 				log.Printf("gazelle_cc: %v", err)

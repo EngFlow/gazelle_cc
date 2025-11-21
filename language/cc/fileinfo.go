@@ -71,8 +71,7 @@ type fileInfo struct {
 }
 
 // getFileInfo parses a file and returns metadata describing it.
-func getFileInfo(
-	lang *ccLanguage,
+func (c *ccLanguage) getFileInfo(
 	args language.GenerateArgs,
 	platformEnvs map[platform.Platform]parser.Environment,
 	name string,
@@ -89,7 +88,7 @@ func getFileInfo(
 	}
 
 	for _, parseErr := range sourceInfo.Errors {
-		lang.handleReportedError(conf.parsingErrorsMode, fmt.Errorf("%s:%w", filePath, parseErr))
+		c.handleReportedError(conf.parsingErrorsMode, fmt.Errorf("%s:%w", filePath, parseErr))
 	}
 
 	// Evaluate the directives and search for platform specific include paths
