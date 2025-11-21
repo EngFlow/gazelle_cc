@@ -180,9 +180,7 @@ func (lang *ccLanguage) handleReportedError(mode errorReportingMode, err error) 
 	switch mode {
 	case errorReportingMode_warn:
 		log.Print(err)
-	case errorReportingMode_failImmediately:
-		log.Fatal(err)
-	case errorReportingMode_failEventually:
+	case errorReportingMode_error:
 		lang.collectedErrors = append(lang.collectedErrors, err)
 	}
 }

@@ -148,22 +148,20 @@ The `cc_search` directive accepts two arguments: a prefix to strip, and a prefix
 
 You can specify `cc_search` directives multiple times. A directive applies to the directory where it's written and to subdirectories. An empty `cc_search` directive resets the list of translation rules for the current directory.
 
-### `# gazelle:cc_unresolved_deps [ignore|warn|error_fast|error]`
+### `# gazelle:cc_unresolved_deps [ignore|warn|error]`
 
 Controls how to react in case of unresolved `#include` directive (see [Dependency Resolution section](#dependency-resolution)). Only quoted paths (`#include "..."`) are affected; paths in brackets (`#include <...>`) are treated as system includes and won't raise any warning regardless of the selected option. The following options are possible:
 
 - `ignore`: Do nothing with the unresolved dependencies
 - `warn`: Raise a warning on every encountered unresolved `#include` and proceed with further processing **(default)**
-- `error_fast`: Raise an error on the first encountered unresolved `#include` and immediately stop further processing with a non-zero return code; `BUILD` files won't be changed then
 - `error`: Raise an error after collecting all unresolved `#include` directives and stop further processing with a non-zero return code; `BUILD` files won't be changed then
 
-### `# gazelle:cc_parsing_errors [ignore|warn|error_fast|error]`
+### `# gazelle:cc_parsing_errors [ignore|warn|error]`
 
 Controls how to react in case of encountered parsing errors during processing C++ files. Gazelle involves a simplified parsing of C++ files to look for `#include` directives (see [Dependency Resolution section](#dependency-resolution)). By default, errors are silently ignored, and parsing continues, following the "best possible effort" policy. Even though the user will encounter compilation errors anyway, this option may help to investigate unexpected generation of Bazel rules at an early phase. The following options are possible:
 
 - `ignore`: Do nothing with parsing errors **(default)**
 - `warn`: Raise a warning on every encountered parsing error and proceed with further processing
-- `error_fast`: Raise an error on the first encountered parsing error and immediately stop further processing with a non-zero return code; `BUILD` files won't be changed then
 - `error`: Raise an error after collecting all parsing errors and stop further processing with a non-zero return code; `BUILD` files won't be changed then
 
 ### `# gazelle:cc_platform <os> <arch> <constraint_label> [<macro>=<value> …]`

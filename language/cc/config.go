@@ -423,17 +423,15 @@ const (
 
 type errorReportingMode string
 
-var errorReportingModes = []errorReportingMode{errorReportingMode_ignore, errorReportingMode_warn, errorReportingMode_failImmediately, errorReportingMode_failEventually}
+var errorReportingModes = []errorReportingMode{errorReportingMode_ignore, errorReportingMode_warn, errorReportingMode_error}
 
 const (
 	// Ignore encountered errors and proceed with the build
 	errorReportingMode_ignore errorReportingMode = "ignore"
 	// Warn about encountered errors but proceed with the build
 	errorReportingMode_warn errorReportingMode = "warn"
-	// Fail immediately on the first encountered error
-	errorReportingMode_failImmediately errorReportingMode = "error_fast"
 	// Collect all encountered errors and fail at the end if the list is not empty
-	errorReportingMode_failEventually errorReportingMode = "error"
+	errorReportingMode_error errorReportingMode = "error"
 )
 
 // splitQuoted splits the string s around each instance of one or more consecutive
