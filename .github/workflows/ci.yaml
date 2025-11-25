@@ -32,7 +32,29 @@ jobs:
       - name: Test
         run: |
           bazel test --test_output=errors //...
-  
+
+  # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
+  bcr_test_module:
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-26]
+        bazel-version: ["7.*", "8.*", "9.*"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    env:
+      USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
+    defaults:
+      run:
+        working-directory: "example/bzlmod"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Gazelle
+        run: "bazel run //:gazelle"
+      - name: Build
+        run: "bazel build //..."
+      - name: Test
+        run: "bazel test //..."
+
   test-indexers:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
