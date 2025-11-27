@@ -710,6 +710,28 @@ func TestParseConditionalIncludes(t *testing.T) {
 				"13:4: missing directive '#endif' for directive '#ifdef'",
 			},
 		},
+		{
+			// Wrong usage of infix operator
+			input: `
+			#if A && B!
+			#endif
+			`,
+			expected: nil,
+			expectedErrors: []string{
+				"2:14: unexpected token(s) in expression: !",
+			},
+		},
+		{
+			// Unsupported operator
+			input: `
+			#if A + B < C
+			#endif
+			`,
+			expected: nil,
+			expectedErrors: []string{
+				"2:10: unexpected token(s) in expression: + B < C",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
