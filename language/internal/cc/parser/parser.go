@@ -121,8 +121,8 @@ func (p *parser) parseExprPrecedence(minPrecedence precedence) (Expr, error) {
 
 	for {
 		rule, exists := exprKeywordsPrecedence[p.peekToken()]
-		if !exists || rule.precedence < minPrecedence {
-			return result, nil // current operator binds less – stop and return
+		if !exists || rule.precedence < minPrecedence || rule.infixParser == nil {
+			return result, nil // current operator binds less - stop and return
 		}
 
 		result, err = rule.infixParser(p, result)
@@ -340,7 +340,15 @@ func (p *parser) parseDirectivesUntil(shouldStop func(token lexer.TokenType) boo
 // parseExpr parses a preprocessor expression (#if/#elif condition) as an Expr
 // AST.
 func (p *parser) parseExpr() (Expr, error) {
-	return p.parseExprPrecedence(precedenceLowest)
+	expr, err := p.parseExprPrecedence(precedenceLowest)
+
+	exprEnd := p.location()
+	exprTail := p.readUntilNewline()
+	if err == nil && len(exprTail) > 0 {
+		err = fmt.Errorf("%s: unexpected token(s) in expression: %s", exprEnd, strings.Join(exprTail, " "))
+	}
+
+	return expr, err
 }
 
 // readUntilNewline skips all tokens until the end of the line, returning all
