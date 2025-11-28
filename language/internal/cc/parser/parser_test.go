@@ -661,7 +661,53 @@ func TestParseConditionalIncludes(t *testing.T) {
 			},
 			expectedErrors: []string{
 				"3:11: expected integer literal or identifier, got newline",
-				"4:4: unpaired `#if`: directive '#endif'",
+			},
+		},
+		{
+			// Block starts with an invalid branch type
+			input: `
+			#else
+			#   include "should_not_parse.h"
+			#endif
+			`,
+			expected: nil,
+			expectedErrors: []string{
+				"2:4: unpaired `#if`: directive '#else'",
+			},
+		},
+		{
+			// Recover from an invalid expression
+			input: `
+			#if 128 >>
+			#include "dropped1.h"
+			#endif
+
+			#if defined(VALID)
+			#   if wrong &&
+			#       include "dropped2.h"
+			#   endif
+			#   include "reachable.h"
+			#endif
+
+			#ifdef __APPLE__
+			#   include "dropped3.h"
+			// missing #endif
+			`,
+			expected: []Directive{
+				IfBlock{Branches: []ConditionalBranch{
+					{
+						Kind:      IfBranch,
+						Condition: Defined{Ident("VALID")},
+						Body: []Directive{
+							IncludeDirective{Path: "reachable.h", LineNumber: 10},
+						},
+					},
+				}},
+			},
+			expectedErrors: []string{
+				"2:13: expected integer literal or identifier, got operator '>'",
+				"7:19: expected integer literal or identifier, got newline",
+				"13:4: missing directive '#endif' for directive '#ifdef'",
 			},
 		},
 	}

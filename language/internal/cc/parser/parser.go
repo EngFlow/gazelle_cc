@@ -415,6 +415,17 @@ func (p *parser) parseIfBranch(kind BranchKind) (ConditionalBranch, error) {
 	}, nil
 }
 
+// Recover to a reasonable synchronization point after failing to parse an
+// IfBlock.
+func (p *parser) skipIfBlock() {
+	for {
+		switch p.nextToken().Type {
+		case lexer.TokenType_PreprocessorEndif, lexer.TokenType_EOF:
+			return
+		}
+	}
+}
+
 // parseIfBlock parses an entire #if/#ifdef/#ifndef block (including
 // #elif/#else/#endif) and all nested directives.
 func (p *parser) parseIfBlock() (IfBlock, error) {
@@ -511,7 +522,11 @@ func (p *parser) parseDirective() (Directive, error) {
 	case lexer.TokenType_PreprocessorInclude, lexer.TokenType_PreprocessorIncludeNext:
 		return p.parseIncludeDirective()
 	case lexer.TokenType_PreprocessorIf, lexer.TokenType_PreprocessorIfdef, lexer.TokenType_PreprocessorIfndef:
-		return p.parseIfBlock()
+		ifBlock, err := p.parseIfBlock()
+		if err != nil {
+			p.skipIfBlock()
+		}
+		return ifBlock, err
 	case lexer.TokenType_PreprocessorDefine:
 		return p.parseDefineDirective()
 	case lexer.TokenType_PreprocessorUndef:
@@ -519,6 +534,7 @@ func (p *parser) parseDirective() (Directive, error) {
 	default:
 		token := p.nextToken()
 		if isEndOfIfBranch(token.Type) {
+			p.skipIfBlock()
 			return nil, fmt.Errorf("%s: unpaired `#if`: %s", token.Location, token.Type)
 		}
 		return nil, fmt.Errorf("%s: expected directive, got %s", token.Location, token.Type)
