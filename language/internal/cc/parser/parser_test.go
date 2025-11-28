@@ -688,6 +688,10 @@ func TestParseConditionalIncludes(t *testing.T) {
 			#   endif
 			#   include "reachable.h"
 			#endif
+
+			#ifdef __APPLE__
+			#   include "dropped3.h"
+			// missing #endif
 			`,
 			expected: []Directive{
 				IfBlock{Branches: []ConditionalBranch{
@@ -703,6 +707,7 @@ func TestParseConditionalIncludes(t *testing.T) {
 			expectedErrors: []string{
 				"2:13: expected integer literal or identifier, got operator '>'",
 				"7:19: expected integer literal or identifier, got newline",
+				"13:4: missing directive '#endif' for directive '#ifdef'",
 			},
 		},
 	}
