@@ -12,47 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package targets
+package indexer
 
 import (
 	"testing"
 
-	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGroupTargetsByHeaders(t *testing.T) {
-	module := indexer.Module{
-		Repository: "",
-		Targets: []*indexer.Target{
-			{
-				Name: label.Label{Pkg: "pkg1", Name: "lib1"},
-				Hdrs: collections.SetOf(
-					label.Label{Pkg: "pkg1", Name: "header1.h"},
-					label.Label{Pkg: "pkg1", Name: "header2.h"},
-				),
-			},
-			{
-				Name: label.Label{Pkg: "pkg2", Name: "lib2"},
-				Hdrs: collections.SetOf(
-					label.Label{Pkg: "pkg1", Name: "header2.h"},
-					label.Label{Pkg: "pkg2", Name: "header3.h"},
-				),
-			},
-			{
-				Name: label.Label{Pkg: "pkg3", Name: "lib3"},
-				Hdrs: collections.SetOf(
-					label.Label{Pkg: "pkg1", Name: "header3.h"},
-					label.Label{Pkg: "pkg2", Name: "header1.h"},
-					label.Label{Pkg: "pkg3", Name: "header4.h"},
-				),
-			},
+	targets := []Target{
+		{
+			Name: label.Label{Pkg: "pkg1", Name: "lib1"},
+			Hdrs: collections.SetOf(
+				label.Label{Pkg: "pkg1", Name: "header1.h"},
+				label.Label{Pkg: "pkg1", Name: "header2.h"},
+			),
+		},
+		{
+			Name: label.Label{Pkg: "pkg2", Name: "lib2"},
+			Hdrs: collections.SetOf(
+				label.Label{Pkg: "pkg1", Name: "header2.h"},
+				label.Label{Pkg: "pkg2", Name: "header3.h"},
+			),
+		},
+		{
+			Name: label.Label{Pkg: "pkg3", Name: "lib3"},
+			Hdrs: collections.SetOf(
+				label.Label{Pkg: "pkg1", Name: "header3.h"},
+				label.Label{Pkg: "pkg2", Name: "header1.h"},
+				label.Label{Pkg: "pkg3", Name: "header4.h"},
+			),
 		},
 	}
 
-	groups := GroupTargetsByHeaders(module)
+	groups := GroupTargetsByHeaders(targets)
 	assert.Equal(t, 2, len(groups))
 
 	// First group should contain lib1 and lib2 (they share pkg1/header2.h)
@@ -60,20 +56,20 @@ func TestGroupTargetsByHeaders(t *testing.T) {
 
 	// Second group should contain lib3 (no shared headers)
 	assert.Equal(t, 1, len(groups[1]))
-	assert.Equal(t, "lib3", groups[1].Values()[0].Name.Name)
+	assert.Equal(t, "lib3", groups[1][0].Name.Name)
 }
 
 func TestSelectRootTargets(t *testing.T) {
-	targets := collections.SetOf(
-		&indexer.Target{
+	targets := []Target{
+		Target{
 			Name: label.Label{Pkg: "pkg1", Name: "lib1"},
 			Deps: collections.SetOf(label.Label{Pkg: "pkg2", Name: "lib2"}),
 		},
-		&indexer.Target{
+		Target{
 			Name: label.Label{Pkg: "pkg2", Name: "lib2"},
 			Deps: collections.SetOf[label.Label](),
 		},
-	)
+	}
 
 	roots := SelectRootTargets(targets)
 	assert.Equal(t, 1, len(roots))
