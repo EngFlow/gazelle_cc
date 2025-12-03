@@ -11,17 +11,22 @@
       "cwd": "${workspaceFolder}/example/bzlmod",
       "substitutePath": [
         /*
-          This is necessary due to the way Bazel sandboxes its build outputs. Source paths embedded in the debugging
-          metadata of compiled binaries may not match the actual file paths on disk.
+          This is necessary due to the way Bazel sandboxes its build outputs.
+          Source paths embedded in the debugging metadata of compiled binaries
+          may not match the actual file paths on disk.
+
+          Entries must be sorted starting by the most specific "from" path to
+          the least specific. Otherwise, VS Code may apply a less specific rule
+          first, disallowing to setup breakpoints in an external repository.
          */
+        {
+          "from": "${workspaceFolder}/example/bzlmod/bazel-bzlmod/external/gazelle+",
+          "to": "external/gazelle+"
+        },
         {
           "from": "${workspaceFolder}",
           "to": "external/gazelle_cc+"
         },
-        {
-          "from": "${workspaceFolder}/example/bzlmod/bazel-bzlmod/external/gazelle+",
-          "to": "external/gazelle+"
-        }
       ]
     }
   ]
