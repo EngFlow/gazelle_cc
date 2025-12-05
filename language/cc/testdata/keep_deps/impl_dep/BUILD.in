@@ -1,0 +1,1 @@
+package(default_visibility = ["//dep:__pkg__"])
