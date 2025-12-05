@@ -1,0 +1,21 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_group unit
+
+cc_library(
+    name = "android",
+    hdrs = ["android.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "default",
+    hdrs = ["default.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "qnx",
+    hdrs = ["qnx.h"],
+    visibility = ["//visibility:public"],
+)
