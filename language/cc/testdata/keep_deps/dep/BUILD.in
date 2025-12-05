@@ -6,7 +6,6 @@ cc_library(
     hdrs = ["dep.h"],
     implementation_deps = [
         ":do_not_delete",  # keep
-        "//impl_dep",
     ],
     visibility = ["//visibility:public"],
 )
