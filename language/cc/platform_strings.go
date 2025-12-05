@@ -15,144 +15,197 @@
 package cc
 
 import (
-	"log"
-	"maps"
+	"fmt"
 
+	"github.com/EngFlow/gazelle_cc/internal/collections"
+	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 	bzl "github.com/bazelbuild/buildtools/build"
 )
 
-// Represents bzl.Expr build from concatenation of []string and select expressions.
-// Similar to @gazelle//language/go PlatformStrings but is decoupled from it's go specific constraints
-type ccPlatformStrings struct {
-	Generic     rule.SortedStrings         // always‑active strings
-	Constrained rule.SelectStringListValue // keyed by constraint label
+const (
+	selectFunctionName = "select"
+	selectDefaultKey   = "//conditions:default"
+)
+
+// Represents bzl.Expr build from concatenation of []string and select
+// expressions. Similar to @gazelle//rule platformStringsExprs but is decoupled
+// from it's go specific constraints.
+//
+// The matched expression has the form:
+//
+// [] + select({})
+//
+// The 2 collections may appear in any order, and some or all of them may be
+// omitted (all fields are nil for a nil expression).
+type ccPlatformStringsExprs struct {
+	Generic     *bzl.ListExpr // always active dependencies
+	Constrained *bzl.DictExpr // constrained dependencies
 }
 
-var _ rule.BzlExprValue = ccPlatformStrings{}
-var _ rule.Merger = ccPlatformStrings{}
+var _ rule.BzlExprValue = ccPlatformStringsExprs{}
+var _ rule.Merger = ccPlatformStringsExprs{}
 
-func (ps ccPlatformStrings) BzlExpr() bzl.Expr {
-	var parts []bzl.Expr
+func labelsSetToStringSlice(labels collections.Set[label.Label]) []string {
+	return collections.MapSlice(labels.Values(), func(l label.Label) string { return l.String() })
+}
 
-	if len(ps.Generic) > 0 {
-		parts = append(parts, rule.ExprFromValue(ps.Generic))
+func labelsSetToListExpr(labels collections.Set[label.Label]) *bzl.ListExpr {
+	return rule.SortedStrings(labelsSetToStringSlice(labels)).BzlExpr().(*bzl.ListExpr)
+}
+
+func labelsSetToOptionalListExpr(labels collections.Set[label.Label]) *bzl.ListExpr {
+	if len(labels) == 0 {
+		return nil
 	}
-	if len(ps.Constrained) > 0 {
-		sel := make(rule.SelectStringListValue)
-		sel["//conditions:default"] = nil // keep Gazelle formatting stable
-		maps.Copy(sel, ps.Constrained)
-		parts = append(parts, sel.BzlExpr())
-	}
+	return labelsSetToListExpr(labels)
+}
 
-	switch len(parts) {
-	case 0:
-		return &bzl.ListExpr{}
-	case 1:
-		return parts[0]
-	default:
-		expr := parts[0]
-		if lst, ok := expr.(*bzl.ListExpr); ok {
-			lst.ForceMultiLine = true
-		}
-		for _, p := range parts[1:] {
-			expr = &bzl.BinaryExpr{Op: "+", X: expr, Y: p}
-		}
-		return expr
+func labelsMapToStringMap(labels map[label.Label]collections.Set[label.Label]) map[string][]string {
+	result := make(map[string][]string, len(labels))
+	for key, value := range labels {
+		result[key.String()] = labelsSetToStringSlice(value)
+	}
+	return result
+}
+
+func labelsMapToDictExpr(labels map[label.Label]collections.Set[label.Label]) *bzl.DictExpr {
+	stringMap := labelsMapToStringMap(labels)
+	if _, haveDefault := stringMap[selectDefaultKey]; !haveDefault {
+		// always include default condition
+		stringMap[selectDefaultKey] = nil
+	}
+	return rule.SelectStringListValue(stringMap).BzlExpr().(*bzl.CallExpr).List[0].(*bzl.DictExpr)
+}
+
+func labelsMapToOptionalDictExpr(labels map[label.Label]collections.Set[label.Label]) *bzl.DictExpr {
+	if len(labels) == 0 {
+		return nil
+	}
+	return labelsMapToDictExpr(labels)
+}
+
+func newCcPlatformStringsExprs(
+	generic collections.Set[label.Label],
+	constrainted map[label.Label]collections.Set[label.Label],
+) ccPlatformStringsExprs {
+	return ccPlatformStringsExprs{
+		Generic:     labelsSetToOptionalListExpr(generic),
+		Constrained: labelsMapToOptionalDictExpr(constrainted),
 	}
 }
 
-func (ps ccPlatformStrings) Merge(other bzl.Expr) bzl.Expr {
-	otherPS := parseCcPlatformStrings(other)
+func (ps ccPlatformStringsExprs) makeSelectExpr() bzl.Expr {
+	return &bzl.CallExpr{
+		X:    &bzl.Ident{Name: selectFunctionName},
+		List: []bzl.Expr{ps.Constrained},
+	}
+}
 
-	// Merge generic list via rule helper
-	genericStrings := ps.Generic
-	if len(otherPS.Generic) > 0 {
-		mergedGeneric := ps.Generic.Merge(otherPS.Generic.BzlExpr())
-		genericStrings = bzl.Strings(mergedGeneric)
+func (ps ccPlatformStringsExprs) makeBinaryExpr() bzl.Expr {
+	ps.Generic.ForceMultiLine = true
+	ps.Constrained.ForceMultiLine = true
+	return &bzl.BinaryExpr{
+		Op: "+",
+		X:  ps.Generic,
+		Y:  ps.makeSelectExpr(),
+	}
+}
+
+func (ps ccPlatformStringsExprs) BzlExpr() bzl.Expr {
+	if ps.Constrained == nil {
+		// always active dependencies only
+		return ps.Generic
 	}
 
-	// Helper: convert map -> *bzl.DictExpr so we can use MergeDict
-	toDict := func(m map[string][]string) *bzl.DictExpr {
-		d := &bzl.DictExpr{}
-		for k, v := range m {
-			d.List = append(d.List, &bzl.KeyValueExpr{
-				Key:   &bzl.StringExpr{Value: k},
-				Value: rule.ExprFromValue(v),
-			})
-		}
-		return d
+	if ps.Generic == nil {
+		// constrained dependencies only
+		return ps.makeSelectExpr()
 	}
 
-	mergedDict, err := rule.MergeDict(toDict(ps.Constrained), toDict(otherPS.Constrained))
+	// both always active and constrained dependencies
+	return ps.makeBinaryExpr()
+}
+
+func (ps ccPlatformStringsExprs) Merge(other bzl.Expr) bzl.Expr {
+	otherPS, err := parseCcPlatformStringsExprs(other)
 	if err != nil {
-		log.Panicf("Failed to merge dicts: %v", err)
+		// leave current BUILD content unchanged on error
+		return other
 	}
 
-	// Dict back to Go map
-	mergedConstrained := map[string][]string{}
-	if mergedDict != nil {
-		for _, kv := range mergedDict.List {
-			k := kv.Key.(*bzl.StringExpr).Value
-			var items []string
-			for _, it := range kv.Value.(*bzl.ListExpr).List {
-				items = append(items, it.(*bzl.StringExpr).Value)
-			}
-			mergedConstrained[k] = items
-		}
+	ps.Generic = rule.MergeList(ps.Generic, otherPS.Generic)
+	ps.Constrained, err = rule.MergeDict(ps.Constrained, otherPS.Constrained)
+	if err != nil {
+		// leave current BUILD content unchanged on error
+		return other
 	}
 
-	return ccPlatformStrings{
-		Generic:     genericStrings,
-		Constrained: mergedConstrained,
-	}.BzlExpr()
+	return ps.BzlExpr()
 }
 
-func parseCcPlatformStrings(expr bzl.Expr) ccPlatformStrings {
-	ps := ccPlatformStrings{
-		Constrained: map[string][]string{},
-		Generic:     []string{},
+func parseSelectExpr(expr *bzl.CallExpr) (*bzl.DictExpr, error) {
+	function, ok := expr.X.(*bzl.Ident)
+	if !ok || function.Name != selectFunctionName || len(expr.List) != 1 {
+		return nil, fmt.Errorf("expression could not be matched: callee other than select or wrong number of args")
+	}
+	arg, ok := expr.List[0].(*bzl.DictExpr)
+	if !ok {
+		return nil, fmt.Errorf("expression could not be matched: select argument not dict")
+	}
+	return arg, nil
+}
+
+func (ps ccPlatformStringsExprs) union(other ccPlatformStringsExprs) (ccPlatformStringsExprs, error) {
+	if ps.Generic != nil && other.Generic != nil {
+		return ccPlatformStringsExprs{}, fmt.Errorf("unexpected [] + []")
+	}
+	if ps.Constrained != nil && other.Constrained != nil {
+		return ccPlatformStringsExprs{}, fmt.Errorf("unexpected select({}) + select({})")
+	}
+	if ps.Generic == nil {
+		ps.Generic = other.Generic
+	}
+	if ps.Constrained == nil {
+		ps.Constrained = other.Constrained
+	}
+	return ps, nil
+}
+
+func parseCcPlatformStringsExprs(expr bzl.Expr) (ccPlatformStringsExprs, error) {
+	var ps ccPlatformStringsExprs
+	if expr == nil {
+		return ps, nil
 	}
 
-	switch e := expr.(type) {
+	switch expr := expr.(type) {
 	case *bzl.ListExpr:
-		for _, it := range e.List {
-			if s, ok := it.(*bzl.StringExpr); ok {
-				ps.Generic = append(ps.Generic, s.Value)
-			}
-		}
-
-	case *bzl.BinaryExpr:
-		left := parseCcPlatformStrings(e.X)
-		right := parseCcPlatformStrings(e.Y)
-
-		ps.Generic = append(left.Generic, right.Generic...)
-		for k, v := range left.Constrained {
-			ps.Constrained[k] = append(ps.Constrained[k], v...)
-		}
-		for k, v := range right.Constrained {
-			ps.Constrained[k] = append(ps.Constrained[k], v...)
-		}
+		ps.Generic = expr
 
 	case *bzl.CallExpr:
-		if sel, ok := e.X.(*bzl.Ident); ok && sel.Name == "select" && len(e.List) == 1 {
-			if dict, ok := e.List[0].(*bzl.DictExpr); ok {
-				for _, kv := range dict.List {
-					key, ok1 := kv.Key.(*bzl.StringExpr)
-					val, ok2 := kv.Value.(*bzl.ListExpr)
-					if !ok1 || !ok2 {
-						continue
-					}
-					var items []string
-					for _, v := range val.List {
-						if s, ok := v.(*bzl.StringExpr); ok {
-							items = append(items, s.Value)
-						}
-					}
-					ps.Constrained[key.Value] = items
-				}
-			}
+		dict, err := parseSelectExpr(expr)
+		if err != nil {
+			return ccPlatformStringsExprs{}, err
 		}
+		ps.Constrained = dict
+
+	case *bzl.BinaryExpr:
+		left, err := parseCcPlatformStringsExprs(expr.X)
+		if err != nil {
+			return ccPlatformStringsExprs{}, err
+		}
+		right, err := parseCcPlatformStringsExprs(expr.Y)
+		if err != nil {
+			return ccPlatformStringsExprs{}, err
+		}
+		ps, err = left.union(right)
+		if err != nil {
+			return ccPlatformStringsExprs{}, err
+		}
+
+	default:
+		return ccPlatformStringsExprs{}, fmt.Errorf("expression could not be matched: unexpected expression type %T", expr)
 	}
-	return ps
+
+	return ps, nil
 }
