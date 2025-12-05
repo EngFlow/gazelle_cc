@@ -156,56 +156,45 @@ func parseSelectExpr(expr *bzl.CallExpr) (*bzl.DictExpr, error) {
 	return arg, nil
 }
 
-func (ps ccPlatformStringsExprs) union(other ccPlatformStringsExprs) (ccPlatformStringsExprs, error) {
-	if ps.Generic != nil && other.Generic != nil {
-		return ccPlatformStringsExprs{}, fmt.Errorf("unexpected [] + []")
-	}
-	if ps.Constrained != nil && other.Constrained != nil {
-		return ccPlatformStringsExprs{}, fmt.Errorf("unexpected select({}) + select({})")
-	}
-	if ps.Generic == nil {
-		ps.Generic = other.Generic
-	}
-	if ps.Constrained == nil {
-		ps.Constrained = other.Constrained
-	}
-	return ps, nil
-}
-
 func parseCcPlatformStringsExprs(expr bzl.Expr) (ccPlatformStringsExprs, error) {
-	var ps ccPlatformStringsExprs
+	var result ccPlatformStringsExprs
 	if expr == nil {
-		return ps, nil
+		return result, nil
 	}
 
-	switch expr := expr.(type) {
-	case *bzl.ListExpr:
-		ps.Generic = expr
-
-	case *bzl.CallExpr:
-		dict, err := parseSelectExpr(expr)
-		if err != nil {
-			return ccPlatformStringsExprs{}, err
+	var parseGenericOrConstrained func(expr bzl.Expr) error
+	parseGenericOrConstrained = func(expr bzl.Expr) error {
+		switch expr := expr.(type) {
+		case *bzl.ListExpr:
+			if result.Generic != nil {
+				return fmt.Errorf("expression could not be matched: unexpected [] + []")
+			}
+			result.Generic = expr
+		case *bzl.CallExpr:
+			dict, err := parseSelectExpr(expr)
+			if err != nil {
+				return err
+			}
+			if result.Constrained != nil {
+				return fmt.Errorf("expression could not be matched: unexpected select({}) + select({})")
+			}
+			result.Constrained = dict
+		case *bzl.BinaryExpr:
+			if expr.Op != "+" {
+				return fmt.Errorf("expression could not be matched: binary expression with unsupported operator %q", expr.Op)
+			}
+			if err := parseGenericOrConstrained(expr.X); err != nil {
+				return err
+			}
+			if err := parseGenericOrConstrained(expr.Y); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("expression could not be matched: unexpected expression type %T", expr)
 		}
-		ps.Constrained = dict
-
-	case *bzl.BinaryExpr:
-		left, err := parseCcPlatformStringsExprs(expr.X)
-		if err != nil {
-			return ccPlatformStringsExprs{}, err
-		}
-		right, err := parseCcPlatformStringsExprs(expr.Y)
-		if err != nil {
-			return ccPlatformStringsExprs{}, err
-		}
-		ps, err = left.union(right)
-		if err != nil {
-			return ccPlatformStringsExprs{}, err
-		}
-
-	default:
-		return ccPlatformStringsExprs{}, fmt.Errorf("expression could not be matched: unexpected expression type %T", expr)
+		return nil
 	}
 
-	return ps, nil
+	err := parseGenericOrConstrained(expr)
+	return result, err
 }
