@@ -113,18 +113,16 @@ func (ps ccPlatformStringsExprs) makeBinaryExpr() bzl.Expr {
 }
 
 func (ps ccPlatformStringsExprs) BzlExpr() bzl.Expr {
-	if ps.Constrained == nil {
-		// always active dependencies only
+	switch {
+	case ps.Generic != nil && ps.Constrained != nil:
+		return ps.makeBinaryExpr()
+	case ps.Generic != nil:
 		return ps.Generic
-	}
-
-	if ps.Generic == nil {
-		// constrained dependencies only
+	case ps.Constrained != nil:
 		return ps.makeSelectExpr()
+	default:
+		return nil
 	}
-
-	// both always active and constrained dependencies
-	return ps.makeBinaryExpr()
 }
 
 func (ps ccPlatformStringsExprs) Merge(other bzl.Expr) bzl.Expr {
