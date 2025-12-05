@@ -17,7 +17,6 @@ package cc
 import (
 	"log"
 	"maps"
-	"slices"
 
 	"github.com/bazelbuild/bazel-gazelle/rule"
 	bzl "github.com/bazelbuild/buildtools/build"
@@ -107,15 +106,6 @@ func (ps ccPlatformStrings) Merge(other bzl.Expr) bzl.Expr {
 		Generic:     genericStrings,
 		Constrained: mergedConstrained,
 	}.BzlExpr()
-}
-
-// Strings flattens Generic + all constrained lists (in that order).
-func (ps ccPlatformStrings) Strings() []string {
-	out := slices.Clone(ps.Generic)
-	for _, grp := range ps.Constrained {
-		out = append(out, grp...)
-	}
-	return out
 }
 
 func parseCcPlatformStrings(expr bzl.Expr) ccPlatformStrings {
