@@ -36,11 +36,21 @@ const (
 //
 // [] + select({})
 //
-// The 2 collections may appear in any order, and some or all of them may be
+// The two collections may appear in any order, and one or both of them may be
 // omitted (all fields are nil for a nil expression).
 type ccPlatformStringsExprs struct {
 	Generic     *bzl.ListExpr // always active dependencies
 	Constrained *bzl.DictExpr // constrained dependencies
+}
+
+func newCcPlatformStringsExprs(
+	generic collections.Set[label.Label],
+	constrainted map[label.Label]collections.Set[label.Label],
+) ccPlatformStringsExprs {
+	return ccPlatformStringsExprs{
+		Generic:     labelsSetToListExpr(generic),
+		Constrained: labelsMapToDictExpr(constrainted),
+	}
 }
 
 var _ rule.BzlExprValue = ccPlatformStringsExprs{}
@@ -51,48 +61,22 @@ func labelsSetToStringSlice(labels collections.Set[label.Label]) []string {
 }
 
 func labelsSetToListExpr(labels collections.Set[label.Label]) *bzl.ListExpr {
+	if len(labels) == 0 {
+		return nil
+	}
 	return rule.SortedStrings(labelsSetToStringSlice(labels)).BzlExpr().(*bzl.ListExpr)
 }
 
-func labelsSetToOptionalListExpr(labels collections.Set[label.Label]) *bzl.ListExpr {
+func labelsMapToDictExpr(labels map[label.Label]collections.Set[label.Label]) *bzl.DictExpr {
 	if len(labels) == 0 {
 		return nil
 	}
-	return labelsSetToListExpr(labels)
-}
-
-func labelsMapToStringMap(labels map[label.Label]collections.Set[label.Label]) map[string][]string {
-	result := make(map[string][]string, len(labels))
+	stringMap := make(map[string][]string, len(labels)+1)
+	stringMap[selectDefaultKey] = nil // always include default condition
 	for key, value := range labels {
-		result[key.String()] = labelsSetToStringSlice(value)
-	}
-	return result
-}
-
-func labelsMapToDictExpr(labels map[label.Label]collections.Set[label.Label]) *bzl.DictExpr {
-	stringMap := labelsMapToStringMap(labels)
-	if _, haveDefault := stringMap[selectDefaultKey]; !haveDefault {
-		// always include default condition
-		stringMap[selectDefaultKey] = nil
+		stringMap[key.String()] = labelsSetToStringSlice(value)
 	}
 	return rule.SelectStringListValue(stringMap).BzlExpr().(*bzl.CallExpr).List[0].(*bzl.DictExpr)
-}
-
-func labelsMapToOptionalDictExpr(labels map[label.Label]collections.Set[label.Label]) *bzl.DictExpr {
-	if len(labels) == 0 {
-		return nil
-	}
-	return labelsMapToDictExpr(labels)
-}
-
-func newCcPlatformStringsExprs(
-	generic collections.Set[label.Label],
-	constrainted map[label.Label]collections.Set[label.Label],
-) ccPlatformStringsExprs {
-	return ccPlatformStringsExprs{
-		Generic:     labelsSetToOptionalListExpr(generic),
-		Constrained: labelsMapToOptionalDictExpr(constrainted),
-	}
 }
 
 func (ps ccPlatformStringsExprs) makeSelectExpr() bzl.Expr {
