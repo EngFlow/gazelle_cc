@@ -16,6 +16,7 @@ package cc
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -57,7 +58,8 @@ var _ rule.BzlExprValue = ccPlatformStringsExprs{}
 var _ rule.Merger = ccPlatformStringsExprs{}
 
 func labelsSetToStringSlice(labels collections.Set[label.Label]) []string {
-	return collections.MapSlice(labels.Values(), func(l label.Label) string { return l.String() })
+	labelToString := func(l label.Label) string { return l.String() }
+	return slices.Sorted(collections.MapSeq(labels.All(), labelToString))
 }
 
 func labelsSetToListExpr(labels collections.Set[label.Label]) *bzl.ListExpr {
