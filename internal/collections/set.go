@@ -15,6 +15,7 @@
 package collections
 
 import (
+	"iter"
 	"maps"
 	"slices"
 )
@@ -135,6 +136,17 @@ func (s Set[T]) Intersects(other Set[T]) bool {
 	return false
 }
 
+// All returns a sequence containing all elements in the Set. The order is not
+// guaranteed.
+//
+// Example:
+//
+//	s := SetOf(1, 2, 3)
+//	seq := s.All() => sequence of []int{1, 2, 3} (order may vary)
+func (s Set[T]) All() iter.Seq[T] {
+	return maps.Keys(s)
+}
+
 // Values returns a slice containing all elements in the Set.
 // The order is not guaranteed. For guaranteed order, use SortedValues.
 //
@@ -143,7 +155,7 @@ func (s Set[T]) Intersects(other Set[T]) bool {
 //	s := SetOf("a", "b")
 //	vals := s.Values() => []string{"a", "b"} (order may vary)
 func (s Set[T]) Values() []T {
-	return slices.Collect(maps.Keys(s))
+	return slices.Collect(s.All())
 }
 
 // SortedValues returns a sorted slice containing all elements in the Set.
@@ -153,5 +165,5 @@ func (s Set[T]) Values() []T {
 //	s := SetOf("a", "b")
 //	vals := s.SortedValues(strings.Compare) => []string{"a", "b"} (order guaranteed)
 func (s Set[T]) SortedValues(cmp func(l, r T) int) []T {
-	return slices.SortedFunc(maps.Keys(s), cmp)
+	return slices.SortedFunc(s.All(), cmp)
 }
