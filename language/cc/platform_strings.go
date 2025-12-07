@@ -39,8 +39,8 @@ const (
 // The two collections may appear in any order, and one or both of them may be
 // omitted (all fields are nil for a nil expression).
 type ccPlatformStringsExprs struct {
-	Generic     *bzl.ListExpr // always active dependencies
-	Constrained *bzl.DictExpr // constrained dependencies
+	genericDeps     *bzl.ListExpr // always active dependencies
+	constrainedDeps *bzl.DictExpr // constrained dependencies
 }
 
 func newCcPlatformStringsExprs(
@@ -48,8 +48,8 @@ func newCcPlatformStringsExprs(
 	constrainted map[label.Label]collections.Set[label.Label],
 ) ccPlatformStringsExprs {
 	return ccPlatformStringsExprs{
-		Generic:     labelsSetToListExpr(generic),
-		Constrained: labelsMapToDictExpr(constrainted),
+		genericDeps:     labelsSetToListExpr(generic),
+		constrainedDeps: labelsMapToDictExpr(constrainted),
 	}
 }
 
@@ -82,27 +82,27 @@ func labelsMapToDictExpr(labels map[label.Label]collections.Set[label.Label]) *b
 func (ps ccPlatformStringsExprs) makeSelectExpr() bzl.Expr {
 	return &bzl.CallExpr{
 		X:    &bzl.Ident{Name: selectFunctionName},
-		List: []bzl.Expr{ps.Constrained},
+		List: []bzl.Expr{ps.constrainedDeps},
 	}
 }
 
 func (ps ccPlatformStringsExprs) makeBinaryExpr() bzl.Expr {
-	ps.Generic.ForceMultiLine = true
-	ps.Constrained.ForceMultiLine = true
+	ps.genericDeps.ForceMultiLine = true
+	ps.constrainedDeps.ForceMultiLine = true
 	return &bzl.BinaryExpr{
 		Op: "+",
-		X:  ps.Generic,
+		X:  ps.genericDeps,
 		Y:  ps.makeSelectExpr(),
 	}
 }
 
 func (ps ccPlatformStringsExprs) BzlExpr() bzl.Expr {
 	switch {
-	case ps.Generic != nil && ps.Constrained != nil:
+	case ps.genericDeps != nil && ps.constrainedDeps != nil:
 		return ps.makeBinaryExpr()
-	case ps.Generic != nil:
-		return ps.Generic
-	case ps.Constrained != nil:
+	case ps.genericDeps != nil:
+		return ps.genericDeps
+	case ps.constrainedDeps != nil:
 		return ps.makeSelectExpr()
 	default:
 		return nil
@@ -112,15 +112,13 @@ func (ps ccPlatformStringsExprs) BzlExpr() bzl.Expr {
 func (ps ccPlatformStringsExprs) Merge(other bzl.Expr) bzl.Expr {
 	otherPS, err := parseCcPlatformStringsExprs(other)
 	if err != nil {
-		// leave current BUILD content unchanged on error
-		return other
+		return other // leave current BUILD content unchanged on error
 	}
 
-	ps.Generic = rule.MergeList(ps.Generic, otherPS.Generic)
-	ps.Constrained, err = rule.MergeDict(ps.Constrained, otherPS.Constrained)
+	ps.genericDeps = rule.MergeList(ps.genericDeps, otherPS.genericDeps)
+	ps.constrainedDeps, err = rule.MergeDict(ps.constrainedDeps, otherPS.constrainedDeps)
 	if err != nil {
-		// leave current BUILD content unchanged on error
-		return other
+		return other // leave current BUILD content unchanged on error
 	}
 
 	return ps.BzlExpr()
@@ -148,19 +146,19 @@ func parseCcPlatformStringsExprs(expr bzl.Expr) (ccPlatformStringsExprs, error) 
 	parseGenericOrConstrained = func(expr bzl.Expr) error {
 		switch expr := expr.(type) {
 		case *bzl.ListExpr:
-			if result.Generic != nil {
+			if result.genericDeps != nil {
 				return fmt.Errorf("expression could not be matched: unexpected [] + []")
 			}
-			result.Generic = expr
+			result.genericDeps = expr
 		case *bzl.CallExpr:
 			dict, err := parseSelectExpr(expr)
 			if err != nil {
 				return err
 			}
-			if result.Constrained != nil {
+			if result.constrainedDeps != nil {
 				return fmt.Errorf("expression could not be matched: unexpected select({}) + select({})")
 			}
-			result.Constrained = dict
+			result.constrainedDeps = dict
 		case *bzl.BinaryExpr:
 			if expr.Op != "+" {
 				return fmt.Errorf("expression could not be matched: binary expression with unsupported operator %q", expr.Op)
