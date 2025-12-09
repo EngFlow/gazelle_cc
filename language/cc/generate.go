@@ -141,7 +141,7 @@ func splitSourcesIntoGroups(args language.GenerateArgs, fileInfos []fileInfo) so
 		}
 		srcGroups = sourceGroups{groupId(groupName): {sources: fileInfos}}
 	case groupSourcesByUnit:
-		srcGroups = groupSourcesByUnits(args.Rel, conf.ccStripIncludePrefix, conf.ccIncludePrefix, fileInfos)
+		srcGroups = groupSourcesByUnits(args.Rel, conf.ccStripIncludePrefix, conf.ccIncludePrefix, conf.ccSearch, fileInfos)
 	}
 	return srcGroups
 }

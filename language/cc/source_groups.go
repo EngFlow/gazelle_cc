@@ -101,8 +101,8 @@ func (g *sourceGroups) renameOrMergeWith(current groupId, replacement groupId) b
 // Header (.h) and it's corresponding implemention (.cc) are always grouped together.
 // Source files without corresponding headers are assigned to single-element groups and can never become dependency of any other group.
 // Each source file is guaranteed to be assigned to exactly 1 group.
-func groupSourcesByUnits(rel, stripIncludePrefix, includePrefix string, fileInfos []fileInfo) sourceGroups {
-	graph := buildDependencyGraph(rel, stripIncludePrefix, includePrefix, fileInfos)
+func groupSourcesByUnits(rel, stripIncludePrefix, includePrefix string, ccSearch []ccSearch, fileInfos []fileInfo) sourceGroups {
+	graph := buildDependencyGraph(rel, stripIncludePrefix, includePrefix, ccSearch, fileInfos)
 	sccs := graph.findStronglyConnectedComponents()
 	groups := splitIntoSourceGroups(fileInfos, sccs, graph)
 	groups.resolveGroupDependencies(graph)
@@ -126,7 +126,7 @@ type sourceDependencyGraph map[groupId]*sourceGroupNode
 // Source file (.cc) and it's corresponsing header are always grouped together and become a node in a dependency graph.
 // Nodes of the graph are constructed base on sources having the same name (excluding extension suffix)
 // Edges of the dependency graph are constructed based on include directives to local headers defined in sources of the graph node
-func buildDependencyGraph(rel, stripIncludePrefix, includePrefix string, fileInfos []fileInfo) sourceDependencyGraph {
+func buildDependencyGraph(rel, stripIncludePrefix, includePrefix string, ccSearch []ccSearch, fileInfos []fileInfo) sourceDependencyGraph {
 	// Initialize graph nodes and build maps from include paths to group IDs.
 	// We consider three types of includes:
 	// 1. Full include paths, relative to the repository root. These paths are
@@ -138,6 +138,7 @@ func buildDependencyGraph(rel, stripIncludePrefix, includePrefix string, fileInf
 	// This list should also be modified by the includes attribute, but we don't
 	// generate those in new rules, and at this point, we haven't associated
 	// files with existing rules, so we don't have an includes list to apply.
+	// 4. Transformed include paths based on cc_search configurations.
 	graph := make(sourceDependencyGraph)
 	includeToGroup := make(map[string]groupId)
 	for _, fi := range fileInfos {
@@ -149,6 +150,12 @@ func buildDependencyGraph(rel, stripIncludePrefix, includePrefix string, fileInf
 		transformed := transformIncludePath(rel, stripIncludePrefix, includePrefix, fullRel)
 		includeToGroup[transformed] = id
 		includeToGroup[fi.name] = id
+
+		// Also consider cc_search configurations for additional include path transformations
+		for _, search := range ccSearch {
+			stripPrefix := transformIncludePath(rel, search.stripIncludePrefix, search.includePrefix, fullRel)
+			includeToGroup[stripPrefix] = id
+		}
 	}
 
 	// Create edges based on includes between these files, using the graph above.

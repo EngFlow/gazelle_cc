@@ -75,6 +75,7 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 		for i, includeDir := range includes {
 			includes[i] = path.Clean(includeDir)
 		}
+		conf := getCcConfig(c)
 
 		// Maximum possible slice, each header is indexed:
 		// - once for its fully-qualified path
@@ -82,19 +83,26 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 		// - at most once for every matching declared -I include directory
 		imports = make([]resolve.ImportSpec, 0, len(hdrs)*(2+len(includes)))
 		for _, hdr := range hdrs {
+			// Track added import paths to avoid duplicates
+			addedImps := make(collections.Set[string])
+
 			// fullyQualifiedPath is the repository-root-relative path to the header. This path is always reachable via
 			// #include, regardless of the rule's attributes: includes, include_prefix, and strip_include_prefix.
 			fullyQualifiedPath := path.Join(f.Pkg, hdr)
 			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: fullyQualifiedPath})
+			addedImps.Add(fullyQualifiedPath)
 
 			// virtualPath allows to reference the header using modified path according to strip_include_prefix and
 			// include_prefix attributes.
 			if virtualPath := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, fullyQualifiedPath); virtualPath != fullyQualifiedPath {
-				imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: virtualPath})
+				if !addedImps.Contains(virtualPath) {
+					imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: virtualPath})
+					addedImps.Add(virtualPath)
+				}
 			}
 
 			// Index shorter includes paths made valid by each -I <includeDir>
-			// Bazel adds every entry in the `includes` attribute to the compiler’s search path.
+			// Bazel adds every entry in the `includes` attribute to the compiler's search path.
 			// With `includes=[include, include/ext]` header `include/ext/foo.h` can be referenced in 3 different ways:
 			// - include/ext/foo.h - the fully qualified (canonical) form
 			// - ext/foo.h - relative to the `include/` directory (1st 'includes' entry)
@@ -114,7 +122,31 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 					// If the include directory is not relative to canonical form it's would be simply ignored.
 					continue
 				}
-				imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
+				if !addedImps.Contains(relativePath) {
+					imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
+					addedImps.Add(relativePath)
+				}
+			}
+			for _, ccSearch := range conf.ccSearch {
+				if ccSearch.stripIncludePrefix == "" {
+					continue
+				}
+				// cc_search.stripIncludePrefix is repository-root-relative, same as fullyQualifiedPath
+				// If it's an absolute path, remove the leading '/'
+				stripPrefix := ccSearch.stripIncludePrefix
+				if path.IsAbs(stripPrefix) {
+					stripPrefix = stripPrefix[len("/"):]
+				}
+				// Ensure the prefix ends with path separator for proper matching
+				stripPrefixWithSep := stripPrefix + string(filepath.Separator)
+				relativePath, matching := strings.CutPrefix(fullyQualifiedPath, stripPrefixWithSep)
+				if !matching {
+					continue
+				}
+				if !addedImps.Contains(relativePath) {
+					imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
+					addedImps.Add(relativePath)
+				}
 			}
 		}
 	}

@@ -28,6 +28,7 @@ func TestSourceGroups(t *testing.T) {
 		rel                string
 		stripIncludePrefix string
 		includePrefix      string
+		ccSearch           []ccSearch
 		input              []fileInfo
 		expected           []sourceGroupSummary
 	}{
@@ -203,11 +204,28 @@ func TestSourceGroups(t *testing.T) {
 				{id: "a", sources: []string{"a.cc", "a.h", "b.cc", "b.h"}},
 			},
 		},
+		{
+			desc: "cc_search applies to full include paths",
+			rel:  "src",
+			ccSearch: []ccSearch{
+				{stripIncludePrefix: "/src/include", includePrefix: ""},
+			},
+			input: []fileInfo{
+				fileInfoForTest("a.h"),
+				fileInfoForTest("a.cc", "foo/b.h", "src/include/a.h"),
+				fileInfoForTest("b.h"),
+				fileInfoForTest("b.cc", "src/include/a.h", "src/include/b.h"),
+			},
+			expected: []sourceGroupSummary{
+				{id: "a", sources: []string{"a.cc", "a.h"}},
+				{id: "b", sources: []string{"b.cc", "b.h"}},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			actual := summarizeSourceGroups(groupSourcesByUnits(tc.rel, tc.stripIncludePrefix, tc.includePrefix, tc.input))
+			actual := summarizeSourceGroups(groupSourcesByUnits(tc.rel, tc.stripIncludePrefix, tc.includePrefix, tc.ccSearch, tc.input))
 			assert.Equal(t, tc.expected, actual)
 		})
 	}

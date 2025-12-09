@@ -144,10 +144,6 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 						log.Printf("# gazelle:cc_search: strip_include_prefix path %q is not clean", s.stripIncludePrefix)
 						continue
 					}
-					if path.IsAbs(s.stripIncludePrefix) {
-						log.Printf("# gazelle:cc_search: strip_include_prefix path %q must be relative", s.stripIncludePrefix)
-						continue
-					}
 				}
 				if len(args) > 1 {
 					s.includePrefix = args[1]
