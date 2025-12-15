@@ -179,6 +179,10 @@ func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rul
 			Name:    fmt.Sprintf("@%s//bazel:cc_proto_library.bzl", apparentOrDefaultName("protobuf", "com_google_protobuf")),
 			Symbols: []string{"cc_proto_library"},
 		},
+		{
+			Name:    fmt.Sprintf("@%s//bazel:cc_grpc_library.bzl", apparentOrDefaultName("grpc", "com_github_grpc_grpc")),
+			Symbols: []string{"cc_grpc_library"},
+		},
 	}
 }
 func (*ccLanguage) Fix(c *config.Config, f *rule.File) {}
