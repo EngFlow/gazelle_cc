@@ -162,7 +162,7 @@ func (c *ccLanguage) Loads() []rule.LoadInfo {
 }
 
 func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
-	apparentOfDefaultName := func(moduleName, defaultName string) string {
+	apparentOrDefaultName := func(moduleName, defaultName string) string {
 		if module := moduleToApparentName(moduleName); module != "" {
 			return module
 		} else {
@@ -172,11 +172,11 @@ func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rul
 
 	return []rule.LoadInfo{
 		{
-			Name:    fmt.Sprintf("@%s//cc:defs.bzl", apparentOfDefaultName("rules_cc", "rules_cc")),
+			Name:    fmt.Sprintf("@%s//cc:defs.bzl", apparentOrDefaultName("rules_cc", "rules_cc")),
 			Symbols: ccRuleDefs,
 		},
 		{
-			Name:    fmt.Sprintf("@%s//bazel:cc_proto_library.bzl", apparentOfDefaultName("protobuf", "com_google_protobuf")),
+			Name:    fmt.Sprintf("@%s//bazel:cc_proto_library.bzl", apparentOrDefaultName("protobuf", "com_google_protobuf")),
 			Symbols: []string{"cc_proto_library"},
 		},
 	}
