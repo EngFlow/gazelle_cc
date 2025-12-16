@@ -167,12 +167,12 @@ func newOrExistingRule(kind string, ruleName string, srcGroups sourceGroups, rul
 	return newRule
 }
 
-func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, fileInfos []fileInfo, rulesInfo rulesInfo, excludedSources sourceFileSet, result *language.GenerateResult) {
+func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, fileInfos []fileInfo, rulesInfo rulesInfo, excludedSources collections.Set[string], result *language.GenerateResult) {
 	conf := getCcConfig(args.Config)
 	// Ignore files that might have been consumed by other rules
 	var libFiles []fileInfo
 	for _, fi := range fileInfos {
-		if excludedSources[fi.name] {
+		if excludedSources.Contains(fi.name) {
 			continue
 		}
 		if fi.kind != libSrcKind && fi.kind != libHdrKind {
@@ -372,8 +372,8 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, fileInfos []f
 
 // Generated a cc_proto_library rules based on outputs of protobuf proto_library
 // Returns a set of .pb.h files that should be excluded from normal cc_library rules
-func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rulesInfo rulesInfo, result *language.GenerateResult) sourceFileSet {
-	consumedProtoFiles := make(sourceFileSet)
+func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rulesInfo rulesInfo, result *language.GenerateResult) collections.Set[string] {
+	consumedProtoFiles := make(collections.Set[string])
 	protoMode := getProtoMode(args.Config)
 	if !protoMode.ShouldGenerateRules() {
 		// Don't create or delete proto rules in this mode.
@@ -391,8 +391,7 @@ func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rules
 			for _, file := range protoFiles {
 				// If generated pb.h files exists exclude it, refer to cc_proto_library instead
 				if baseName, isProto := strings.CutSuffix(file, ".proto"); isProto {
-					consumedProtoFiles[baseName+".pb.h"] = true
-					consumedProtoFiles[baseName+".pb.cc"] = true
+					consumedProtoFiles.Add(baseName + ".pb.h").Add(baseName + ".pb.cc")
 				}
 			}
 			protoRuleLabel, err := label.Parse(":" + protoRule.Name())
@@ -568,7 +567,7 @@ func (c *ccLanguage) handleAmbigiousRulesAssignment(
 			var ruleSources []fileInfo
 			ruleFiles := rulesInfo.ccRuleSources[string(subGroupId)]
 			for _, fi := range group.sources {
-				if ruleFiles[fi.name] {
+				if ruleFiles.Contains(fi.name) {
 					ruleSources = append(ruleSources, fi)
 				}
 			}
@@ -646,7 +645,7 @@ type rulesInfo struct {
 	// Map of all rules defined in existing file for quick reference based on rule name
 	definedRules map[string]*rule.Rule
 	// Sources previously assigned to cc rules, key is the existing name of the rule
-	ccRuleSources map[string]sourceFileSet
+	ccRuleSources map[string]collections.Set[string]
 	// Mapping between groupId created from file name and existing rule name to which it was previously assigned
 	groupAssignment map[groupId]string
 }
@@ -654,7 +653,7 @@ type rulesInfo struct {
 func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 	info := rulesInfo{
 		definedRules:    make(map[string]*rule.Rule),
-		ccRuleSources:   make(map[string]sourceFileSet),
+		ccRuleSources:   make(map[string]collections.Set[string]),
 		groupAssignment: make(map[groupId]string),
 	}
 	if args.File == nil {
@@ -666,9 +665,9 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 		assignSources := func(srcs []string) {
 			for _, filename := range srcs {
 				if info.ccRuleSources[ruleName] == nil {
-					info.ccRuleSources[ruleName] = make(sourceFileSet)
+					info.ccRuleSources[ruleName] = make(collections.Set[string])
 				}
-				info.ccRuleSources[ruleName][filename] = true
+				info.ccRuleSources[ruleName].Add(filename)
 				info.groupAssignment[fileNameToGroupId(filename)] = ruleName
 			}
 		}
