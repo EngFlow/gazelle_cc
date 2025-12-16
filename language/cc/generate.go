@@ -554,8 +554,10 @@ func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, fileInfos []file
 		}
 
 		if !slices.Contains(ccRuleDefs, resolveCCRuleKind(r.Kind(), args.Config)) {
-			// This rule is not managed by gazelle_cc
-			// cc_proto_library would be removed if related proto_library was removed (via args.OtherEmpty)
+			// This rule is not managed by gazelle_cc.
+			//
+			// cc_proto_library and cc_grpc_library would be removed if related
+			// proto_library was removed (via args.OtherEmpty)
 			continue
 		}
 

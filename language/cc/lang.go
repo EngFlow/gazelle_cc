@@ -122,8 +122,7 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 			MergeableAttrs: map[string]bool{"srcs": true, "deps": true},
 			ResolveAttrs:   map[string]bool{"deps": true},
 		}
-		switch commonDef {
-		case "cc_library":
+		if commonDef == "cc_library" {
 			kindInfo.NonEmptyAttrs = mergeMaps(kindInfo.NonEmptyAttrs, map[string]bool{
 				"hdrs":                true,
 				"implementation_deps": true,
@@ -146,12 +145,17 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 		MergeableAttrs: map[string]bool{"deps": true},
 		ResolveAttrs:   map[string]bool{"deps": true},
 	}
+	kinds["cc_grpc_library"] = rule.KindInfo{
+		NonEmptyAttrs:  map[string]bool{"srcs": true, "deps": true},
+		MergeableAttrs: map[string]bool{"srcs": true, "deps": true, "grpc_only": true},
+		ResolveAttrs:   map[string]bool{"srcs": true, "deps": true},
+	}
 
 	return kinds
 }
 
 var ccRuleDefs = []string{
-	"cc_library", "cc_shared_libary", "cc_static_library",
+	"cc_library", "cc_shared_library", "cc_static_library",
 	"cc_import",
 	"cc_binary",
 	"cc_test",
