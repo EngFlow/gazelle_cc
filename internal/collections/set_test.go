@@ -123,7 +123,7 @@ func TestSet_Add(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.set.Add(tt.elem)
-			assert.Equal(t, tt.expected, *result)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -228,7 +228,7 @@ func TestSet_Join(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.set1.Join(tt.set2)
-			assert.Equal(t, tt.expected, *result)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

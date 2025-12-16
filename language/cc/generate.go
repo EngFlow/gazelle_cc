@@ -271,7 +271,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, fileInfos []f
 		testRunnerGroups, testGroups := []groupId{}, make([]groupId, 0, len(srcGroups))
 		for id, group := range srcGroups {
 			for _, dep := range group.dependsOn {
-				testLibraryGroupIds = *testLibraryGroupIds.Add(dep)
+				testLibraryGroupIds.Add(dep)
 			}
 			hasMain := slices.ContainsFunc(
 				group.sources,
