@@ -623,6 +623,9 @@ func (c *ccLanguage) listRelsToIndex(args language.GenerateArgs, fileInfos []fil
 	conf := getCcConfig(args.Config)
 	for _, fi := range fileInfos {
 		for _, inc := range fi.includes {
+			if path.IsAbs(inc.path) || filepath.IsAbs(inc.path) {
+				continue
+			}
 			dir := path.Dir(path.Clean(inc.path))
 			if dir == "." {
 				dir = ""
