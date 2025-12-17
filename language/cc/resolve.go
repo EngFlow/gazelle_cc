@@ -178,6 +178,11 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			resolvedLabel := label.NoLabel
 			err := errUnresolved
 
+			if path.IsAbs(include.path) || filepath.IsAbs(include.path) {
+				// Don't try to resolve absolute paths, even within the repo.
+				continue
+			}
+
 			// 1. Try resolve using fully qualified path (repository-root relative)
 			if !include.isSystemInclude {
 				relPath := filepath.Join(include.sourceDirectory(), include.path)
