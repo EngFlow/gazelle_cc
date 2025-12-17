@@ -112,7 +112,7 @@ func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Modul
 			}
 			targets = append(targets, &indexer.Target{
 				Name: libName,
-				Hdrs: *hdrs.Join(
+				Hdrs: hdrs.Join(
 					collections.ToSet(collections.FilterMapSlice(
 						bazel.GetNamedAttribute(ccLib, "hdrs").GetStringListValue(),
 						tryParseLabel))),

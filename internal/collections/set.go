@@ -72,8 +72,8 @@ func (s Set[T]) Diff(other Set[T]) Set[T] {
 // Example:
 //
 //	s := SetOf(1).Add(2).Add(3)
-func (s *Set[T]) Add(elem T) *Set[T] {
-	(*s)[elem] = struct{}{}
+func (s Set[T]) Add(elem T) Set[T] {
+	s[elem] = struct{}{}
 	return s
 }
 
@@ -83,8 +83,8 @@ func (s *Set[T]) Add(elem T) *Set[T] {
 //
 //	s := SetOf("apple", "banana")
 //	s.Contains("banana") => true
-func (s *Set[T]) Contains(elem T) bool {
-	_, exists := (*s)[elem]
+func (s Set[T]) Contains(elem T) bool {
+	_, exists := s[elem]
 	return exists
 }
 
@@ -96,7 +96,7 @@ func (s *Set[T]) Contains(elem T) bool {
 //	a := SetOf(1, 2)
 //	b := SetOf(2, 3)
 //	a.Join(b) => Set[int]{1, 2, 3}
-func (s *Set[T]) Join(other Set[T]) *Set[T] {
+func (s Set[T]) Join(other Set[T]) Set[T] {
 	for elem := range other {
 		s.Add(elem)
 	}

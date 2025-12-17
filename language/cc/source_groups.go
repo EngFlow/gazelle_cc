@@ -112,8 +112,6 @@ func groupSourcesByUnits(rel, stripIncludePrefix, includePrefix string, fileInfo
 	return groups
 }
 
-type sourceFileSet map[string]bool
-
 // represents a node in the dependency graph.
 type sourceGroupNode struct {
 	sources   []string
