@@ -64,10 +64,7 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 			// https://github.com/protocolbuffers/protobuf/blob/d3560e72e791cb61c24df2a1b35946efbd972738/bazel/private/bazel_cc_proto_library.bzl#L132-L142
 			newRule.SetAttr("deps", []label.Label{protoRuleLabel})
 			newRule.SetPrivateAttr(ccProtoLibraryFilesKey, protoFiles)
-
-			if args.File == nil || !args.File.HasDefaultVisibility() {
-				newRule.SetAttr("visibility", []string{"//visibility:public"})
-			}
+			setVisibilityIfNeeded(newRule, args.File)
 
 			result.Gen = append(result.Gen, newRule)
 			result.Imports = append(result.Imports, ccImports{})
