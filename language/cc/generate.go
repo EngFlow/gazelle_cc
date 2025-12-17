@@ -21,7 +21,6 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
@@ -618,8 +617,7 @@ func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, fileInfos []file
 }
 
 func (c *ccLanguage) listRelsToIndex(args language.GenerateArgs, fileInfos []fileInfo) []string {
-	relsToIndex := []string{}
-	relsToIndexSeen := make(map[string]struct{})
+	relsToIndex := make(collections.Set[string])
 	conf := getCcConfig(args.Config)
 	for _, fi := range fileInfos {
 		for _, inc := range fi.includes {
@@ -632,16 +630,11 @@ func (c *ccLanguage) listRelsToIndex(args language.GenerateArgs, fileInfos []fil
 			}
 			for _, ccSearch := range conf.ccSearch {
 				relToIndex := transformIncludePath("", ccSearch.stripIncludePrefix, ccSearch.includePrefix, dir)
-				if _, ok := relsToIndexSeen[relToIndex]; ok {
-					continue
-				}
-				relsToIndexSeen[relToIndex] = struct{}{}
-				relsToIndex = append(relsToIndex, relToIndex)
+				relsToIndex.Add(relToIndex)
 			}
 		}
 	}
-	sort.Strings(relsToIndex) // for determinism
-	return relsToIndex
+	return relsToIndex.SortedValues(strings.Compare) // for determinism
 }
 
 type rulesInfo struct {
