@@ -8,6 +8,7 @@ go_library(
         "generate.go",
         "lang.go",
         "platform_strings.go",
+        "proto.go",
         "resolve.go",
         "source_groups.go",
     ],

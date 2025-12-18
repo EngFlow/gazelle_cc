@@ -55,7 +55,7 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.
 		return result
 	}
 
-	consumedProtoFiles := c.generateProtoLibraryRules(args, rulesInfo, &result)
+	consumedProtoFiles := generateProtoLibraryRules(args, &result)
 	c.generateBinaryRules(args, fileInfos, rulesInfo, &result)
 	c.generateLibraryRules(args, fileInfos, rulesInfo, consumedProtoFiles, &result)
 	c.generateTestRules(args, fileInfos, rulesInfo, &result)
@@ -367,59 +367,6 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, fileInfos []f
 		result.Gen = append(result.Gen, newRule)
 		result.Imports = append(result.Imports, extractImports(args.Rel, group.sources))
 	}
-}
-
-// Generated a cc_proto_library rules based on outputs of protobuf proto_library
-// Returns a set of .pb.h files that should be excluded from normal cc_library rules
-func (c *ccLanguage) generateProtoLibraryRules(args language.GenerateArgs, rulesInfo rulesInfo, result *language.GenerateResult) collections.Set[string] {
-	consumedProtoFiles := make(collections.Set[string])
-	protoMode := getProtoMode(args.Config)
-	if !protoMode.ShouldGenerateRules() {
-		// Don't create or delete proto rules in this mode.
-		// All pb.h would be added to cc_library
-		return consumedProtoFiles
-	}
-	const ccProtoRuleSufix = "_cc_proto"
-	for _, protoRule := range args.OtherGen {
-		switch protoRule.Kind() {
-		case "proto_library":
-			protoFiles := protoRule.AttrStrings("srcs")
-			if len(protoFiles) == 0 {
-				continue
-			}
-			for _, file := range protoFiles {
-				// If generated pb.h files exists exclude it, refer to cc_proto_library instead
-				if baseName, isProto := strings.CutSuffix(file, ".proto"); isProto {
-					consumedProtoFiles.Add(baseName + ".pb.h").Add(baseName + ".pb.cc")
-				}
-			}
-			protoRuleLabel, err := label.Parse(":" + protoRule.Name())
-			if err != nil {
-				log.Panicf("Failed to parse proto_library label of %v", protoRule.Name())
-			}
-			baseName := strings.TrimSuffix(protoRuleLabel.Name, "_proto")
-			ruleName := baseName + ccProtoRuleSufix
-			newRule := newOrExistingRule("cc_proto_library", ruleName, nil, rulesInfo, args)
-			// Every cc_proto_library needs to have exactyl 1 deps entry - the label or proto_library
-			// https://github.com/protocolbuffers/protobuf/blob/d3560e72e791cb61c24df2a1b35946efbd972738/bazel/private/bazel_cc_proto_library.bzl#L132-L142
-			newRule.SetAttr("deps", []label.Label{protoRuleLabel})
-			newRule.SetPrivateAttr(ccProtoLibraryFilesKey, protoFiles)
-
-			if args.File == nil || !args.File.HasDefaultVisibility() {
-				newRule.SetAttr("visibility", []string{"//visibility:public"})
-			}
-
-			result.Gen = append(result.Gen, newRule)
-			result.Imports = append(result.Imports, ccImports{})
-		}
-	}
-	for _, r := range args.OtherEmpty {
-		if r.Kind() == "proto_library" {
-			ccProtoName := strings.TrimSuffix(r.Name(), "_proto") + ccProtoRuleSufix
-			result.Empty = append(result.Empty, rule.NewRule("cc_proto_library", ccProtoName))
-		}
-	}
-	return consumedProtoFiles
 }
 
 // Collects files that can be used to generate CC rules based on local context.

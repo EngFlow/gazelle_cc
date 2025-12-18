@@ -87,7 +87,6 @@ func (include ccInclude) String() string {
 	}
 }
 
-const ccProtoLibraryFilesKey = "_protos"
 const ccTestRunnerDepKey = "_test_runner"
 
 func NewLanguage() language.Language {

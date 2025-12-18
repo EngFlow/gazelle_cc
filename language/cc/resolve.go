@@ -43,20 +43,7 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 	var imports []resolve.ImportSpec
 	switch r.Kind() {
 	case "cc_proto_library":
-		if !slices.Contains(r.PrivateAttrKeys(), ccProtoLibraryFilesKey) {
-			break
-		}
-
-		// For each .proto in the target, index the compiler-generated header (foo.proto -> foo.pb.h).
-		// This lets other rules resolve #include "pkg/foo.pb.h" even though the header does not appear in hdrs/outs.
-		protos := r.PrivateAttr(ccProtoLibraryFilesKey).([]string)
-		imports = make([]resolve.ImportSpec, len(protos))
-		for i, protoFile := range protos {
-			if baseFileName, isProto := strings.CutSuffix(protoFile, ".proto"); isProto {
-				generatedHeaderName := baseFileName + ".pb.h"
-				imports[i] = resolve.ImportSpec{Lang: languageName, Imp: path.Join(f.Pkg, generatedHeaderName)}
-			}
-		}
+		return generateProtoImportSpecs(r, f.Pkg)
 	default:
 		hdrs, err := collectStringsAttr(*c, r, f.Pkg, "hdrs")
 		if err != nil {
