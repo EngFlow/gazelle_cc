@@ -23,6 +23,7 @@ import (
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/language/proto"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
@@ -41,16 +42,17 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 	}
 	const ccProtoRuleSufix = "_cc_proto"
 	for _, protoRule := range args.OtherGen {
-		switch protoRule.Kind() {
-		case "proto_library":
+		if protoRule.Kind() == "proto_library" && slices.Contains(protoRule.PrivateAttrKeys(), proto.PackageKey) {
+			metadata := protoRule.PrivateAttr(proto.PackageKey).(proto.Package)
 			protoFiles := protoRule.AttrStrings("srcs")
 			if len(protoFiles) == 0 {
 				continue
 			}
-			for _, file := range protoFiles {
-				// If generated pb.h files exists exclude it, refer to cc_proto_library instead
-				if baseName, isProto := strings.CutSuffix(file, ".proto"); isProto {
-					consumedProtoFiles.Add(baseName + ".pb.h").Add(baseName + ".pb.cc")
+			for _, file := range metadata.Files {
+				baseName := strings.TrimSuffix(file.Name, ".proto")
+				consumedProtoFiles.Add(baseName + ".pb.h").Add(baseName + ".pb.cc")
+				if file.HasServices {
+					consumedProtoFiles.Add(baseName + ".grpc.pb.h").Add(baseName + ".grpc.pb.cc")
 				}
 			}
 			protoRuleLabel, err := label.Parse(":" + protoRule.Name())
