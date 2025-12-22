@@ -15,8 +15,6 @@
 package indexer
 
 import (
-	"fmt"
-	"log"
 	"maps"
 	"slices"
 
@@ -24,6 +22,14 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
 
+// WithAmbigiousTargetsResolved returns a copy of the module with ambiguous target headers resolved.
+// Multiple targets may define the same headers when using auto-generated build rules
+// (e.g., from Conan integration). This method identifies groups of targets with overlapping
+// headers and resolves conflicts by:
+//  1. Selecting root targets (those not depended on by other targets in the group)
+//  2. Preferring targets with source files over header-only targets
+//  3. Merging headers into a common dependent target when one exists
+//  4. Excluding headers that appear in multiple targets as a last resort
 func (m Module) WithAmbigiousTargetsResolved() Module {
 	selectedTargets := map[label.Label]Target{}
 	// We need to index only top-level target that depend on all other remaining targets
@@ -35,16 +41,6 @@ func (m Module) WithAmbigiousTargetsResolved() Module {
 				selectedTargets[target.Name] = target
 			}
 			continue
-		}
-
-		// Exclude header-only targets
-		if len(roots) != 1 {
-			filteredRoots := collections.FilterSlice(roots, func(target Target) bool {
-				return len(target.Sources) > 0
-			})
-			if len(filteredRoots) != 0 {
-				roots = filteredRoots
-			}
 		}
 
 		// Try search for common dependant project and merge with it
@@ -73,36 +69,26 @@ func (m Module) WithAmbigiousTargetsResolved() Module {
 			}
 		}
 
-		// Resolve be excluding ambigious headers
-		if len(roots) != 1 {
-			// The hdrs sets might be partially disjoint
-			counts := map[label.Label]int{}
-			for _, root := range roots {
-				for _, header := range root.Hdrs.Values() {
-					counts[header]++
-				}
+		// Resolve by excluding ambigious headers
+		// The hdrs sets might be partially disjoint
+		counts := map[label.Label]int{}
+		for _, root := range roots {
+			for _, header := range root.Hdrs.Values() {
+				counts[header]++
 			}
-			ambigiousHdrs := collections.SetOf[label.Label]()
-			for header, count := range counts {
-				if count >= 2 {
-					ambigiousHdrs.Add(header)
-				}
+		}
+		ambigiousHdrs := collections.SetOf[label.Label]()
+		for header, count := range counts {
+			if count >= 2 {
+				ambigiousHdrs.Add(header)
 			}
-
-			for _, root := range roots {
-				root.Hdrs = root.Hdrs.Diff(ambigiousHdrs)
-				if len(root.Hdrs) > 0 {
-					selectedTargets[root.Name] = root
-				}
-			}
-			continue
 		}
 
-		if len(roots) != 1 {
-			log.Fatalf("Incosistient state, should be only 1 root target, got %d in %v: %+v", len(roots),
-				m.Repository,
-				collections.MapSlice(roots, func(r Target) string { return fmt.Sprintf("{Name: %q, deps: %v}", r.Name, r.Deps.Values()) }),
-			)
+		for _, root := range roots {
+			root.Hdrs = root.Hdrs.Diff(ambigiousHdrs)
+			if len(root.Hdrs) > 0 {
+				selectedTargets[root.Name] = root
+			}
 		}
 	}
 
