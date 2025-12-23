@@ -97,14 +97,11 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 }
 
 func generateProtoImportSpecs(protoLibraryRule *rule.Rule, pkg string) []resolve.ImportSpec {
-	if !slices.Contains(protoLibraryRule.PrivateAttrKeys(), ccProtoLibraryHeadersKey) {
+	headers, ok := protoLibraryRule.PrivateAttr(ccProtoLibraryHeadersKey).([]string)
+	if !ok {
 		return nil
 	}
-
-	makeImportSpec := func(header string) resolve.ImportSpec {
+	return collections.MapSlice(headers, func(header string) resolve.ImportSpec {
 		return resolve.ImportSpec{Lang: languageName, Imp: path.Join(pkg, header)}
-	}
-
-	headers := protoLibraryRule.PrivateAttr(ccProtoLibraryHeadersKey).([]string)
-	return collections.MapSlice(headers, makeImportSpec)
+	})
 }
