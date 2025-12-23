@@ -40,7 +40,7 @@ func ToSet[T comparable](slice []T) Set[T] {
 func (s Set[T]) Diff(other Set[T]) Set[T] {
 	diff := make(Set[T])
 	for elem := range s {
-		if _, exists := other[elem]; !exists {
+		if !other.Contains(elem) {
 			diff.Add(elem)
 		}
 	}
@@ -88,7 +88,7 @@ func (s Set[T]) Join(other Set[T]) Set[T] {
 func (s Set[T]) Intersect(other Set[T]) Set[T] {
 	result := make(Set[T])
 	for elem := range s {
-		if _, exists := other[elem]; exists {
+		if other.Contains(elem) {
 			result.Add(elem)
 		}
 	}
@@ -99,7 +99,7 @@ func (s Set[T]) Intersect(other Set[T]) Set[T] {
 // Sets.
 func (s Set[T]) Intersects(other Set[T]) bool {
 	for elem := range s {
-		if _, exists := other[elem]; exists {
+		if other.Contains(elem) {
 			return true
 		}
 	}
