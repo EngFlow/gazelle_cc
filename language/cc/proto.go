@@ -33,11 +33,15 @@ import (
 const ccProtoLibraryHeadersKey = "_proto_headers"
 
 func getGeneratedFiles(protoPackage proto.Package) (pbHeaders, pbSources []string) {
+	pbHeaders = make([]string, 0, len(protoPackage.Files))
+	pbSources = make([]string, 0, len(protoPackage.Files))
+
 	for _, file := range protoPackage.Files {
 		baseName := strings.TrimSuffix(file.Name, ".proto")
 		pbHeaders = append(pbHeaders, baseName+".pb.h")
 		pbSources = append(pbSources, baseName+".pb.cc")
 	}
+
 	return
 }
 
