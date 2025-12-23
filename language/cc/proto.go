@@ -33,38 +33,13 @@ import (
 // generation and used to propagate appropriate resolve.ImportSpec later.
 const ccProtoLibraryHeadersKey = "_proto_headers"
 
-type (
-	ccProtoOutputFileNames struct{ pbHeader, pbSource string }
-	ccProtoGeneratedFiles  struct{ pbHeaders, pbSources []string }
-)
-
-func getGeneratedFileNames(protoFileName string) ccProtoOutputFileNames {
-	baseName := strings.TrimSuffix(protoFileName, ".proto")
-	return ccProtoOutputFileNames{
-		pbHeader: baseName + ".pb.h",
-		pbSource: baseName + ".pb.cc",
-	}
-}
-
-func initCcProtoGeneratedFiles(capactity int) ccProtoGeneratedFiles {
-	return ccProtoGeneratedFiles{
-		pbHeaders: make([]string, 0, capactity),
-		pbSources: make([]string, 0, capactity),
-	}
-}
-
-func (files ccProtoGeneratedFiles) all() []string {
-	return slices.Concat(files.pbHeaders, files.pbSources)
-}
-
-func getGeneratedFiles(protoPackage proto.Package) ccProtoGeneratedFiles {
-	result := initCcProtoGeneratedFiles(len(protoPackage.Files))
+func getGeneratedFiles(protoPackage proto.Package) (pbHeaders, pbSources []string) {
 	for _, file := range protoPackage.Files {
-		filenames := getGeneratedFileNames(file.Name)
-		result.pbHeaders = append(result.pbHeaders, filenames.pbHeader)
-		result.pbSources = append(result.pbSources, filenames.pbSource)
+		baseName := strings.TrimSuffix(file.Name, ".proto")
+		pbHeaders = append(pbHeaders, baseName+".pb.h")
+		pbSources = append(pbSources, baseName+".pb.cc")
 	}
-	return result
+	return
 }
 
 func emptyCcProtoLibraryRule(protoLibraryName string) *rule.Rule {
@@ -109,10 +84,11 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 	for _, protoLibraryRule := range args.OtherGen {
 		if protoLibraryRule.Kind() == "proto_library" && slices.Contains(protoLibraryRule.PrivateAttrKeys(), proto.PackageKey) {
 			protoPackage := protoLibraryRule.PrivateAttr(proto.PackageKey).(proto.Package)
-			generatedFiles := getGeneratedFiles(protoPackage)
-			consumedProtoFiles = append(consumedProtoFiles, generatedFiles.all()...)
+			pbHeaders, pbSources := getGeneratedFiles(protoPackage)
+			consumedProtoFiles = append(consumedProtoFiles, pbHeaders...)
+			consumedProtoFiles = append(consumedProtoFiles, pbSources...)
 
-			ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, generatedFiles.pbHeaders, args.File)
+			ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
 			result.Gen = append(result.Gen, ccProtoLibraryRule)
 			result.Imports = append(result.Imports, nil)
 		}
