@@ -41,11 +41,7 @@ func SetOf[T comparable](elems ...T) Set[T] {
 //	s := ToSet([]string{"a", "b", "a"})
 //	=> Set[string]{"a": {}, "b": {}}
 func ToSet[T comparable](slice []T) Set[T] {
-	set := make(Set[T])
-	for _, elem := range slice {
-		set.Add(elem)
-	}
-	return set
+	return make(Set[T], len(slice)).AddSlice(slice)
 }
 
 // Diff returns a new Set containing elements that are defined in current Set but not in the other set.
@@ -75,6 +71,29 @@ func (s Set[T]) Diff(other Set[T]) Set[T] {
 func (s Set[T]) Add(elem T) Set[T] {
 	s[elem] = struct{}{}
 	return s
+}
+
+// AddSeq inserts all elements from the given sequence to the Set.
+// Returns the Set to allow chaining.
+//
+// Example:
+//
+//	s := SetOf(1).AddSeq(slices.Values([]int{2, 3, 4}))
+func (s Set[T]) AddSeq(elems iter.Seq[T]) Set[T] {
+	for elem := range elems {
+		s.Add(elem)
+	}
+	return s
+}
+
+// AddSlice inserts all elements from the given slice to the Set.
+// Returns the Set to allow chaining.
+//
+// Example:
+//
+//	s := SetOf("a").AddSlice([]string{"b", "c"})
+func (s Set[T]) AddSlice(elems []T) Set[T] {
+	return s.AddSeq(slices.Values(elems))
 }
 
 // Contains checks whether an element exists in the Set.
