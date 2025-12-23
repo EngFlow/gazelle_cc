@@ -15,7 +15,6 @@
 package cc
 
 import (
-	"log"
 	"path"
 	"slices"
 	"strings"
@@ -42,22 +41,18 @@ func getGeneratedFiles(protoPackage proto.Package) (pbHeaders, pbSources []strin
 	return
 }
 
-func emptyCcProtoLibraryRule(protoLibraryName string) *rule.Rule {
+func newEmptyCcProtoLibraryRule(protoLibraryName string) *rule.Rule {
 	name := strings.TrimSuffix(protoLibraryName, "_proto") + "_cc_proto"
 	return rule.NewRule("cc_proto_library", name)
 }
 
-func makeLabel(rule *rule.Rule) label.Label {
-	ruleLabel, err := label.Parse(":" + rule.Name())
-	if err != nil {
-		log.Panicf("failed to generate label of %s(name = %q): %v", rule.Kind(), rule.Name(), err)
-	}
-	return ruleLabel
+func makeRelativeLabel(rule *rule.Rule) label.Label {
+	return label.Label{Name: rule.Name(), Relative: true}
 }
 
 func generateCcProtoLibraryRule(protoLibraryRule *rule.Rule, pbHeaders []string, buildFile *rule.File) *rule.Rule {
-	rule := emptyCcProtoLibraryRule(protoLibraryRule.Name())
-	rule.SetAttr("deps", []label.Label{makeLabel(protoLibraryRule)})
+	rule := newEmptyCcProtoLibraryRule(protoLibraryRule.Name())
+	rule.SetAttr("deps", []label.Label{makeRelativeLabel(protoLibraryRule)})
 	rule.SetPrivateAttr(ccProtoLibraryHeadersKey, pbHeaders)
 	setVisibilityIfNeeded(rule, buildFile)
 	return rule
@@ -96,7 +91,7 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 
 	for _, protoRule := range args.OtherEmpty {
 		if protoRule.Kind() == "proto_library" {
-			result.Empty = append(result.Empty, emptyCcProtoLibraryRule(protoRule.Name()))
+			result.Empty = append(result.Empty, newEmptyCcProtoLibraryRule(protoRule.Name()))
 		}
 	}
 
