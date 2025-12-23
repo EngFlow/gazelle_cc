@@ -2,7 +2,10 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "indexer",
-    srcs = ["indexer.go"],
+    srcs = [
+        "ambigiouity_handling.go",
+        "indexer.go",
+    ],
     importpath = "github.com/EngFlow/gazelle_cc/index/internal/indexer",
     visibility = ["//index:__subpackages__"],
     deps = [
@@ -13,7 +16,10 @@ go_library(
 
 go_test(
     name = "indexer_test",
-    srcs = ["indexer_test.go"],
+    srcs = [
+        "ambigiouity_handling_test.go",
+        "indexer_test.go",
+    ],
     embed = [":indexer"],
     deps = [
         "//internal/collections",
