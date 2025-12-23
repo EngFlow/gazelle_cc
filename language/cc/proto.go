@@ -68,20 +68,18 @@ func generateCcProtoLibraryRule(protoLibraryRule *rule.Rule, pbHeaders []string,
 //
 // See language/cc/testdata/protobuf_filter_generated test for an example.
 func generateProtoLibraryRules(args language.GenerateArgs, result *language.GenerateResult) collections.Set[string] {
+	consumedProtoFiles := make(collections.Set[string])
 	if !getProtoMode(args.Config).ShouldGenerateRules() {
 		// Don't create or delete proto rules in this mode. All "*.pb.h",
 		// "*.pb.cc", would be added to cc_library
-		return make(collections.Set[string])
+		return consumedProtoFiles
 	}
-
-	var consumedProtoFiles []string
 
 	for _, protoLibraryRule := range args.OtherGen {
 		if protoLibraryRule.Kind() == "proto_library" && slices.Contains(protoLibraryRule.PrivateAttrKeys(), proto.PackageKey) {
 			protoPackage := protoLibraryRule.PrivateAttr(proto.PackageKey).(proto.Package)
 			pbHeaders, pbSources := getGeneratedFiles(protoPackage)
-			consumedProtoFiles = append(consumedProtoFiles, pbHeaders...)
-			consumedProtoFiles = append(consumedProtoFiles, pbSources...)
+			consumedProtoFiles.AddSlice(pbHeaders).AddSlice(pbSources)
 
 			ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
 			result.Gen = append(result.Gen, ccProtoLibraryRule)
@@ -95,7 +93,7 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 		}
 	}
 
-	return collections.ToSet(consumedProtoFiles)
+	return consumedProtoFiles
 }
 
 func generateProtoImportSpecs(protoLibraryRule *rule.Rule, pkg string) []resolve.ImportSpec {
