@@ -14,7 +14,11 @@
 
 package collections
 
-import "testing"
+import (
+	"fmt"
+	"slices"
+	"testing"
+)
 
 func TestMapSlice(t *testing.T) {
 	input := []int{1, 2, 3}
@@ -89,4 +93,80 @@ func TestFilterSlice(t *testing.T) {
 			t.Errorf("Filter failed at index %d: expected %d, got %d", i, expected[i], result[i])
 		}
 	}
+}
+
+func ExampleMapSeq() {
+	seq := MapSeq(
+		slices.Values([]int{1, 2, 3}),
+		func(x int) string { return fmt.Sprint(x) },
+	)
+	fmt.Println(slices.Collect(seq))
+	// Output: [1 2 3]
+}
+
+func ExampleMapSlice() {
+	result := MapSlice([]int{1, 2, 3}, func(x int) string { return fmt.Sprint(x) })
+	fmt.Println(result)
+	// Output: [1 2 3]
+}
+
+func ExampleFilterSeq() {
+	seq := FilterSeq(
+		slices.Values([]int{1, 2, 3, 4}),
+		func(x int) bool { return x%2 == 0 },
+	)
+	fmt.Println(slices.Collect(seq))
+	// Output: [2 4]
+}
+
+func ExampleFilterSlice() {
+	result := FilterSlice([]int{1, 2, 3, 4}, func(x int) bool { return x%2 == 0 })
+	fmt.Println(result)
+	// Output: [2 4]
+}
+
+func ExampleFlatMapSeq() {
+	seq := FlatMapSeq(
+		slices.Values([]int{1, 2}),
+		func(x int) []int { return []int{x, x} },
+	)
+	fmt.Println(slices.Collect(seq))
+	// Output: [1 1 2 2]
+}
+
+func ExampleFlatMapSlice() {
+	result := FlatMapSlice(
+		[]int{1, 2},
+		func(x int) []int { return []int{x, x} },
+	)
+	fmt.Println(result)
+	// Output: [1 1 2 2]
+}
+
+func ExampleFilterMapSeq() {
+	seq := FilterMapSeq(
+		slices.Values([]int{1, -1, 2}),
+		func(x int) (int, bool) {
+			if x < 0 {
+				return 0, false
+			}
+			return x * 2, true
+		},
+	)
+	fmt.Println(slices.Collect(seq))
+	// Output: [2 4]
+}
+
+func ExampleFilterMapSlice() {
+	result := FilterMapSlice(
+		[]int{1, -1, 2},
+		func(x int) (int, bool) {
+			if x < 0 {
+				return 0, false
+			}
+			return x * 2, true
+		},
+	)
+	fmt.Println(result)
+	// Output: [2 4]
 }
