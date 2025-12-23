@@ -26,36 +26,21 @@ type Set[T comparable] map[T]struct{}
 
 // SetOf creates a new Set containing the given elements.
 // It is a shorthand for ToSet with variadic arguments.
-//
-// Example:
-//
-//	s := SetOf(1, 2, 3)
 func SetOf[T comparable](elems ...T) Set[T] {
 	return ToSet(elems)
 }
 
 // ToSet converts a slice into a Set, eliminating duplicates.
-//
-// Example:
-//
-//	s := ToSet([]string{"a", "b", "a"})
-//	=> Set[string]{"a": {}, "b": {}}
 func ToSet[T comparable](slice []T) Set[T] {
 	return make(Set[T], len(slice)).AddSlice(slice)
 }
 
-// Diff returns a new Set containing elements that are defined in current Set but not in the other set.
-//
-// Example:
-//
-//	a := SetOf(1, 2, 3)
-//	b := SetOf(2, 3, 4)
-//	diff := a.Diff(b)
-//	=> Set[int]{1}
+// Diff returns a new Set containing elements that are defined in current Set
+// but not in the other set.
 func (s Set[T]) Diff(other Set[T]) Set[T] {
 	diff := make(Set[T])
 	for elem := range s {
-		if _, exists := other[elem]; !exists {
+		if !other.Contains(elem) {
 			diff.Add(elem)
 		}
 	}
@@ -64,10 +49,6 @@ func (s Set[T]) Diff(other Set[T]) Set[T] {
 
 // Add inserts an element into the Set.
 // Returns the Set to allow chaining.
-//
-// Example:
-//
-//	s := SetOf(1).Add(2).Add(3)
 func (s Set[T]) Add(elem T) Set[T] {
 	s[elem] = struct{}{}
 	return s
@@ -75,10 +56,6 @@ func (s Set[T]) Add(elem T) Set[T] {
 
 // AddSeq inserts all elements from the given sequence to the Set.
 // Returns the Set to allow chaining.
-//
-// Example:
-//
-//	s := SetOf(1).AddSeq(slices.Values([]int{2, 3, 4}))
 func (s Set[T]) AddSeq(elems iter.Seq[T]) Set[T] {
 	for elem := range elems {
 		s.Add(elem)
@@ -88,20 +65,11 @@ func (s Set[T]) AddSeq(elems iter.Seq[T]) Set[T] {
 
 // AddSlice inserts all elements from the given slice to the Set.
 // Returns the Set to allow chaining.
-//
-// Example:
-//
-//	s := SetOf("a").AddSlice([]string{"b", "c"})
 func (s Set[T]) AddSlice(elems []T) Set[T] {
 	return s.AddSeq(slices.Values(elems))
 }
 
 // Contains checks whether an element exists in the Set.
-//
-// Example:
-//
-//	s := SetOf("apple", "banana")
-//	s.Contains("banana") => true
 func (s Set[T]) Contains(elem T) bool {
 	_, exists := s[elem]
 	return exists
@@ -109,12 +77,6 @@ func (s Set[T]) Contains(elem T) bool {
 
 // Join adds all elements from another Set into the current Set (union).
 // Returns the modified Set to allow chaining.
-//
-// Example:
-//
-//	a := SetOf(1, 2)
-//	b := SetOf(2, 3)
-//	a.Join(b) => Set[int]{1, 2, 3}
 func (s Set[T]) Join(other Set[T]) Set[T] {
 	for elem := range other {
 		s.Add(elem)
@@ -123,32 +85,21 @@ func (s Set[T]) Join(other Set[T]) Set[T] {
 }
 
 // Intersect returns a new Set containing only elements present in both Sets.
-//
-// Example:
-//
-//	a := SetOf(1, 2, 3)
-//	b := SetOf(2, 3, 4)
-//	a.Intersect(b) => Set[int]{2, 3}
 func (s Set[T]) Intersect(other Set[T]) Set[T] {
 	result := make(Set[T])
 	for elem := range s {
-		if _, exists := other[elem]; exists {
+		if other.Contains(elem) {
 			result.Add(elem)
 		}
 	}
 	return result
 }
 
-// Intersects returns true if there is at least one common element between the Sets.
-//
-// Example:
-//
-//	a := SetOf("x", "y")
-//	b := SetOf("y", "z")
-//	a.Intersects(b) => true
+// Intersects returns true if there is at least one common element between the
+// Sets.
 func (s Set[T]) Intersects(other Set[T]) bool {
 	for elem := range s {
-		if _, exists := other[elem]; exists {
+		if other.Contains(elem) {
 			return true
 		}
 	}
@@ -157,32 +108,17 @@ func (s Set[T]) Intersects(other Set[T]) bool {
 
 // All returns a sequence containing all elements in the Set. The order is not
 // guaranteed.
-//
-// Example:
-//
-//	s := SetOf(1, 2, 3)
-//	seq := s.All() => sequence of []int{1, 2, 3} (order may vary)
 func (s Set[T]) All() iter.Seq[T] {
 	return maps.Keys(s)
 }
 
 // Values returns a slice containing all elements in the Set.
 // The order is not guaranteed. For guaranteed order, use SortedValues.
-//
-// Example:
-//
-//	s := SetOf("a", "b")
-//	vals := s.Values() => []string{"a", "b"} (order may vary)
 func (s Set[T]) Values() []T {
 	return slices.Collect(s.All())
 }
 
 // SortedValues returns a sorted slice containing all elements in the Set.
-//
-// Example:
-//
-//	s := SetOf("a", "b")
-//	vals := s.SortedValues(strings.Compare) => []string{"a", "b"} (order guaranteed)
 func (s Set[T]) SortedValues(cmp func(l, r T) int) []T {
 	return slices.SortedFunc(s.All(), cmp)
 }
