@@ -236,9 +236,7 @@ func splitIntoSourceGroups(fileInfos []fileInfo, fileGroups [][]groupId, graph s
 	for _, sourcesGroup := range fileGroups {
 		var groupSources []string
 		for _, groupId := range sourcesGroup {
-			for _, src := range graph[groupId].sources {
-				groupSources = append(groupSources, src)
-			}
+			groupSources = append(groupSources, graph[groupId].sources...)
 		}
 		groupName := selectGroupName(groupSources)
 		groupFileInfos := collections.MapSlice(groupSources, func(name string) fileInfo {

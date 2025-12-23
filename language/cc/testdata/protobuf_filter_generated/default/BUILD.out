@@ -16,6 +16,7 @@ cc_proto_library(
 
 cc_library(
     name = "default",
+    srcs = ["other.pb.cc"],
     hdrs = ["other.pb.h"],
     visibility = ["//visibility:public"],
     deps = [":model_cc_proto"],

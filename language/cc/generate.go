@@ -166,6 +166,12 @@ func newOrExistingRule(kind string, ruleName string, srcGroups sourceGroups, rul
 	return newRule
 }
 
+func setVisibilityIfNeeded(rule *rule.Rule, buildFile *rule.File) {
+	if buildFile == nil || !buildFile.HasDefaultVisibility() {
+		rule.SetAttr("visibility", []string{"//visibility:public"})
+	}
+}
+
 func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, fileInfos []fileInfo, rulesInfo rulesInfo, excludedSources collections.Set[string], result *language.GenerateResult) {
 	conf := getCcConfig(args.Config)
 	// Ignore files that might have been consumed by other rules
@@ -216,9 +222,7 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, fileInfos 
 		if len(hdrs) > 0 {
 			newRule.SetAttr("hdrs", hdrs)
 		}
-		if args.File == nil || !args.File.HasDefaultVisibility() {
-			newRule.SetAttr("visibility", []string{"//visibility:public"})
-		}
+		setVisibilityIfNeeded(newRule, args.File)
 		if conf.ccIncludePrefix != "" {
 			newRule.SetAttr("include_prefix", conf.ccIncludePrefix)
 		}

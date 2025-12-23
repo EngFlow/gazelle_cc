@@ -4,6 +4,10 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
     name = "disable",
+    srcs = [
+        "model.pb.cc",
+        "other.pb.cc",
+    ],
     hdrs = [
         "model.pb.h",
         "other.pb.h",
