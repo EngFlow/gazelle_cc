@@ -103,7 +103,7 @@ func main() {
 		if err != nil {
 			fmt.Errorf("Bazel query failed: %w", err)
 		}
-		m := extractIndexerModule(result, repoName).WithAmbigiousTargetsResolved()
+		m := extractIndexerModule(result, repoName).WithAmbiguousTargetsResolved()
 		modules = append(modules, m)
 	}
 

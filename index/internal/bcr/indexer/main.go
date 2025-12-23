@@ -40,7 +40,7 @@ import (
 // This step can be ignored if .cache/modules/ contains extracted module informations from previous run.
 //
 // When processing the results of the query script might exclude targets or headers that are assumed to be internal, the excluded files would be written in textual file on the disk.
-// Mapping contains only headers that are assigned to exactly 1 rule. Header with ambigious rule definitions are also written in textual format for manual inspection.
+// Mapping contains only headers that are assigned to exactly 1 rule. Header with ambiguous rule definitions are also written in textual format for manual inspection.
 // It does also use system binaries: git, patch (gpatch is required on MacOs instead to correctly apply patches to Bazel modules) and bazel (bazelisk preferred)
 func main() {
 	cfg := parseFlags()
@@ -56,9 +56,11 @@ func main() {
 	}
 
 	index := indexer.CreateHeaderIndex(modules)
-	fmt.Printf("Direct mapping created for %d headers\n", len(index.HeaderToRule))
-	fmt.Printf("Ambigious header assignment for %d entries\n", len(index.Ambiguous))
-	index.WriteToFile(cfg.outputPath)
+	fmt.Fprintf(os.Stderr, "Direct mapping created for %d headers\n", len(index.HeaderToRule))
+	fmt.Fprintf(os.Stderr, "Ambiguous header assignment for %d entries\n", len(index.Ambiguous))
+	if err := index.WriteToFile(cfg.outputPath); err != nil {
+		log.Fatalf("Failed to write index file: %v", err)
+	}
 	if cfg.verbose {
 		log.Println(index.String())
 	}
@@ -91,12 +93,12 @@ func gatherModuleInfos(bcrClient bcr.BazelRegistry) ([]indexer.Module, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Scanning %d modules for cc_rules\n", len(entries))
+	fmt.Fprintf(os.Stderr, "Scanning %d modules for cc_rules\n", len(entries))
 
 	moduleNames := make(chan string)
 	moduleInfosResults := make(chan bcr.ResolveModuleInfoResult)
 
-	workers := runtime.GOMAXPROCS(0)
+	workerCount := runtime.GOMAXPROCS(0)
 	var wg sync.WaitGroup
 	worker := func() {
 		defer wg.Done()
@@ -113,8 +115,8 @@ func gatherModuleInfos(bcrClient bcr.BazelRegistry) ([]indexer.Module, error) {
 		}
 	}
 
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
+	wg.Add(workerCount)
+	for i := 0; i < workerCount; i++ {
 		go worker()
 	}
 
@@ -138,8 +140,8 @@ func gatherModuleInfos(bcrClient bcr.BazelRegistry) ([]indexer.Module, error) {
 			failed++
 		}
 	}
-	fmt.Printf("Found %d modules with non-empty cc_library defs\n", len(infos))
-	fmt.Printf("Failed to gather module information in %d modules\n", failed)
+	fmt.Fprintf(os.Stderr, "Found %d modules with non-empty cc_library defs\n", len(infos))
+	fmt.Fprintf(os.Stderr, "Failed to gather module information in %d modules\n", failed)
 	sort.Slice(infos, func(i, j int) bool {
 		if infos[i].Module.Name == infos[j].Module.Name {
 			return infos[i].Module.Version < infos[j].Module.Version
@@ -147,7 +149,7 @@ func gatherModuleInfos(bcrClient bcr.BazelRegistry) ([]indexer.Module, error) {
 		return infos[i].Module.Name < infos[j].Module.Name
 	})
 	modules := collections.MapSlice(infos, func(m bcr.ModuleInfo) indexer.Module {
-		return m.ToIndexerModule().WithAmbigiousTargetsResolved()
+		return m.ToIndexerModule().WithAmbiguousTargetsResolved()
 	})
 	return modules, nil
 }

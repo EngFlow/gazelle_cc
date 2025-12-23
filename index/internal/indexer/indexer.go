@@ -66,7 +66,7 @@ type IndexingResult struct {
 }
 
 // Process list of modules to create an unfiorm index mapping header to exactly one rule that provides their definition.
-// In case if multiple modules define same headers might try to select one that behaves as clousers over remaining ambigious rules.
+// In case if multiple modules define same headers might try to select one that behaves as closures over remaining ambiguous rules.
 func CreateHeaderIndex(modules []Module) IndexingResult {
 	// headersMapping will store header paths to a collections.Set of Labels.
 	headersMapping := make(map[string][]label.Label)
