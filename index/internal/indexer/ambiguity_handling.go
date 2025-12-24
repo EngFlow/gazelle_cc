@@ -23,19 +23,40 @@ import (
 )
 
 // WithAmbiguousTargetsResolved returns a copy of the module with ambiguous target headers resolved.
+//
 // Multiple targets may define the same headers when using auto-generated build rules
 // (e.g., from Conan integration). This method identifies groups of targets with overlapping
-// headers and resolves conflicts by:
-//  1. Selecting root targets (those not depended on by other targets in the group)
-//  2. Preferring targets with source files over header-only targets
-//  3. Merging headers into a common dependent target when one exists
-//  4. Excluding headers that appear in multiple targets as a last resort
+// headers and resolves conflicts using the following strategies (in order):
+//
+// Strategy 1 - Single Root: If all targets with overlapping headers form a dependency chain
+// where one target depends on all others (directly or transitively), that root target is
+// selected and gets all the headers.
+//
+// Strategy 2 - Common Dependent: If multiple root targets exist (e.g., A and B both define
+// header.h, neither depends on the other), but there exists a target C that depends on both
+// A and B, then C is selected and all headers from A and B are merged into C.
+//
+// Strategy 3 - Exclusion: If no common dependent exists, headers that appear in multiple
+// root targets are EXCLUDED from all of them. Each target keeps only its unique headers.
+// This means some headers may not be indexed at all if they cannot be unambiguously assigned.
+//
+// Example of Strategy 3:
+//
+//	Library A defines: [common.h, a_specific.h]
+//	Library B defines: [common.h, b_specific.h]
+//	No library C depends on both A and B.
+//	Result: common.h is excluded from both. A keeps a_specific.h, B keeps b_specific.h.
+//
+// This conservative approach ensures that the index only contains unambiguous mappings,
+// avoiding incorrect dependency resolution at the cost of potentially missing some headers.
 func (m Module) WithAmbiguousTargetsResolved() Module {
 	selectedTargets := map[label.Label]Target{}
-	// We need to index only top-level target that depend on all other remaining targets
+
 	for _, intersectingTargets := range GroupTargetsByHeaders(m.Targets) {
 		roots := SelectRootTargets(intersectingTargets)
-		if len(roots) == 1 { // happy-path, no ambiguous headers in targets
+
+		// Strategy 1: Single root - one target depends on all others
+		if len(roots) == 1 {
 			target := roots[0]
 			if _, exists := selectedTargets[target.Name]; !exists {
 				selectedTargets[target.Name] = target
@@ -43,7 +64,7 @@ func (m Module) WithAmbiguousTargetsResolved() Module {
 			continue
 		}
 
-		// Try search for common dependant project and merge with it
+		// Strategy 2: Find a common dependent that depends on multiple roots
 		if len(roots) != 1 {
 			rootNames := collections.MapSlice(roots, func(target Target) label.Label { return target.Name })
 			dependantTargets := collections.FilterSlice(m.Targets, func(target Target) bool {
@@ -69,8 +90,8 @@ func (m Module) WithAmbiguousTargetsResolved() Module {
 			}
 		}
 
-		// Resolve by excluding ambiguous headers
-		// The hdrs sets might be partially disjoint
+		// Strategy 3: Exclude headers that appear in multiple root targets.
+		// Each target keeps only headers unique to it; shared headers are dropped.
 		counts := map[label.Label]int{}
 		for _, root := range roots {
 			for _, header := range root.Hdrs.Values() {
