@@ -57,15 +57,28 @@ type (
 	}
 )
 
+// IndexingResult contains the results of indexing headers across multiple modules.
 type IndexingResult struct {
-	// Headers mapping to exactly one Bazel rule
+	// HeaderToRule maps header include paths to exactly one Bazel rule.
+	// Only unambiguous mappings are included here.
 	HeaderToRule map[string]label.Label
-	// Headers defined in multiple rules
+
+	// Ambiguous contains headers that are defined by multiple rules across different modules.
+	// This captures CROSS-MODULE ambiguity (e.g., both @moduleA//:lib and @moduleB//:lib
+	// expose "common/header.h"). This is distinct from intra-module ambiguity which is
+	// resolved by WithAmbiguousTargetsResolved() before indexing.
+	//
+	// These headers cannot be automatically resolved and may require manual configuration
+	// or explicit dependency declarations in user BUILD files.
 	Ambiguous map[string][]label.Label
 }
 
-// Process list of modules to create an unfiorm index mapping header to exactly one rule that provides their definition.
-// In case if multiple modules define same headers might try to select one that behaves as closures over remaining ambiguous rules.
+// CreateHeaderIndex processes a list of modules to create a uniform index mapping headers
+// to exactly one rule that provides their definition.
+//
+// Note: This function expects that intra-module ambiguity has already been resolved
+// (via WithAmbiguousTargetsResolved) before calling. Cross-module ambiguity (the same
+// header exposed by targets in different modules) is captured in IndexingResult.Ambiguous.
 func CreateHeaderIndex(modules []Module) IndexingResult {
 	// headersMapping will store header paths to a collections.Set of Labels.
 	headersMapping := make(map[string][]label.Label)
