@@ -30,40 +30,56 @@ import (
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
 )
 
-// Script responsible for creating index of external header include to the label of extern dependency defining it's rule.
-// It does process all modules defined in https://registry.bazel.build/ and extracts information about defined header for public rules using bazel query.
-// The mapping keys are always in the normalized form of include paths that should be valid when refering using #include directive in C/C++ sources assuming include paths were not overriden
-// The values of the mapping is a string representation on Bazel label where the repository is the name of the module
-// Mappings are always based on the last version of module available in the registry. If the latest available version is yanked then whole module would be skipped.
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// run is the main entry point for the BCR indexer.
+//
+// It creates an index of external header includes to the label of the external dependency defining them.
+// It processes all modules defined in https://registry.bazel.build/ and extracts information about
+// defined headers for public rules using bazel query.
+//
+// The mapping keys are always in the normalized form of include paths that should be valid when
+// referring using #include directive in C/C++ sources assuming include paths were not overridden.
+// The values of the mapping is a string representation of Bazel label where the repository is the name of the module.
+// Mappings are always based on the last version of module available in the registry.
+// If the latest available version is yanked then whole module would be skipped.
 //
 // The script needs to checkout (download) sources of each module and execute bazel query using a fresh instance of Bazel server.
-// This step can be ignored if .cache/modules/ contains extracted module informations from previous run.
+// This step can be ignored if .cache/modules/ contains extracted module information from previous run.
 //
-// When processing the results of the query script might exclude targets or headers that are assumed to be internal, the excluded files would be written in textual file on the disk.
-// Mapping contains only headers that are assigned to exactly 1 rule. Header with ambiguous rule definitions are also written in textual format for manual inspection.
+// When processing the results of the query script might exclude targets or headers that are assumed to be internal,
+// the excluded files would be written in textual file on the disk.
+// Mapping contains only headers that are assigned to exactly 1 rule.
+// Headers with ambiguous rule definitions are also written in textual format for manual inspection.
 // It does also use system binaries: git, patch (gpatch is required on MacOs instead to correctly apply patches to Bazel modules) and bazel (bazelisk preferred)
-func main() {
+func run() error {
 	cfg := parseFlags()
 
 	bcrClient, err := bcr.CheckoutBazelRegistry(cfg.bcrConfig)
 	if err != nil {
-		log.Fatalf("Failed to checkout bazel registry: %v", err)
+		return fmt.Errorf("failed to checkout bazel registry: %w", err)
 	}
 
 	modules, err := gatherModuleInfos(bcrClient)
 	if err != nil {
-		log.Fatalf("failed to resolve modules info: %v", err)
+		return fmt.Errorf("failed to resolve modules info: %w", err)
 	}
 
 	index := indexer.CreateHeaderIndex(modules)
 	fmt.Fprintf(os.Stderr, "Direct mapping created for %d headers\n", len(index.HeaderToRule))
 	fmt.Fprintf(os.Stderr, "Ambiguous header assignment for %d entries\n", len(index.Ambiguous))
 	if err := index.WriteToFile(cfg.outputPath); err != nil {
-		log.Fatalf("Failed to write index file: %v", err)
+		return fmt.Errorf("failed to write index file: %w", err)
 	}
 	if cfg.verbose {
 		log.Println(index.String())
 	}
+	return nil
 }
 
 type Config struct {
