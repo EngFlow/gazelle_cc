@@ -116,9 +116,6 @@ func collectModuleInfo(workdir string, foreignDefn *proto.Target) *indexer.Modul
 					collections.ToSet(collections.FilterMapSlice(
 						bazel.GetNamedAttribute(ccLib, "hdrs").GetStringListValue(),
 						tryParseLabel))),
-				Sources: collections.ToSet(collections.FilterMapSlice(
-					bazel.GetNamedAttribute(ccLib, "srcs").GetStringListValue(),
-					tryParseLabel)),
 				Includes: collections.SetOf(includeDir),
 				Deps: collections.ToSet(collections.FilterMapSlice(
 					bazel.GetNamedAttribute(ccLib, "deps").StringListValue,

@@ -194,7 +194,6 @@ type ModuleTarget struct {
 	Name               label.Label   `json:"name"`
 	Alias              *label.Label  `json:"alias,omitempty"`
 	Hdrs               []label.Label `json:"hdrs"`
-	Sources            []label.Label `json:"sources"`
 	Includes           []string      `json:"includes"`
 	StripIncludePrefix *string       `json:"strip_include_prefix,omitempty"`
 	IncludePrefix      *string       `json:"include_prefix,omitempty"`
@@ -225,7 +224,6 @@ func (m ModuleInfo) ToIndexerModule() indexer.Module {
 		targets = append(targets, indexer.Target{
 			Name:               name,
 			Hdrs:               collections.ToSet(target.Hdrs),
-			Sources:            collections.ToSet(target.Sources),
 			Includes:           collections.ToSet(target.Includes),
 			StripIncludePrefix: stripIncludePrefix,
 			IncludePrefix:      includePrefix,
@@ -648,7 +646,6 @@ func (_ *BazelRegistry) resolveTargets(projectRoot string) ([]ModuleTarget, erro
 			return sources
 		}
 		hdrs := resolveSourceFiles("hdrs")
-		srcs := resolveSourceFiles("srcs")
 		// includes / prefixes
 		includes := getStringListAttr(t, "includes")
 		var strip *string
@@ -675,7 +672,6 @@ func (_ *BazelRegistry) resolveTargets(projectRoot string) ([]ModuleTarget, erro
 		targets = append(targets, ModuleTarget{
 			Name: ruleName, Alias: alias,
 			Hdrs:     hdrs,
-			Sources:  srcs,
 			Includes: includes, StripIncludePrefix: strip, IncludePrefix: pref,
 			Deps: deps,
 		})
