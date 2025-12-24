@@ -8,6 +8,7 @@ require (
 	github.com/bazelbuild/rules_go v0.59.0
 	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/stretchr/testify v1.9.0
+	golang.org/x/sync v0.11.0
 	google.golang.org/protobuf v1.36.6
 )
 

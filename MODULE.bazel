@@ -20,4 +20,5 @@ use_repo(
     "com_github_stretchr_testify",
     "com_github_ulikunitz_xz",
     "org_golang_google_protobuf",
+    "org_golang_x_sync",
 )

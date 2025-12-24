@@ -22,12 +22,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"sync"
 
-	"github.com/EngFlow/gazelle_cc/internal/collections"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/EngFlow/gazelle_cc/index/internal/bcr"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 )
 
 func main() {
@@ -109,17 +109,30 @@ func gatherModuleInfos(bcrClient bcr.BazelRegistry) ([]indexer.Module, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Fprintf(os.Stderr, "Scanning %d modules for cc_rules\n", len(entries))
 
-	moduleNames := make(chan string)
-	moduleInfosResults := make(chan bcr.ResolveModuleInfoResult)
+	// Filter to only directories
+	var moduleNames []string
+	for _, e := range entries {
+		if e.IsDir() {
+			moduleNames = append(moduleNames, e.Name())
+		}
+	}
+	fmt.Fprintf(os.Stderr, "Scanning %d modules for cc_rules\n", len(moduleNames))
 
+	// Use semaphore pattern for bounded concurrency
 	workerCount := runtime.GOMAXPROCS(0)
-	var wg sync.WaitGroup
-	worker := func() {
-		defer wg.Done()
-		for moduleName := range moduleNames {
-			rr := bcrClient.ResolveModuleInfo(moduleName, "") // implicitlly latest version
+	sem := make(chan struct{}, workerCount)
+	results := make([]bcr.ResolveModuleInfoResult, len(moduleNames))
+
+	var eg errgroup.Group
+	for i, moduleName := range moduleNames {
+		sem <- struct{}{} // acquire semaphore
+		eg.Go(func() error {
+			defer func() { <-sem }() // release semaphore
+
+			rr := bcrClient.ResolveModuleInfo(moduleName, "") // implicitly latest version
+			results[i] = rr
+
 			if bcrClient.Config.Verbose {
 				if rr.Info != nil {
 					fmt.Fprintf(os.Stderr, "%-50s: resolved - cc_libraries: %d\n", rr.Info.Module.String(), len(rr.Info.Targets))
@@ -127,35 +140,25 @@ func gatherModuleInfos(bcrClient bcr.BazelRegistry) ([]indexer.Module, error) {
 					fmt.Fprintf(os.Stderr, "%-50s: failed   - %s\n", rr.Unresolved.Module.String(), rr.Unresolved.Reason)
 				}
 			}
-			moduleInfosResults <- rr
-		}
+			return nil
+		})
 	}
 
-	wg.Add(workerCount)
-	for i := 0; i < workerCount; i++ {
-		go worker()
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 
-	go func() {
-		for _, e := range entries {
-			if e.IsDir() {
-				moduleNames <- e.Name()
-			}
-		}
-		close(moduleNames)
-		wg.Wait()
-		close(moduleInfosResults)
-	}()
-
+	// Collect successful results
 	var infos []bcr.ModuleInfo
 	var failed int
-	for r := range moduleInfosResults {
+	for _, r := range results {
 		if r.IsResolved() && len(r.Info.Targets) > 0 {
 			infos = append(infos, *r.Info)
 		} else if r.IsUnresolved() {
 			failed++
 		}
 	}
+
 	fmt.Fprintf(os.Stderr, "Found %d modules with non-empty cc_library defs\n", len(infos))
 	fmt.Fprintf(os.Stderr, "Failed to gather module information in %d modules\n", failed)
 	sort.Slice(infos, func(i, j int) bool {

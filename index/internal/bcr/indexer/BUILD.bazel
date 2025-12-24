@@ -9,6 +9,7 @@ go_library(
         "//index/internal/bcr",
         "//index/internal/indexer",
         "//internal/collections",
+        "@org_golang_x_sync//errgroup",
     ],
 )
 
