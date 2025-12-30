@@ -26,16 +26,28 @@ jobs:
           key: gen-mappings-indexer-cache
 
       - name: Generate mappings
-        run: scala run scripts/indexBzlModules.scala -- --output-mappings=./language/cpp/bzldep-index.json
+        run: bazel run //index/internal/bcr/indexer --  \
+          --output-mappings=$PWD/language/cc/bzldep-index.json \
+          --recompute-unresolved \
+          --cache-dir=$PWD/.cache \
+          -v
         
       - name: Create PR
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           branchName="cron/update-index/$(date +%Y-%m-%d)"
 
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git checkout -b $branchName
-          git add ./language/cpp/bzldep-index.json
+          git add ./language/cc/bzldep-index.json
+          
+          if git diff --cached --quiet; then
+            echo "No changes to the index file, skipping PR creation"
+            exit 0
+          fi
+          
           git commit -m "Automated update of headers index based on bazel-central-registry"
           git push origin $branchName
           

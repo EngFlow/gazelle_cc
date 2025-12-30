@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "indexer",
     srcs = [
-        "ambigiouity_handling.go",
+        "ambiguity_handling.go",
         "indexer.go",
     ],
     importpath = "github.com/EngFlow/gazelle_cc/index/internal/indexer",
@@ -17,7 +17,7 @@ go_library(
 go_test(
     name = "indexer_test",
     srcs = [
-        "ambigiouity_handling_test.go",
+        "ambiguity_handling_test.go",
         "indexer_test.go",
     ],
     embed = [":indexer"],

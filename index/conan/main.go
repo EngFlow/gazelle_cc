@@ -103,7 +103,7 @@ func main() {
 		if err != nil {
 			fmt.Errorf("Bazel query failed: %w", err)
 		}
-		m := extractIndexerModule(result, repoName).WithAmbigiousTargetsResolved()
+		m := extractIndexerModule(result, repoName).WithAmbiguousTargetsResolved()
 		modules = append(modules, m)
 	}
 
@@ -136,9 +136,6 @@ func extractIndexerModule(query proto.QueryResult, moduleName string) indexer.Mo
 			Name: name,
 			Hdrs: collections.ToSet(collections.FilterMapSlice(
 				bazel.GetNamedAttribute(info, "hdrs").GetStringListValue(),
-				tryParseLabel)),
-			Sources: collections.ToSet(collections.FilterMapSlice(
-				bazel.GetNamedAttribute(info, "srcs").GetStringListValue(),
 				tryParseLabel)),
 			Includes:           collections.ToSet(bazel.GetNamedAttribute(info, "includes").GetStringListValue()),
 			StripIncludePrefix: bazel.GetNamedAttribute(info, "strip_include_prefix").GetStringValue(),
