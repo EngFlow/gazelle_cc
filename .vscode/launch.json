@@ -28,6 +28,27 @@
           "to": "external/gazelle_cc+"
         },
       ]
+    },
+    {
+      "name": "BCR indexer",
+      "type": "go",
+      "request": "launch",
+      "mode": "exec",
+      "program": "${workspaceFolder}/bazel-bin/index/internal/bcr/indexer/indexer_/indexer",
+      "args": [
+        "--output-mappings=language/cc/bzldep-index.json",
+        "--recompute-unresolved",
+        "--cache-dir=.cache",
+        "-v"
+      ],
+      "preLaunchTask": "bazel: build debuggable BCR indexer",
+      "cwd": "${workspaceFolder}",
+      "substitutePath": [
+        {
+          "from": "${workspaceFolder}",
+          "to": ""
+        }
+      ]
     }
   ]
 }
