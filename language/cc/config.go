@@ -110,7 +110,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		case cc_indexfile:
 			// Reset existing indexfiles
 			if d.Value == "" {
-				conf.dependencyIndexes = []ccDependencyIndex{}
+				conf.dependencyIndexes = []ccUniqueDependencyIndex{}
 				continue
 			}
 			path := filepath.Join(config.WorkDir, d.Value)
@@ -118,7 +118,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				log.Printf("gazelle_cc: absolute paths for %v directive are not allowed, %v would be ignored", d.Key, d.Value)
 				continue
 			}
-			index, err := loadDependencyIndex(path)
+			index, err := loadUniqueDependencyIndex(path)
 			if err != nil {
 				log.Printf("gazelle_cc: failed to load cc dependencies index: %v, it would be ignored. Reason: %v", path, err)
 				continue
@@ -276,7 +276,7 @@ type ccConfig struct {
 	// Defines how to handle C++ source parsing errors
 	parsingErrorsMode errorReportingMode
 	// User defined dependency indexes based on the filename
-	dependencyIndexes []ccDependencyIndex
+	dependencyIndexes []ccUniqueDependencyIndex
 	// List of 'gazelle:cc_search' directives, used to construct RelsToIndex.
 	ccSearch []ccSearch
 	// Should `cc_library`, `cc_binary` and `cc_test` rules be generated
@@ -320,7 +320,7 @@ func newCcConfig() *ccConfig {
 		useBuiltinBzlmodIndex:   true,
 		unresolvedDepsMode:      errorReportingMode_warn,
 		parsingErrorsMode:       errorReportingMode_ignore,
-		dependencyIndexes:       []ccDependencyIndex{},
+		dependencyIndexes:       []ccUniqueDependencyIndex{},
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
 		generateProto:           true,
