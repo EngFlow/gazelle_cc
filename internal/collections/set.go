@@ -35,6 +35,22 @@ func ToSet[T comparable](slice []T) Set[T] {
 	return make(Set[T], len(slice)).AddSlice(slice)
 }
 
+// FindDuplicates returns a slice of elements that appear more than once in the
+// input slice or nil if there are no duplicates. The order follows the second
+// occurrence of each duplicate.
+func FindDuplicates[S ~[]T, T comparable](slice S) S {
+	var result S
+	seen := make(Set[T])
+	for _, elem := range slice {
+		if seen.Contains(elem) {
+			result = append(result, elem)
+		} else {
+			seen.Add(elem)
+		}
+	}
+	return result
+}
+
 // Diff returns a new Set containing elements that are defined in current Set
 // but not in the other set.
 func (s Set[T]) Diff(other Set[T]) Set[T] {

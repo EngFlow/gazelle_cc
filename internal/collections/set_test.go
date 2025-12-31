@@ -95,6 +95,52 @@ func TestToSet(t *testing.T) {
 	}
 }
 
+func TestFindDuplicates(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []int
+		expected []int
+	}{
+		{
+			name:     "empty slice",
+			input:    []int{},
+			expected: nil,
+		},
+		{
+			name:     "single element",
+			input:    []int{1},
+			expected: nil,
+		},
+		{
+			name:     "unique elements",
+			input:    []int{1, 2, 3},
+			expected: nil,
+		},
+		{
+			name:     "one duplicate",
+			input:    []int{1, 2, 2, 3},
+			expected: []int{2},
+		},
+		{
+			name:     "multiple duplicates",
+			input:    []int{1, 2, 2, 3, 3, 4, 4, 4},
+			expected: []int{2, 3, 4, 4},
+		},
+		{
+			name:     "order preservation",
+			input:    []int{4, 3, 2, 1, 1, 2, 3, 4},
+			expected: []int{1, 2, 3, 4},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FindDuplicates(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestSet_Add(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -387,6 +433,17 @@ func ExampleToSet() {
 	// Unordered output:
 	// a
 	// b
+}
+
+func ExampleFindDuplicates() {
+	duplicates := FindDuplicates([]int{1, 2, 2, 3, 3, 3})
+	for _, v := range duplicates {
+		fmt.Println(v)
+	}
+	// Output:
+	// 2
+	// 3
+	// 3
 }
 
 func ExampleSet_Diff() {
