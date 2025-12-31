@@ -14,6 +14,17 @@
         "cwd": "${workspaceFolder}/example/bzlmod",
       },
       "group": "build"
+    },
+    {
+      "label": "bazel: build debuggable BCR indexer",
+      "type": "process",
+      "command": "bazel",
+      "args": [
+        "build",
+        "--compilation_mode=dbg",
+        "//index/internal/bcr/indexer"
+      ],
+      "group": "build"
     }
   ]
 }
