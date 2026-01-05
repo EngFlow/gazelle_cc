@@ -95,6 +95,43 @@ func TestToSet(t *testing.T) {
 	}
 }
 
+func TestCollectToSet(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []int
+		expected Set[int]
+	}{
+		{
+			name:     "empty sequence",
+			input:    []int{},
+			expected: SetOf[int](),
+		},
+		{
+			name:     "single element",
+			input:    []int{1},
+			expected: SetOf(1),
+		},
+		{
+			name:     "multiple elements",
+			input:    []int{1, 2, 3},
+			expected: SetOf(1, 2, 3),
+		},
+		{
+			name:     "duplicate elements",
+			input:    []int{1, 2, 2, 3, 3, 3},
+			expected: SetOf(1, 2, 3),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			seq := slices.Values(tt.input)
+			result := CollectToSet(seq)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestFindDuplicates(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -416,7 +453,7 @@ func TestSet_SortedValues(t *testing.T) {
 
 func ExampleSetOf() {
 	s := SetOf(1, 2, 3)
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -427,12 +464,24 @@ func ExampleSetOf() {
 
 func ExampleToSet() {
 	s := ToSet([]string{"a", "b", "a"})
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
 	// a
 	// b
+}
+
+func ExampleCollectToSet() {
+	seq := slices.Values([]int{1, 2, 2, 3})
+	s := CollectToSet(seq)
+	for v := range s {
+		fmt.Println(v)
+	}
+	// Unordered output:
+	// 1
+	// 2
+	// 3
 }
 
 func ExampleFindDuplicates() {
@@ -460,7 +509,7 @@ func ExampleSet_Diff() {
 func ExampleSet_Add() {
 	s := SetOf(1)
 	s.Add(2).Add(3)
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -472,7 +521,7 @@ func ExampleSet_Add() {
 func ExampleSet_AddSeq() {
 	s := SetOf(1)
 	s.AddSeq(slices.Values([]int{2, 3, 4}))
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -485,7 +534,7 @@ func ExampleSet_AddSeq() {
 func ExampleSet_AddSlice() {
 	s := SetOf("a")
 	s.AddSlice([]string{"b", "c"})
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
