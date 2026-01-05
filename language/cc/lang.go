@@ -38,7 +38,7 @@ const languageName = "cc"
 type (
 	ccLanguage struct {
 		// Index of header includes parsed from Bazel Central Registry
-		bzlmodBuiltInIndex ccFullDependencyIndex
+		bzlmodBuiltInIndex ccDependencyIndex
 		// Set of missing bazel_dep modules referenced in includes but not defined
 		// Used for deduplication of missing modul_dep warnings
 		notFoundBzlModDeps collections.Set[string]
@@ -71,22 +71,7 @@ type (
 		srcIncludes []ccInclude
 		// TODO: module imports / exports
 	}
-
-	// Unambiguous mapping of header include path to Bazel target defining it
-	ccUniqueDependencyIndex map[string]label.Label
-
-	// Ambiguous mapping of header include path to multiple Bazel targets defining it
-	ccAmbiguousDependencyIndex map[string][]label.Label
-
-	// Full index of both unambiguous and ambiguous resolved dependencies
-	ccFullDependencyIndex struct {
-		// Headers assigned to exactly 1 target in 1 module
-		unique ccUniqueDependencyIndex `json:"unique"`
-		// Headers assigned to multiple targets but still within the same module
-		ambiguousWithinModule ccAmbiguousDependencyIndex `json:"ambiguous within module"`
-		// Headers assigned to multiple targets across different modules
-		ambiguousAcrossModules ccAmbiguousDependencyIndex `json:"ambiguous across modules"`
-	}
+	ccDependencyIndex map[string]label.Label
 )
 
 // Directory from which include is resolved
@@ -216,29 +201,29 @@ func hasMatchingExtension(filename string, extensions []string) bool {
 //go:embed bzldep-index.json
 var bzlDepHeadersIndex string
 
-func loadBuiltInBzlModDependenciesIndex() ccFullDependencyIndex {
-	var index ccFullDependencyIndex
-	if err := json.Unmarshal([]byte(bzlDepHeadersIndex), &index); err != nil {
-		log.Fatalf("Failed to unmarshal built-in bzlmod dependencies index: %v", err)
+func loadBuiltInBzlModDependenciesIndex() ccDependencyIndex {
+	index, err := unmarshalDependencyIndex([]byte(bzlDepHeadersIndex))
+	if err != nil {
+		index = make(ccDependencyIndex)
 	}
 	return index
 }
 
-func loadUniqueDependencyIndex(file string) (ccUniqueDependencyIndex, error) {
+func loadDependencyIndex(file string) (ccDependencyIndex, error) {
 	data, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
-	return unmarshalUniqueDependencyIndex(data)
+	return unmarshalDependencyIndex(data)
 }
 
-func unmarshalUniqueDependencyIndex(data []byte) (ccUniqueDependencyIndex, error) {
+func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {
 	var rawLabels map[string]string
 	if err := json.Unmarshal(data, &rawLabels); err != nil {
 		return nil, err
 	}
 
-	index := make(ccUniqueDependencyIndex, len(rawLabels))
+	index := make(ccDependencyIndex, len(rawLabels))
 	for hdr, target := range rawLabels {
 		if decoded, err := label.Parse(target); err == nil {
 			index[hdr] = decoded
