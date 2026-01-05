@@ -36,13 +36,11 @@
       "mode": "exec",
       "program": "${workspaceFolder}/bazel-bin/index/internal/bcr/indexer/indexer_/indexer",
       "args": [
-        "--output-mappings=language/cc/bzldep-index.json",
         "--recompute-unresolved",
-        "--cache-dir=.cache",
         "-v"
       ],
       "preLaunchTask": "bazel: build debuggable BCR indexer",
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/bazel-bin/index/internal/bcr/indexer/indexer_/indexer.runfiles/_main",
       "substitutePath": [
         {
           "from": "${workspaceFolder}",
