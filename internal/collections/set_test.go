@@ -95,6 +95,43 @@ func TestToSet(t *testing.T) {
 	}
 }
 
+func TestCollectToSet(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []int
+		expected Set[int]
+	}{
+		{
+			name:     "empty sequence",
+			input:    []int{},
+			expected: SetOf[int](),
+		},
+		{
+			name:     "single element",
+			input:    []int{1},
+			expected: SetOf(1),
+		},
+		{
+			name:     "multiple elements",
+			input:    []int{1, 2, 3},
+			expected: SetOf(1, 2, 3),
+		},
+		{
+			name:     "duplicate elements",
+			input:    []int{1, 2, 2, 3, 3, 3},
+			expected: SetOf(1, 2, 3),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			seq := slices.Values(tt.input)
+			result := CollectToSet(seq)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestSet_Add(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -370,7 +407,7 @@ func TestSet_SortedValues(t *testing.T) {
 
 func ExampleSetOf() {
 	s := SetOf(1, 2, 3)
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -381,7 +418,7 @@ func ExampleSetOf() {
 
 func ExampleToSet() {
 	s := ToSet([]string{"a", "b", "a"})
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -389,11 +426,23 @@ func ExampleToSet() {
 	// b
 }
 
+func ExampleCollectToSet() {
+	seq := slices.Values([]int{1, 2, 2, 3})
+	s := CollectToSet(seq)
+	for v := range s {
+		fmt.Println(v)
+	}
+	// Unordered output:
+	// 1
+	// 2
+	// 3
+}
+
 func ExampleSet_Diff() {
 	a := SetOf(1, 2, 3)
 	b := SetOf(2, 3, 4)
 	diff := a.Diff(b)
-	for _, v := range diff.Values() {
+	for v := range diff {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -403,7 +452,7 @@ func ExampleSet_Diff() {
 func ExampleSet_Add() {
 	s := SetOf(1)
 	s.Add(2).Add(3)
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -415,7 +464,7 @@ func ExampleSet_Add() {
 func ExampleSet_AddSeq() {
 	s := SetOf(1)
 	s.AddSeq(slices.Values([]int{2, 3, 4}))
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -428,7 +477,7 @@ func ExampleSet_AddSeq() {
 func ExampleSet_AddSlice() {
 	s := SetOf("a")
 	s.AddSlice([]string{"b", "c"})
-	for _, v := range s.Values() {
+	for v := range s {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -450,7 +499,7 @@ func ExampleSet_Join() {
 	a := SetOf(1, 2)
 	b := SetOf(2, 3)
 	a.Join(b)
-	for _, v := range a.Values() {
+	for v := range a {
 		fmt.Println(v)
 	}
 	// Unordered output:
@@ -463,7 +512,7 @@ func ExampleSet_Intersect() {
 	a := SetOf(1, 2, 3)
 	b := SetOf(2, 3, 4)
 	intersection := a.Intersect(b)
-	for _, v := range intersection.Values() {
+	for v := range intersection {
 		fmt.Println(v)
 	}
 	// Unordered output:
