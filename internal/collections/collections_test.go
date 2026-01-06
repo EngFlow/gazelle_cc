@@ -77,6 +77,17 @@ func TestConcatSeq(t *testing.T) {
 	assert.Equal(t, expected, result)
 }
 
+func TestCountRepeatsInSlice(t *testing.T) {
+	input := []string{"a", "b", "a", "c", "b", "a"}
+	expected := map[string]int{
+		"a": 3,
+		"b": 2,
+		"c": 1,
+	}
+	result := CountRepeatsInSlice(input)
+	assert.Equal(t, expected, result)
+}
+
 func ExampleMapSeq() {
 	seq := MapSeq(
 		slices.Values([]int{1, 2, 3}),
@@ -160,4 +171,18 @@ func ExampleConcatSeq() {
 	)
 	fmt.Println(slices.Collect(seq))
 	// Output: [a b c d]
+}
+
+func ExampleCountRepeatsInSeq() {
+	seq := slices.Values([]string{"a", "b", "a", "c", "b", "a"})
+	counts := CountRepeatsInSeq(seq)
+	fmt.Println(counts)
+	// Output: map[a:3 b:2 c:1]
+}
+
+func ExampleCountRepeatsInSlice() {
+	slice := []string{"a", "b", "a", "c", "b", "a"}
+	counts := CountRepeatsInSlice(slice)
+	fmt.Println(counts)
+	// Output: map[a:3 b:2 c:1]
 }
