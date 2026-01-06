@@ -15,6 +15,7 @@
 package collections
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"testing"
@@ -85,6 +86,13 @@ func TestCountRepeatsInSlice(t *testing.T) {
 		"c": 1,
 	}
 	result := CountRepeatsInSlice(input)
+	assert.Equal(t, expected, result)
+}
+
+func TestFindDuplicatesInSlice(t *testing.T) {
+	input := []string{"a", "b", "a", "c", "b", "a"}
+	expected := SetOf("a", "b")
+	result := FindDuplicatesInSlice(input)
 	assert.Equal(t, expected, result)
 }
 
@@ -185,4 +193,18 @@ func ExampleCountRepeatsInSlice() {
 	counts := CountRepeatsInSlice(slice)
 	fmt.Println(counts)
 	// Output: map[a:3 b:2 c:1]
+}
+
+func ExampleFindDuplicatesInSeq() {
+	seq := slices.Values([]string{"a", "b", "a", "c", "b", "a"})
+	duplicates := FindDuplicatesInSeq(seq)
+	fmt.Println(duplicates.SortedValues(cmp.Compare))
+	// Output: [a b]
+}
+
+func ExampleFindDuplicatesInSlice() {
+	slice := []string{"a", "b", "a", "c", "b", "a"}
+	duplicates := FindDuplicatesInSlice(slice)
+	fmt.Println(duplicates.SortedValues(cmp.Compare))
+	// Output: [a b]
 }
