@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMapSlice(t *testing.T) {
@@ -28,11 +30,7 @@ func TestMapSlice(t *testing.T) {
 		return string(rune('0' + i))
 	})
 
-	for i := range expected {
-		if result[i] != expected[i] {
-			t.Errorf("MapSlice failed at index %d: expected %v, got %v", i, expected[i], result[i])
-		}
-	}
+	assert.Equal(t, expected, result)
 }
 
 func TestFlatMapSlice(t *testing.T) {
@@ -43,15 +41,7 @@ func TestFlatMapSlice(t *testing.T) {
 		return []int{i, i}
 	})
 
-	if len(result) != len(expected) {
-		t.Fatalf("FlatMapSlice length mismatch: expected %d, got %d", len(expected), len(result))
-	}
-
-	for i := range expected {
-		if result[i] != expected[i] {
-			t.Errorf("FlatMapSlice failed at index %d: expected %d, got %d", i, expected[i], result[i])
-		}
-	}
+	assert.Equal(t, expected, result)
 }
 
 func TestFilterMapSlice(t *testing.T) {
@@ -65,15 +55,7 @@ func TestFilterMapSlice(t *testing.T) {
 		return i * 2, true
 	})
 
-	if len(result) != len(expected) {
-		t.Fatalf("Collect length mismatch: expected %d, got %d", len(expected), len(result))
-	}
-
-	for i := range expected {
-		if result[i] != expected[i] {
-			t.Errorf("Collect failed at index %d: expected %d, got %d", i, expected[i], result[i])
-		}
-	}
+	assert.Equal(t, expected, result)
 }
 
 func TestFilterSlice(t *testing.T) {
@@ -84,15 +66,7 @@ func TestFilterSlice(t *testing.T) {
 		return i%2 == 0
 	})
 
-	if len(result) != len(expected) {
-		t.Fatalf("Filter length mismatch: expected %d, got %d", len(expected), len(result))
-	}
-
-	for i := range expected {
-		if result[i] != expected[i] {
-			t.Errorf("Filter failed at index %d: expected %d, got %d", i, expected[i], result[i])
-		}
-	}
+	assert.Equal(t, expected, result)
 }
 
 func ExampleMapSeq() {
