@@ -110,3 +110,16 @@ func FilterMapSeq[T, V any](seq iter.Seq[T], fn func(T) (V, bool)) iter.Seq[V] {
 func FilterMapSlice[TSlice ~[]T, T, V any](s TSlice, fn func(T) (V, bool)) []V {
 	return slices.AppendSeq(make([]V, 0, len(s)), FilterMapSeq(slices.Values(s), fn))
 }
+
+// ConcatSeq concatenates multiple input sequences into a single sequence.
+func ConcatSeq[T any](seqs ...iter.Seq[T]) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, seq := range seqs {
+			for elem := range seq {
+				if !yield(elem) {
+					return
+				}
+			}
+		}
+	}
+}
