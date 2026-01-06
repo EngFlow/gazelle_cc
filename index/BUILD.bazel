@@ -1,3 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "index",
+    srcs = ["index.go"],
+    importpath = "github.com/EngFlow/gazelle_cc/index",
+    visibility = [
+        ":__subpackages__",
+        "//language/cc:__pkg__",
+    ],
+    deps = [
+        "//internal/collections",
+        "@gazelle//label",
+    ],
+)
+
+go_test(
+    name = "index_test",
+    srcs = ["index_test.go"],
+    embed = [":index"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)
+
 test_suite(
     name = "integration_tests",
     tags = ["manual"],
