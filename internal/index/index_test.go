@@ -15,37 +15,87 @@
 package index
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseUniqueDependencyIndex(t *testing.T) {
+func TestMarshalJSON(t *testing.T) {
+	input := DependencyIndex{
+		"header1.h": {
+			label.New("repo", "pkg", "target"),
+		},
+		"header2.h": {
+			label.New("repo", "pkg", "target_a"),
+			label.New("repo", "pkg", "target_b"),
+		},
+		"header3.h": {
+			label.New("repo_a", "pkg", "target"),
+			label.New("repo_b", "pkg", "target"),
+		},
+	}
+	expected := `{
+	"header1.h": "@repo//pkg:target",
+	"header2.h": [
+		"@repo//pkg:target_a",
+		"@repo//pkg:target_b"
+	],
+	"header3.h": [
+		"@repo_a//pkg:target",
+		"@repo_b//pkg:target"
+	]
+}`
+	result, err := json.MarshalIndent(input, "", "\t")
+	assert.Equal(t, expected, string(result))
+	assert.NoError(t, err)
+}
+
+func TestUnmarshalJSON(t *testing.T) {
 	testCases := []struct {
 		input         string
-		expected      UniqueDependencyIndex
+		expected      DependencyIndex
 		expectedError string
 	}{
 		{
-			input: `{"header1.h": "@repo1//pkg1:target1", "header2.h": "@repo2//pkg2:target2"}`,
-			expected: UniqueDependencyIndex{
-				"header1.h": Label{label.New("repo1", "pkg1", "target1")},
-				"header2.h": Label{label.New("repo2", "pkg2", "target2")},
+			input: `{
+ 				"header1.h": "@repo//pkg:target",
+ 				"header2.h": ["@repo//pkg:target_a", "@repo//pkg:target_b"],
+ 				"header3.h": ["@repo_a//pkg:target", "@repo_b//pkg:target"]
+			}`,
+			expected: DependencyIndex{
+				"header1.h": {
+					label.New("repo", "pkg", "target"),
+				},
+				"header2.h": {
+					label.New("repo", "pkg", "target_a"),
+					label.New("repo", "pkg", "target_b"),
+				},
+				"header3.h": {
+					label.New("repo_a", "pkg", "target"),
+					label.New("repo_b", "pkg", "target"),
+				},
 			},
 		},
 		{
 			input:         `{"header.h": ":invalid:label"}`,
-			expectedError: `label parse error: name has invalid characters: ":invalid:label"`,
+			expectedError: `"header.h": label parse error: name has invalid characters: ":invalid:label"`,
 		},
 		{
 			input:         `{"header.h": "@repo//:missing_brace"`,
 			expectedError: "unexpected end of JSON input",
 		},
+		{
+			input:         `{"header.h": 12345}`,
+			expectedError: `"header.h": invalid JSON type: float64`,
+		},
 	}
 
 	for _, tc := range testCases {
-		result, err := ParseUniqueDependencyIndex([]byte(tc.input))
+		var result DependencyIndex
+		var err error
+		err = json.Unmarshal([]byte(tc.input), &result)
 		if tc.expectedError == "" {
 			assert.NoError(t, err, "input: %s", tc.input)
 			assert.Equal(t, tc.expected, result, "input: %s", tc.input)
@@ -55,215 +105,27 @@ func TestParseUniqueDependencyIndex(t *testing.T) {
 	}
 }
 
-func TestParseFullDependencyIndex(t *testing.T) {
-	testCases := []struct {
-		input         string
-		expected      FullDependencyIndex
-		expectedError string
-	}{
-		{
-			input: `{
-				"unique": {
-					"header1.h": "@repo//pkg:target"
-				},
-				"ambiguous_within_module": {
-					"header2.h": ["@repo//pkg:target_a", "@repo//pkg:target_b"]
-				},
-				"ambiguous_across_modules": {
-					"header3.h": ["@repo_a//pkg:target", "@repo_b//pkg:target"]
-				}
-			}`,
-			expected: FullDependencyIndex{
-				Unique: UniqueDependencyIndex{
-					"header1.h": Label{label.New("repo", "pkg", "target")},
-				},
-				AmbiguousWithinModule: AmbiguousDependencyIndex{
-					"header2.h": AmbiguousTargets{
-						Label{label.New("repo", "pkg", "target_a")},
-						Label{label.New("repo", "pkg", "target_b")},
-					},
-				},
-				AmbiguousAcrossModules: AmbiguousDependencyIndex{
-					"header3.h": AmbiguousTargets{
-						Label{label.New("repo_a", "pkg", "target")},
-						Label{label.New("repo_b", "pkg", "target")},
-					},
-				},
-			},
+func TestMarshalUnmarshalJSON(t *testing.T) {
+	input := DependencyIndex{
+		"header1.h": {
+			label.New("repo", "pkg", "target"),
 		},
-		{
-			input: `{
-				"unique": {
-					"header1.h": "@repo1//pkg1:target1",
-					"header2.h": "@repo2//pkg2:target2"
-				},
-				"ambiguous_within_module": {},
-				"ambiguous_across_modules": {}
-			}`,
-			expected: FullDependencyIndex{
-				Unique: UniqueDependencyIndex{
-					"header1.h": Label{label.New("repo1", "pkg1", "target1")},
-					"header2.h": Label{label.New("repo2", "pkg2", "target2")},
-				},
-				AmbiguousWithinModule:  AmbiguousDependencyIndex{},
-				AmbiguousAcrossModules: AmbiguousDependencyIndex{},
-			},
+		"header2.h": {
+			label.New("repo", "pkg", "target_a"),
+			label.New("repo", "pkg", "target_b"),
 		},
-		{
-			input: `{
-				"unique": {},
-				"ambiguous_within_module": {},
-				"ambiguous_across_modules": {},
-				"extra_field": {}
-			}`,
-			expected: FullDependencyIndex{
-				Unique:                 UniqueDependencyIndex{},
-				AmbiguousWithinModule:  AmbiguousDependencyIndex{},
-				AmbiguousAcrossModules: AmbiguousDependencyIndex{},
-			},
-		},
-		{
-			input: "{}",
-			expected: FullDependencyIndex{
-				Unique:                 nil,
-				AmbiguousWithinModule:  nil,
-				AmbiguousAcrossModules: nil,
-			},
-		},
-		{
-			input: `{
-				"unique": {
-					"same_header.h": "@repo//pkg:target"
-				},
-				"ambiguous_within_module": {
-					"same_header.h": ["@repo//pkg:target_a", "@repo//pkg:target_b"]
-				}
-			}`,
-			expectedError: "header present in multiple sections: [same_header.h]",
-		},
-		{
-			input: `{
-				"unique": {},
-				"ambiguous_within_module": {
-					"header.h": ["@repo//pkg:target"]
-				}
-			}`,
-			expectedError: "ambiguous targets must contain at least 2 elements, got 1",
-		},
-		{
-			input: `{
-				"unique": {},
-				"ambiguous_across_modules": {
-					"header.h": ["@repo//pkg:target"]
-				}
-			}`,
-			expectedError: "ambiguous targets must contain at least 2 elements, got 1",
-		},
-		{
-			input: `{
-				"unique": {},
-				"ambiguous_within_module": {
-					"header.h": ["@repo//pkg:target", "@repo//pkg:target"]
-				}
-			}`,
-			expectedError: "duplicate targets in list [@repo//pkg:target @repo//pkg:target]: [@repo//pkg:target]",
-		},
-		{
-			input: `{
-				"unique": {},
-				"ambiguous_across_modules": {
-					"header.h": ["@repo//pkg:target", "@repo//pkg:target"]
-				}
-			}`,
-			expectedError: "duplicate targets in list [@repo//pkg:target @repo//pkg:target]: [@repo//pkg:target]",
-		},
-		{
-			input: `{
-				"unique": {},
-				"ambiguous_within_module": {
-					"header.h": ["@repo1//pkg1:target1", "@repo2//pkg2:target2"]
-				}
-			}`,
-			expectedError: "should share same repo in list [@repo1//pkg1:target1 @repo2//pkg2:target2]",
-		},
-		{
-			input: `{
-				"unique": {},
-				"ambiguous_across_modules": {
-					"header.h": ["@repo//pkg1:target1", "@repo//pkg2:target2"]
-				}
-			}`,
-			expectedError: "should span multiple repos in list [@repo//pkg1:target1 @repo//pkg2:target2]",
+		"header3.h": {
+			label.New("repo_a", "pkg", "target"),
+			label.New("repo_b", "pkg", "target"),
 		},
 	}
 
-	for _, tc := range testCases {
-		result, err := ParseFullDependencyIndex([]byte(tc.input))
-		if tc.expectedError == "" {
-			assert.NoError(t, err, "input: %s", tc.input)
-			assert.Equal(t, tc.expected, result, "input: %s", tc.input)
-		} else {
-			assert.EqualError(t, err, tc.expectedError, "input: %s", tc.input)
-		}
-	}
-}
+	jsonData, err := json.Marshal(input)
+	assert.NoError(t, err)
 
-func TestEncodeFullDependencyIndex(t *testing.T) {
-	testCases := []struct {
-		input    FullDependencyIndex
-		expected string
-	}{
-		{
-			input: FullDependencyIndex{
-				Unique: UniqueDependencyIndex{
-					"header1.h": Label{label.New("repo", "pkg", "target")},
-				},
-				AmbiguousWithinModule: AmbiguousDependencyIndex{
-					"header2.h": AmbiguousTargets{
-						Label{label.New("repo", "pkg", "target_a")},
-						Label{label.New("repo", "pkg", "target_b")},
-					},
-				},
-				AmbiguousAcrossModules: AmbiguousDependencyIndex{
-					"header3.h": AmbiguousTargets{
-						Label{label.New("repo_a", "pkg", "target")},
-						Label{label.New("repo_b", "pkg", "target")},
-					},
-				},
-			},
-			expected: `{
-  "unique": {
-    "header1.h": "@repo//pkg:target"
-  },
-  "ambiguous_within_module": {
-    "header2.h": [
-      "@repo//pkg:target_a",
-      "@repo//pkg:target_b"
-    ]
-  },
-  "ambiguous_across_modules": {
-    "header3.h": [
-      "@repo_a//pkg:target",
-      "@repo_b//pkg:target"
-    ]
-  }
-}`,
-		},
-		{
-			input: FullDependencyIndex{
-				Unique:                 UniqueDependencyIndex{},
-				AmbiguousWithinModule:  AmbiguousDependencyIndex{},
-				AmbiguousAcrossModules: AmbiguousDependencyIndex{},
-			},
-			expected: `{
-  "unique": {},
-  "ambiguous_within_module": {},
-  "ambiguous_across_modules": {}
-}`,
-		},
-	}
+	var output DependencyIndex
+	err = json.Unmarshal(jsonData, &output)
+	assert.NoError(t, err)
 
-	for _, tc := range testCases {
-		assert.Equal(t, tc.expected, string(tc.input.Encode()))
-	}
+	assert.Equal(t, input, output)
 }
