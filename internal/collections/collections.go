@@ -139,21 +139,3 @@ func CountRepeatsInSeq[T comparable](seq iter.Seq[T]) map[T]int {
 func CountRepeatsInSlice[T comparable](slice []T) map[T]int {
 	return CountRepeatsInSeq(slices.Values(slice))
 }
-
-// Finds all elements that appear more than once in the input sequence and
-// returns a Set of them.
-func FindDuplicatesInSeq[T comparable](seq iter.Seq[T]) Set[T] {
-	duplicates := make(Set[T])
-	for elem, count := range CountRepeatsInSeq(seq) {
-		if count > 1 {
-			duplicates.Add(elem)
-		}
-	}
-	return duplicates
-}
-
-// Finds all elements that appear more than once in the input slice and
-// returns a Set of them.
-func FindDuplicatesInSlice[T comparable](slice []T) Set[T] {
-	return FindDuplicatesInSeq(slices.Values(slice))
-}
