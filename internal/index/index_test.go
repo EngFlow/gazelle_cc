@@ -90,6 +90,10 @@ func TestUnmarshalJSON(t *testing.T) {
 			input:         `{"header.h": 12345}`,
 			expectedError: `"header.h": invalid JSON type: float64`,
 		},
+		{
+			input:         `{"header.h": [ "@repo//pkg:valid", 67890 ]}`,
+			expectedError: `"header.h": invalid JSON type in list: float64`,
+		},
 	}
 
 	for _, tc := range testCases {

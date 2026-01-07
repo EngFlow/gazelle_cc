@@ -60,7 +60,7 @@ func parseLabels(jsonDictValue any) ([]label.Label, error) {
 	for _, jsonValue := range jsonList {
 		strValue, ok := jsonValue.(string)
 		if !ok {
-			return nil, fmt.Errorf("invalid JSON type: %T", jsonDictValue)
+			return nil, fmt.Errorf("invalid JSON type in list: %T", jsonValue)
 		}
 		parsedLabel, err := label.Parse(strValue)
 		if err != nil {
