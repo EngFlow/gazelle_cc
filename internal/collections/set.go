@@ -35,11 +35,6 @@ func ToSet[T comparable](slice []T) Set[T] {
 	return make(Set[T], len(slice)).AddSlice(slice)
 }
 
-// CollectToSet collects elements from the given sequence into a Set.
-func CollectToSet[T comparable](seq iter.Seq[T]) Set[T] {
-	return make(Set[T]).AddSeq(seq)
-}
-
 // FindDuplicates returns a slice of elements that appear more than once in the
 // input slice or nil if there are no duplicates. The order follows the second
 // occurrence of each duplicate.
