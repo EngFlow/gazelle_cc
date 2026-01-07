@@ -123,19 +123,3 @@ func ConcatSeq[T any](seqs ...iter.Seq[T]) iter.Seq[T] {
 		}
 	}
 }
-
-// Maps every element in the input sequence to the number of times it appears in
-// the sequence.
-func CountRepeatsInSeq[T comparable](seq iter.Seq[T]) map[T]int {
-	counts := make(map[T]int)
-	for elem := range seq {
-		counts[elem]++
-	}
-	return counts
-}
-
-// Maps every element in the input slice to the number of times it appears in
-// the slice.
-func CountRepeatsInSlice[T comparable](slice []T) map[T]int {
-	return CountRepeatsInSeq(slices.Values(slice))
-}
