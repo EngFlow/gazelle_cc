@@ -30,8 +30,8 @@ import (
 // represented in JSON as a string, multiple labels as a list of strings.
 type DependencyIndex map[string][]label.Label
 
-var _ json.Marshaler = DependencyIndex{}
-var _ json.Unmarshaler = &DependencyIndex{}
+var _ json.Marshaler = (*DependencyIndex)(nil)
+var _ json.Unmarshaler = (*DependencyIndex)(nil)
 
 func (index DependencyIndex) MarshalJSON() ([]byte, error) {
 	jsonDict := make(map[string]any, len(index))
@@ -57,10 +57,10 @@ func parseLabels(jsonDictValue any) ([]label.Label, error) {
 	}
 
 	labels := make([]label.Label, 0, len(jsonList))
-	for _, jsonValue := range jsonList {
-		strValue, ok := jsonValue.(string)
+	for _, jsonListValue := range jsonList {
+		strValue, ok := jsonListValue.(string)
 		if !ok {
-			return nil, fmt.Errorf("invalid JSON type in list: %T", jsonValue)
+			return nil, fmt.Errorf("invalid JSON type in list: %T", jsonListValue)
 		}
 		parsedLabel, err := label.Parse(strValue)
 		if err != nil {
