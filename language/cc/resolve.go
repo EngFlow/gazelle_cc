@@ -238,6 +238,15 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 		resolveIncludes(includes, publicDeps, collections.Set[label.Label]{})
 	}
 
+	// Add forced deps from // gazelle:include_dep directives
+	for _, depStr := range ccImports.includeDeps {
+		if dep, err := label.Parse(depStr); err == nil {
+			publicDeps.addGeneric(dep.Rel(from.Repo, from.Pkg))
+		} else {
+			log.Printf("gazelle_cc: invalid label in gazelle:include_dep directive: %q", depStr)
+		}
+	}
+
 	if len(publicDeps.all) > 0 {
 		r.SetAttr("deps", publicDeps.build())
 	}

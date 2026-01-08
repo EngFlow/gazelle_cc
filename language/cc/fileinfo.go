@@ -68,6 +68,9 @@ type fileInfo struct {
 
 	// List of files included by this file.
 	includes []ccInclude
+
+	// Labels from // gazelle:include_dep directives that should be added as deps.
+	includeDeps []string
 }
 
 // getFileInfo parses a file and returns metadata describing it.
@@ -156,10 +159,11 @@ func (c *ccLanguage) getFileInfo(
 	}
 
 	return fileInfo{
-		name:     name,
-		includes: includes,
-		kind:     kind,
-		hasMain:  sourceInfo.HasMain,
+		name:        name,
+		includes:    includes,
+		kind:        kind,
+		hasMain:     sourceInfo.HasMain,
+		includeDeps: sourceInfo.IncludeDeps,
 	}, nil
 }
 

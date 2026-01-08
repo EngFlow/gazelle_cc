@@ -217,6 +217,16 @@ Explicitly sets the value of `"include_prefix"` attribute for generated `cc_libr
 
 Explicitly sets the value of `"strip_include_prefix"` attribute for generated `cc_library` rules.
 
+### `// gazelle:include_dep <label>` (in source files)
+
+Forces a dependency to be included without requiring an `#include` directive. Place this comment in C++ source files to add dependencies for code with global side effects (e.g., static registration).
+
+```cpp
+// app.cc
+// gazelle:include_dep //my/global:registrations
+int main() {}
+```
+
 ## Rules for target rule selection
 
 The extension automatically selects the appropriate rule type based on the following criteria:

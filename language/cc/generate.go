@@ -91,6 +91,7 @@ func shouldSkipSubdirectory(args language.GenerateArgs) bool {
 // given list of files. The lists contain includes from headers and source
 // files so that deps and implementation_deps attributes can be generated
 // separately. Includes of files in the fileInfos list are not reported.
+// Also collects any // gazelle:include_dep directives from the source files.
 func extractImports(rel string, fileInfos []fileInfo) ccImports {
 	selfFiles := make(collections.Set[string], len(fileInfos))
 	for _, fi := range fileInfos {
@@ -98,6 +99,7 @@ func extractImports(rel string, fileInfos []fileInfo) ccImports {
 	}
 
 	var imports ccImports
+	includeDepsSet := make(collections.Set[string])
 	for _, fi := range fileInfos {
 		var includes *[]ccInclude
 		if fileNameIsHeader(fi.name) {
@@ -119,7 +121,12 @@ func extractImports(rel string, fileInfos []fileInfo) ccImports {
 			}
 			*includes = append(*includes, include)
 		}
+		// Collect forced deps from // gazelle:include_dep directives
+		for _, dep := range fi.includeDeps {
+			includeDepsSet.Add(dep)
+		}
 	}
+	imports.includeDeps = includeDepsSet.SortedValues(strings.Compare)
 	return imports
 }
 

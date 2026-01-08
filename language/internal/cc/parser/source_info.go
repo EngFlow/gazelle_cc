@@ -16,9 +16,10 @@ package parser
 
 // SourceInfo contains the structural information extracted from a C/C++ source file.
 type SourceInfo struct {
-	Directives []Directive // Top-level parsed preprocessor directives (may be nested)
-	HasMain    bool        // True if a main() function is detected
-	Errors     []error     // List of non-critical errors encountered during parsing
+	Directives  []Directive // Top-level parsed preprocessor directives (may be nested)
+	HasMain     bool        // True if a main() function is detected
+	Errors      []error     // List of non-critical errors encountered during parsing
+	IncludeDeps []string    // Labels from // gazelle:include_dep directives
 }
 
 // CollectIncludes recursively traverses the directive tree and returns all IncludeDirective
