@@ -37,7 +37,9 @@ func TestMarshalJSON(t *testing.T) {
 		},
 	}
 	expected := `{
-	"header1.h": "@repo//pkg:target",
+	"header1.h": [
+		"@repo//pkg:target"
+	],
 	"header2.h": [
 		"@repo//pkg:target_a",
 		"@repo//pkg:target_b"
@@ -60,7 +62,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	}{
 		{
 			input: `{
- 				"header1.h": "@repo//pkg:target",
+ 				"header1.h": ["@repo//pkg:target"],
  				"header2.h": ["@repo//pkg:target_a", "@repo//pkg:target_b"],
  				"header3.h": ["@repo_a//pkg:target", "@repo_b//pkg:target"]
 			}`,
@@ -79,20 +81,16 @@ func TestUnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
-			input:         `{"header.h": ":invalid:label"}`,
-			expectedError: `"header.h": label parse error: name has invalid characters: ":invalid:label"`,
+			input:         `{"header.h": [":invalid:label"]}`,
+			expectedError: `label parse error: name has invalid characters: ":invalid:label"`,
 		},
 		{
-			input:         `{"header.h": "@repo//:missing_brace"`,
+			input:         `{"header.h": ["@repo//:missing_brace"]`,
 			expectedError: "unexpected end of JSON input",
 		},
 		{
-			input:         `{"header.h": 12345}`,
-			expectedError: `"header.h": invalid JSON type: float64`,
-		},
-		{
-			input:         `{"header.h": [ "@repo//pkg:valid", 67890 ]}`,
-			expectedError: `"header.h": invalid JSON type in list: float64`,
+			input:         `{"header.h": ["@repo//pkg:valid", 67890]}`,
+			expectedError: "json: cannot unmarshal number into Go value of type index.labelUnmarshaler",
 		},
 	}
 
