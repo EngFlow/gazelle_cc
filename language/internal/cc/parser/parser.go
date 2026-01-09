@@ -45,11 +45,37 @@ func isRelevantTokenType(token lexer.Token) bool {
 
 // ParseSource reads and parses C/C++ source, returning structured SourceInfo.
 func ParseSource(input []byte) SourceInfo {
-	allTokens := lexer.NewLexer(input).AllTokens()
-	filteredTokens := collections.FilterSeq(allTokens, isRelevantTokenType)
-	p := parser{tokensLeft: slices.Collect(filteredTokens)}
+	allTokens := slices.Collect(lexer.NewLexer(input).AllTokens())
+	// Extract gazelle directives from comments before filtering them out
+	includeDeps := extractIncludeDeps(allTokens)
+	filteredTokens := collections.FilterSlice(allTokens, isRelevantTokenType)
+	p := parser{tokensLeft: filteredTokens}
 	p.sourceInfo.Directives = p.parseDirectivesUntil(func(tokenType lexer.TokenType) bool { return tokenType == lexer.TokenType_EOF })
+	p.sourceInfo.IncludeDeps = includeDeps
 	return p.sourceInfo
+}
+
+// extractIncludeDeps scans comment tokens for "// gazelle:include_dep <label>" directives
+// and returns the list of labels found.
+func extractIncludeDeps(tokens []lexer.Token) []string {
+	var deps []string
+	const prefix = "gazelle:include_dep"
+	for _, token := range tokens {
+		if token.Type != lexer.TokenType_CommentSingleLine {
+			continue
+		}
+		// Comment content includes the leading "//"
+		content := strings.TrimPrefix(token.Content, "//")
+		content = strings.TrimSpace(content)
+		if !strings.HasPrefix(content, prefix) {
+			continue
+		}
+		label := strings.TrimSpace(strings.TrimPrefix(content, prefix))
+		if label != "" {
+			deps = append(deps, label)
+		}
+	}
+	return deps
 }
 
 // ParseSourceFile opens filename and feeds its contents to the extractor.

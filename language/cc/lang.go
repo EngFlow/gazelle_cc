@@ -69,6 +69,8 @@ type (
 		hdrIncludes []ccInclude
 		// #include directives found in non-header files
 		srcIncludes []ccInclude
+		// Labels from // gazelle:include_dep directives that should be added as deps
+		includeDeps []string
 		// TODO: module imports / exports
 	}
 	ccDependencyIndex map[string]label.Label
