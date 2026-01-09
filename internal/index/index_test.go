@@ -16,6 +16,7 @@ package index
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -130,4 +131,23 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, input, output)
+}
+
+func ExampleDependencyIndex_MarshalJSON() {
+	index := DependencyIndex{
+		"header.h": {
+			label.New("my_repo", "my_pkg", "my_target"),
+		},
+	}
+	data, _ := json.Marshal(index)
+	fmt.Printf("%s", data)
+	// Output: {"header.h":["@my_repo//my_pkg:my_target"]}
+}
+
+func ExampleDependencyIndex_UnmarshalJSON() {
+	jsonData := []byte(`{"header.h":["@my_repo//my_pkg:my_target"]}`)
+	var index DependencyIndex
+	_ = json.Unmarshal(jsonData, &index)
+	fmt.Print(index)
+	// Output: map[header.h:[@my_repo//my_pkg:my_target]]
 }
