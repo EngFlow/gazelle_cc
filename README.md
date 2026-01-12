@@ -118,6 +118,15 @@ When resolving dependencies, indexes are visited in the same order as the corres
 
 The argument must be a repository-root relative path.
 
+### `# gazelle:cc_ambiguous_deps [ignore|warn|try_first|force_first]`
+
+Defines how to handle ambiguous dependencies. An ambiguity occurs when a single header is associated with more than one C++ Bazel rule, and Gazelle needs to know which one to put in "deps".
+
+- `ignore`: Silently ignore ambiguous dependencies; do not modify rules
+- `warn`: Emit warnings for ambiguous dependencies; do not modify rules
+- `try_first`: Emit warnings for ambiguous dependencies, use the first target from the ambiguous list as the rule dependency; but only if ambiguities come within a single repo **(default)**
+- `force_first`: Emit warnings for ambiguous dependencies; always use the first target from the ambiguous list as the rule dependency
+
 ### `# gazelle:cc_search <strip_include_prefix> <include_prefix>`
 
 Lazy indexing may be enabled with the Gazelle arguments `-index=lazy` and `-r=false`. When enabled, Gazelle only indexes libraries for dependency resolution in specific directories, based on configuration directives and the included headers it sees. This dramatically speeds up Gazelle when run in specific directories, compared with indexing the whole repository.
