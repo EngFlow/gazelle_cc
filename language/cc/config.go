@@ -110,7 +110,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		case cc_indexfile:
 			// Reset existing indexfiles
 			if d.Value == "" {
-				conf.dependencyIndexes = []ccDependencyIndex{}
+				conf.dependencyIndexes = nil
 				continue
 			}
 			path := filepath.Join(config.WorkDir, d.Value)
@@ -320,7 +320,6 @@ func newCcConfig() *ccConfig {
 		useBuiltinBzlmodIndex:   true,
 		unresolvedDepsMode:      errorReportingMode_warn,
 		parsingErrorsMode:       errorReportingMode_ignore,
-		dependencyIndexes:       []ccDependencyIndex{},
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
 		generateProto:           true,
