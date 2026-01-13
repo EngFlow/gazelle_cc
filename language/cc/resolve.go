@@ -35,11 +35,6 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-const (
-	publicDepsAttr  = "deps"
-	privateDepsAttr = "implementation_deps"
-)
-
 // resolve.Resolver methods
 func (c *ccLanguage) Name() string                                        { return languageName }
 func (c *ccLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
@@ -249,10 +244,10 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	}
 
 	if len(publicDeps.all) > 0 {
-		r.SetAttr(publicDepsAttr, publicDeps.build())
+		r.SetAttr("deps", publicDeps.build())
 	}
 	if len(privateDeps.all) > 0 {
-		r.SetAttr(privateDepsAttr, privateDeps.build())
+		r.SetAttr("implementation_deps", privateDeps.build())
 	}
 }
 
