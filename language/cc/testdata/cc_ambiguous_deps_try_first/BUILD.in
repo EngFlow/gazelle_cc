@@ -5,9 +5,3 @@ cc_binary(
     srcs = ["explicit_use.cc"],
     deps = ["//ambiguous:rule2"],
 )
-
-cc_binary(
-    name = "use",
-    srcs = ["use.cc"],
-    deps = ["//ambiguous:rule1"],
-)
