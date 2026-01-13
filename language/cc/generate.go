@@ -145,22 +145,31 @@ func splitSourcesIntoGroups(args language.GenerateArgs, fileInfos []fileInfo) so
 	return srcGroups
 }
 
-/* Helper merthod to create new rule of given type that is aware of existing context.
- * If there exists exactly 1 new group of given kind the returned rule would reuse it's name and possibly aliased kind
- */
+// Get all dependencies (public and private) of the given rule as absolute labels.
+func getAllRuleDeps(r *rule.Rule, repo, pkg string) collections.Set[label.Label] {
+	labelParser := func(rawLabel string) (label.Label, bool) {
+		parsedLabel, err := label.Parse(rawLabel)
+		if err != nil {
+			return label.NoLabel, false
+		}
+		return parsedLabel.Abs(repo, pkg), true
+	}
+
+	privateDeps := collections.FilterMapSeq(slices.Values(r.AttrStrings("implementation_deps")), labelParser)
+	publicDeps := collections.FilterMapSeq(slices.Values(r.AttrStrings("deps")), labelParser)
+	return collections.CollectToSet(collections.ConcatSeq(privateDeps, publicDeps))
+}
+
+// Create a new rule while aware of the existing context.
 func newOrExistingRule(kind string, ruleName string, srcGroups sourceGroups, rulesInfo rulesInfo, args language.GenerateArgs) *rule.Rule {
 	newRule := rule.NewRule(kind, ruleName)
-	// If there is only 1 target target rule and exactly 1 existing rule reuse it
-	if len(srcGroups) == 1 {
-		existingRules := rulesInfo.existingRulesOfKind(kind, args)
-		if len(existingRules) == 1 {
-			existing := existingRules[0]
-			newRule.SetName(existing.Name())
-			// Use exisitng kind only when is an alias. Required to allow for correct merge
-			// In case of mapped kinds it would lead to problems in resolve
-			if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
-				newRule.SetKind(existing.Kind())
-			}
+	if existing := rulesInfo.matchExistingRule(kind, ruleName, srcGroups, args.Config); existing != nil {
+		newRule.SetName(existing.Name())
+		newRule.SetPrivateAttr(ccExistingDepsKey, getAllRuleDeps(existing, args.Config.RepoName, args.Rel))
+		// Use exisitng kind only when is an alias. Required to allow for correct merge
+		// In case of mapped kinds it would lead to problems in resolve
+		if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
+			newRule.SetKind(existing.Kind())
 		}
 	}
 	return newRule
@@ -644,14 +653,32 @@ func resolveCCRuleKind(kind string, config *config.Config) string {
 }
 
 // Return list of existing rules of kind or with matching kind mapping
-func (info *rulesInfo) existingRulesOfKind(kind string, args language.GenerateArgs) []*rule.Rule {
+func (info *rulesInfo) existingRulesOfKind(kind string, c *config.Config) []*rule.Rule {
 	rules := make([]*rule.Rule, 0, len(info.ccRuleSources))
 	for _, rule := range info.definedRules {
-		if resolveCCRuleKind(rule.Kind(), args.Config) == kind {
+		if resolveCCRuleKind(rule.Kind(), c) == kind {
 			rules = append(rules, rule)
 		}
 	}
 	return rules
+}
+
+func (info *rulesInfo) matchExistingRule(kind, name string, srcGroups sourceGroups, c *config.Config) *rule.Rule {
+	existingRules := info.existingRulesOfKind(kind, c)
+
+	// Match if there is only 1 existing rule and exactly 1 target rule
+	if len(existingRules) == 1 && len(srcGroups) == 1 {
+		return existingRules[0]
+	}
+
+	// Match by name and kind
+	for _, r := range existingRules {
+		if r.Name() == name {
+			return r
+		}
+	}
+
+	return nil
 }
 
 func hasRuleWithName(name string, rules []*rule.Rule) bool {

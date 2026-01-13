@@ -69,6 +69,14 @@ func TestFilterSlice(t *testing.T) {
 	assert.Equal(t, expected, result)
 }
 
+func TestConcatSeq(t *testing.T) {
+	input1 := []string{"a", "b"}
+	input2 := []string{"c", "d"}
+	expected := []string{"a", "b", "c", "d"}
+	result := slices.Collect(ConcatSeq(slices.Values(input1), slices.Values(input2)))
+	assert.Equal(t, expected, result)
+}
+
 func ExampleMapSeq() {
 	seq := MapSeq(
 		slices.Values([]int{1, 2, 3}),
@@ -143,4 +151,13 @@ func ExampleFilterMapSlice() {
 	)
 	fmt.Println(result)
 	// Output: [2 4]
+}
+
+func ExampleConcatSeq() {
+	seq := ConcatSeq(
+		slices.Values([]string{"a", "b"}),
+		slices.Values([]string{"c", "d"}),
+	)
+	fmt.Println(slices.Collect(seq))
+	// Output: [a b c d]
 }

@@ -33,7 +33,11 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
-const languageName = "cc"
+const (
+	languageName       = "cc"
+	ccTestRunnerDepKey = "_test_runner"
+	ccExistingDepsKey  = "_existing_deps"
+)
 
 type (
 	ccLanguage struct {
@@ -86,8 +90,6 @@ func (include ccInclude) String() string {
 		return fmt.Sprintf("'#include \"%s\"' at %s:%d", include.path, include.sourceFile, include.lineNumber)
 	}
 }
-
-const ccTestRunnerDepKey = "_test_runner"
 
 func NewLanguage() language.Language {
 	return &ccLanguage{
