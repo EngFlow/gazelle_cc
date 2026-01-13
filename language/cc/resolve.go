@@ -259,9 +259,15 @@ var (
 )
 
 func containsMultipleRepos(labels []label.Label) bool {
-	repos := collections.MapSeq(slices.Values(labels), func(lbl label.Label) string { return lbl.Repo })
-	uniqueRepos := collections.CollectToSet(repos)
-	return len(uniqueRepos) > 1
+	if len(labels) > 1 {
+		firstRepo := labels[0].Repo
+		for _, l := range labels[1:] {
+			if l.Repo != firstRepo {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func resolveAmbiguousDependency(resolvedDeps []label.Label, mode ambiguousDepsMode, from label.Label, include ccInclude) (label.Label, error) {
