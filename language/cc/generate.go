@@ -146,13 +146,13 @@ func splitSourcesIntoGroups(args language.GenerateArgs, fileInfos []fileInfo) so
 }
 
 // Get all dependencies (public and private) of the given rule as absolute labels.
-func getAllRuleDeps(r *rule.Rule, pkg string) collections.Set[label.Label] {
+func getAllRuleDeps(r *rule.Rule, repo, pkg string) collections.Set[label.Label] {
 	labelParser := func(rawLabel string) (label.Label, bool) {
 		parsedLabel, err := label.Parse(rawLabel)
 		if err != nil {
 			return label.NoLabel, false
 		}
-		return parsedLabel.Abs("", pkg), true
+		return parsedLabel.Abs(repo, pkg), true
 	}
 
 	privateDeps := collections.FilterMapSeq(slices.Values(r.AttrStrings("implementation_deps")), labelParser)
@@ -165,7 +165,7 @@ func newOrExistingRule(kind string, ruleName string, srcGroups sourceGroups, rul
 	newRule := rule.NewRule(kind, ruleName)
 	if existing := rulesInfo.matchExistingRule(kind, ruleName, srcGroups, args.Config); existing != nil {
 		newRule.SetName(existing.Name())
-		newRule.SetPrivateAttr(ccExistingDepsKey, getAllRuleDeps(existing, args.Rel))
+		newRule.SetPrivateAttr(ccExistingDepsKey, getAllRuleDeps(existing, args.Config.RepoName, args.Rel))
 		// Use exisitng kind only when is an alias. Required to allow for correct merge
 		// In case of mapped kinds it would lead to problems in resolve
 		if _, exists := args.Config.AliasMap[existing.Kind()]; exists {
