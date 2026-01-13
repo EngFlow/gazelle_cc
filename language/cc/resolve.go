@@ -173,13 +173,13 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 			// 1. Try resolve using fully qualified path (repository-root relative)
 			if !include.isSystemInclude {
 				relPath := filepath.Join(include.sourceDirectory(), include.path)
-				resolvedLabel, err = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
+				resolvedLabel, err = lang.resolveImportSpec(c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
 			}
 
 			// 2. Try resolve using exact path - using the exact include directive
 			if errors.Is(err, errUnresolved) {
 				// Retry to resolve is external dependency was defined using quotes instead of braces
-				resolvedLabel, err = lang.resolveImportSpec(c, ix, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
+				resolvedLabel, err = lang.resolveImportSpec(c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
 			}
 
 			switch {
@@ -270,8 +270,16 @@ func containsMultipleRepos(labels []label.Label) bool {
 	return false
 }
 
-func resolveAmbiguousDependency(resolvedDeps []label.Label, mode ambiguousDepsMode, from label.Label, include ccInclude) (label.Label, error) {
-	// TODO: Respect the existing dependency before triggering an ambiguity warning
+func resolveAmbiguousDependency(resolvedDeps []label.Label, mode ambiguousDepsMode, r *rule.Rule, from label.Label, include ccInclude) (label.Label, error) {
+	// Respect the existing dependency before triggering an ambiguity warning
+	if existingDeps, ok := r.PrivateAttr(ccExistingDepsKey).(collections.Set[label.Label]); ok {
+		if commonDeps := existingDeps.Intersect(collections.ToSet(resolvedDeps)); len(commonDeps) == 1 {
+			// Return the only common dependency
+			for dep := range commonDeps {
+				return dep, nil
+			}
+		}
+	}
 
 	switch len(resolvedDeps) {
 	case 0:
@@ -303,7 +311,7 @@ func resolveAmbiguousDependency(resolvedDeps []label.Label, mode ambiguousDepsMo
 //
 // Returns the resolved label, optionally with a wrapped one of 'err*' errors.
 // For errUnresolved the returned label is label.NoLabel.
-func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, from label.Label, importSpec resolve.ImportSpec, include ccInclude) (label.Label, error) {
+func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, from label.Label, importSpec resolve.ImportSpec, include ccInclude) (label.Label, error) {
 	conf := getCcConfig(c)
 	// Resolve the gazele:resolve overrides if defined
 	if resolvedLabel, ok := resolve.FindRuleWithOverride(c, importSpec, languageName); ok {
@@ -320,7 +328,7 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 		}
 
 		resolvedDeps := collections.MapSlice(importedRules, func(r resolve.FindResult) label.Label { return r.Label })
-		return resolveAmbiguousDependency(resolvedDeps, conf.ambiguousDepsMode, from, include)
+		return resolveAmbiguousDependency(resolvedDeps, conf.ambiguousDepsMode, r, from, include)
 	}
 
 	for _, index := range conf.dependencyIndexes {
