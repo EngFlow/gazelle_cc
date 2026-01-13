@@ -35,11 +35,6 @@ func ToSet[T comparable](slice []T) Set[T] {
 	return make(Set[T], len(slice)).AddSlice(slice)
 }
 
-// CollectToSet collects elements from the given sequence into a Set.
-func CollectToSet[T comparable](seq iter.Seq[T]) Set[T] {
-	return make(Set[T]).AddSeq(seq)
-}
-
 // Diff returns a new Set containing elements that are defined in current Set
 // but not in the other set.
 func (s Set[T]) Diff(other Set[T]) Set[T] {
