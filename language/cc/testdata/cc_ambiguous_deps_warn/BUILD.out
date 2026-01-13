@@ -1,0 +1,8 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+# gazelle:cc_ambiguous_deps warn
+
+cc_binary(
+    name = "use",
+    srcs = ["use.cc"],
+)

@@ -45,6 +45,7 @@ const (
 	cc_group_subdirectory_include = "cc_group_subdirectory_include"
 	cc_group_subdirectory_test    = "cc_group_subdirectory_test"
 	cc_indexfile                  = "cc_indexfile"
+	cc_ambiguous_deps             = "cc_ambiguous_deps"
 	cc_use_builtin_bzlmod_index   = "cc_use_builtin_bzlmod_index"
 	cc_search                     = "cc_search"
 	cc_generate                   = "cc_generate"
@@ -64,6 +65,7 @@ func (c *ccLanguage) KnownDirectives() []string {
 		cc_group_subdirectory_include,
 		cc_group_subdirectory_test,
 		cc_indexfile,
+		cc_ambiguous_deps,
 		cc_use_builtin_bzlmod_index,
 		cc_search,
 		cc_generate,
@@ -110,7 +112,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 		case cc_indexfile:
 			// Reset existing indexfiles
 			if d.Value == "" {
-				conf.dependencyIndexes = []ccDependencyIndex{}
+				conf.dependencyIndexes = nil
 				continue
 			}
 			path := filepath.Join(config.WorkDir, d.Value)
@@ -124,6 +126,8 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				continue
 			}
 			conf.dependencyIndexes = append(conf.dependencyIndexes, index)
+		case cc_ambiguous_deps:
+			selectDirectiveChoice(&conf.ambiguousDepsMode, ambiguousDepsModes, d)
 		case cc_search:
 			if d.Value == "" {
 				// Special syntax (empty value) to reset directive.
@@ -277,6 +281,8 @@ type ccConfig struct {
 	parsingErrorsMode errorReportingMode
 	// User defined dependency indexes based on the filename
 	dependencyIndexes []ccDependencyIndex
+	// Defines how to handle ambiguous dependencies, that is headers resolved to multiple rules
+	ambiguousDepsMode ambiguousDepsMode
 	// List of 'gazelle:cc_search' directives, used to construct RelsToIndex.
 	ccSearch []ccSearch
 	// Should `cc_library`, `cc_binary` and `cc_test` rules be generated
@@ -320,7 +326,7 @@ func newCcConfig() *ccConfig {
 		useBuiltinBzlmodIndex:   true,
 		unresolvedDepsMode:      errorReportingMode_warn,
 		parsingErrorsMode:       errorReportingMode_ignore,
-		dependencyIndexes:       []ccDependencyIndex{},
+		ambiguousDepsMode:       ambiguousDepsMode_try_first,
 		ccSearch:                defaultCcSearch(),
 		generateCC:              true,
 		generateProto:           true,
@@ -432,6 +438,26 @@ const (
 	errorReportingMode_warn errorReportingMode = "warn"
 	// Collect all encountered errors and fail at the end if the list is not empty
 	errorReportingMode_error errorReportingMode = "error"
+)
+
+type ambiguousDepsMode string
+
+var ambiguousDepsModes = []ambiguousDepsMode{
+	ambiguousDepsMode_ignore,
+	ambiguousDepsMode_warn,
+	ambiguousDepsMode_try_first,
+	ambiguousDepsMode_force_first,
+}
+
+const (
+	// Silently ignore
+	ambiguousDepsMode_ignore ambiguousDepsMode = "ignore"
+	// Emit warnings; do not add any dependency
+	ambiguousDepsMode_warn ambiguousDepsMode = "warn"
+	// Resolve the first dependency from the list; only for ambiguities within the same repo
+	ambiguousDepsMode_try_first ambiguousDepsMode = "try_first"
+	// Always resolve the first dependency from the list
+	ambiguousDepsMode_force_first ambiguousDepsMode = "force_first"
 )
 
 // splitQuoted splits the string s around each instance of one or more consecutive

@@ -184,7 +184,8 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 
 			switch {
 			case errors.Is(err, errAmbiguousImport):
-				// Warn about ambiguous imports, but still add one of the candidates
+				// Warn about ambiguous imports, but still add one of the
+				// candidates (if appriopriate cc_ambiguous_deps is set)
 				log.Print(err)
 			case errors.Is(err, errMissingModuleDependency):
 				if !lang.notFoundBzlModDeps.Contains(resolvedLabel.Repo) {
@@ -201,6 +202,10 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 				if !include.isSystemInclude {
 					lang.handleReportedError(getCcConfig(c).unresolvedDepsMode, err)
 				}
+				continue
+			}
+
+			if resolvedLabel == label.NoLabel {
 				continue
 			}
 
@@ -246,24 +251,49 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	}
 }
 
-func extractLabelsFromFindResults(results []resolve.FindResult) collections.Set[label.Label] {
-	labels := make(collections.Set[label.Label])
-	for _, r := range results {
-		labels.Add(r.Label)
-	}
-	return labels
-}
-
-func compareLabels(l, r label.Label) int {
-	return strings.Compare(l.String(), r.String())
-}
-
 var (
 	errAmbiguousImport         = errors.New("multiple libraries provide the same header")
 	errMissingModuleDependency = errors.New("header file found in external library not declared in MODULE.bazel")
 	errSelfImport              = errors.New("library includes itself")
 	errUnresolved              = errors.New("could not find a library providing header")
 )
+
+func containsMultipleRepos(labels []label.Label) bool {
+	if len(labels) > 1 {
+		firstRepo := labels[0].Repo
+		for _, l := range labels[1:] {
+			if l.Repo != firstRepo {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func resolveAmbiguousDependency(resolvedDeps []label.Label, mode ambiguousDepsMode, from label.Label, include ccInclude) (label.Label, error) {
+	// TODO: Respect the existing dependency before triggering an ambiguity warning
+
+	switch len(resolvedDeps) {
+	case 0:
+		return label.NoLabel, fmt.Errorf("%v: %w - %v", from, errUnresolved, include)
+	case 1:
+		return resolvedDeps[0], nil
+	default:
+		switch mode {
+		case ambiguousDepsMode_try_first, ambiguousDepsMode_force_first:
+			if mode == ambiguousDepsMode_force_first || !containsMultipleRepos(resolvedDeps) {
+				selected := resolvedDeps[0]
+				return selected, fmt.Errorf("%v: %w - %v resolved to %v; using %v", from, errAmbiguousImport, include, resolvedDeps, selected)
+			}
+			fallthrough
+		case ambiguousDepsMode_warn:
+			return label.NoLabel, fmt.Errorf("%v: %w - %v resolved to %v; don't know which one to use", from, errAmbiguousImport, include, resolvedDeps)
+		default:
+			// Silently ignore the ambiguous dependency.
+			return label.NoLabel, nil
+		}
+	}
+}
 
 // Tries to resolve given importSpec, looking for an external rule other than the source "from" label, using the following strategies:
 //  1. Using gazelle:resolve override if defined.
@@ -289,12 +319,8 @@ func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleInde
 			}
 		}
 
-		if result := importedRules[0].Label; len(importedRules) > 1 {
-			ambiguousLabels := extractLabelsFromFindResults(importedRules).SortedValues(compareLabels)
-			return result, fmt.Errorf("%v: %w - %v resolved to %v; using %v", from, errAmbiguousImport, include, ambiguousLabels, result)
-		} else {
-			return result, nil
-		}
+		resolvedDeps := collections.MapSlice(importedRules, func(r resolve.FindResult) label.Label { return r.Label })
+		return resolveAmbiguousDependency(resolvedDeps, conf.ambiguousDepsMode, from, include)
 	}
 
 	for _, index := range conf.dependencyIndexes {
