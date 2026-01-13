@@ -1,9 +1,0 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
-
-cc_library(
-    name = "mylib",
-    srcs = ["mylib.cc"],
-    hdrs = ["mylib.h"],
-    implementation_deps = ["//ambiguous:rule1"],
-    visibility = ["//visibility:public"],
-)

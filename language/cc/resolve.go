@@ -189,7 +189,8 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 
 			switch {
 			case errors.Is(err, errAmbiguousImport):
-				// Warn about ambiguous imports, but still add one of the candidates
+				// Warn about ambiguous imports, but still add one of the
+				// candidates (if appriopriate cc_ambiguous_deps is set)
 				log.Print(err)
 			case errors.Is(err, errMissingModuleDependency):
 				if !lang.notFoundBzlModDeps.Contains(resolvedLabel.Repo) {
@@ -206,6 +207,10 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 				if !include.isSystemInclude {
 					lang.handleReportedError(getCcConfig(c).unresolvedDepsMode, err)
 				}
+				continue
+			}
+
+			if resolvedLabel == label.NoLabel {
 				continue
 			}
 

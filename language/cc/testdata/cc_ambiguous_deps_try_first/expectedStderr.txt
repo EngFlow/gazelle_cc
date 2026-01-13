@@ -1,0 +1,1 @@
+gazelle: //:use: multiple libraries provide the same header - '#include "ambiguous/header.h"' at use.cc:1 resolved to [//ambiguous:rule1 //ambiguous:rule2]; using //ambiguous:rule1

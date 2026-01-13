@@ -1,0 +1,13 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "rule1",
+    hdrs = ["header.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "rule2",
+    hdrs = ["header.h"],
+    visibility = ["//visibility:public"],
+)
