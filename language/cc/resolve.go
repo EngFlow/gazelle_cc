@@ -38,94 +38,23 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 		return
 	}
 	ccImports := imports.(ccImports)
-	ccConfig := getCcConfig(c)
 
 	publicDeps := newPlatformDepsBuilder()
 	privateDeps := newPlatformDepsBuilder()
-
-	// Resolves given includes to rule labels and assigns them to given attribute.
-	// Excludes explicitly provided labels from being assigned
-	resolveIncludes := func(includes []ccInclude, builder platformDepsBuilder, excluded collections.Set[label.Label]) {
-		for _, include := range includes {
-			resolvedLabel := label.NoLabel
-			err := errUnresolved
-
-			if path.IsAbs(include.path) || filepath.IsAbs(include.path) {
-				// Don't try to resolve absolute paths, even within the repo.
-				continue
-			}
-
-			// 1. Try resolve using fully qualified path (repository-root relative)
-			if !include.isSystemInclude {
-				relPath := filepath.Join(include.sourceDirectory(), include.path)
-				resolvedLabel, err = lang.resolveImportSpec(c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
-			}
-
-			// 2. Try resolve using exact path - using the exact include directive
-			if errors.Is(err, errUnresolved) {
-				// Retry to resolve is external dependency was defined using quotes instead of braces
-				resolvedLabel, err = lang.resolveImportSpec(c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
-			}
-
-			switch {
-			case errors.Is(err, errAmbiguousImport):
-				// Warn about ambiguous imports, but still add one of the
-				// candidates (if appriopriate cc_ambiguous_deps is set)
-				log.Print(err)
-			case errors.Is(err, errMissingModuleDependency):
-				if !lang.notFoundBzlModDeps.Contains(resolvedLabel.Repo) {
-					// Warn only once per missing module_dep
-					lang.notFoundBzlModDeps.Add(resolvedLabel.Repo)
-					log.Print(err)
-				}
-				continue
-			case errors.Is(err, errSelfImport):
-				// Ignore: the rule exists, but it should not be added as a dependency
-				continue
-			case errors.Is(err, errUnresolved):
-				// Warn about unresolved non-system include directives
-				if !include.isSystemInclude {
-					lang.handleReportedError(getCcConfig(c).unresolvedDepsMode, err)
-				}
-				continue
-			}
-
-			if resolvedLabel == label.NoLabel {
-				continue
-			}
-
-			// Successfully resolved
-			resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
-			if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
-				switch {
-				case !include.isPlatformSpecific:
-					builder.addGeneric(resolvedLabel)
-				case len(include.platforms) == 0:
-					builder.addConstrained(label.New("", "conditions", "default"), resolvedLabel)
-				default:
-					for _, platform := range include.platforms {
-						if platformConfig, exists := ccConfig.platforms[platform]; exists {
-							builder.addConstrained(platformConfig.constraint, resolvedLabel)
-						}
-					}
-				}
-			}
-		}
-	}
 
 	switch resolveCCRuleKind(r.Kind(), c) {
 	case "cc_library":
 		// Only cc_library has 'implementation_deps' attribute
 		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
-		resolveIncludes(ccImports.hdrIncludes, publicDeps, collections.Set[label.Label]{})
-		resolveIncludes(ccImports.srcIncludes, privateDeps, publicDeps.all)
+		lang.resolveIncludes(c, ix, r, from, ccImports.hdrIncludes, &publicDeps, collections.Set[label.Label]{})
+		lang.resolveIncludes(c, ix, r, from, ccImports.srcIncludes, &privateDeps, publicDeps.all)
 	default:
 		// cc_test might have implicit dependency on test runner - cc_library defining main method required when linking
 		if testRunnerDep, ok := r.PrivateAttr(ccTestRunnerDepKey).(label.Label); ok {
 			publicDeps.addGeneric(testRunnerDep)
 		}
 		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)
-		resolveIncludes(includes, publicDeps, collections.Set[label.Label]{})
+		lang.resolveIncludes(c, ix, r, from, includes, &publicDeps, collections.Set[label.Label]{})
 	}
 
 	if len(publicDeps.all) > 0 {
@@ -133,6 +62,127 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	}
 	if len(privateDeps.all) > 0 {
 		r.SetAttr("implementation_deps", privateDeps.build())
+	}
+}
+
+// resolveIncludes resolves given includes to rule labels and assigns them to the given builder.
+// Excludes explicitly provided labels from being assigned.
+func (lang *ccLanguage) resolveIncludes(
+	c *config.Config,
+	ix *resolve.RuleIndex,
+	r *rule.Rule,
+	from label.Label,
+	includes []ccInclude,
+	builder *platformDepsBuilder,
+	excluded collections.Set[label.Label],
+) {
+	ccConfig := getCcConfig(c)
+
+	for _, include := range includes {
+		if path.IsAbs(include.path) || filepath.IsAbs(include.path) {
+			// Don't try to resolve absolute paths, even within the repo.
+			continue
+		}
+
+		resolvedLabel, err := lang.resolveSingleInclude(c, ix, r, from, include)
+		if !lang.handleIncludeResolutionError(c, from, include, resolvedLabel, err) {
+			continue
+		}
+
+		if resolvedLabel == label.NoLabel {
+			continue
+		}
+
+		// Successfully resolved
+		resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
+		if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
+			lang.addResolvedDependency(ccConfig, include, resolvedLabel, builder)
+		}
+	}
+}
+
+// resolveSingleInclude attempts to resolve a single include directive to a rule label.
+// It tries multiple resolution strategies in order:
+//  1. Fully qualified path (repository-root relative) for non-system includes
+//  2. Exact path using the include directive as-is
+func (lang *ccLanguage) resolveSingleInclude(
+	c *config.Config,
+	ix *resolve.RuleIndex,
+	r *rule.Rule,
+	from label.Label,
+	include ccInclude,
+) (label.Label, error) {
+	resolvedLabel := label.NoLabel
+	err := errUnresolved
+
+	// 1. Try resolve using fully qualified path (repository-root relative)
+	if !include.isSystemInclude {
+		relPath := filepath.Join(include.sourceDirectory(), include.path)
+		resolvedLabel, err = lang.resolveImportSpec(c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
+	}
+
+	// 2. Try resolve using exact path - using the exact include directive
+	if errors.Is(err, errUnresolved) {
+		// Retry to resolve if external dependency was defined using quotes instead of braces
+		resolvedLabel, err = lang.resolveImportSpec(c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
+	}
+
+	return resolvedLabel, err
+}
+
+// handleIncludeResolutionError handles errors from include resolution and logs appropriate warnings.
+// Returns true if the resolution should continue (dependency can be added), false if it should be skipped.
+func (lang *ccLanguage) handleIncludeResolutionError(
+	c *config.Config,
+	from label.Label,
+	include ccInclude,
+	resolvedLabel label.Label,
+	err error,
+) bool {
+	switch {
+	case errors.Is(err, errAmbiguousImport):
+		// Warn about ambiguous imports, but still add one of the
+		// candidates (if appropriate cc_ambiguous_deps is set)
+		log.Print(err)
+		return true
+	case errors.Is(err, errMissingModuleDependency):
+		if !lang.notFoundBzlModDeps.Contains(resolvedLabel.Repo) {
+			// Warn only once per missing module_dep
+			lang.notFoundBzlModDeps.Add(resolvedLabel.Repo)
+			log.Print(err)
+		}
+		return false
+	case errors.Is(err, errSelfImport):
+		// Ignore: the rule exists, but it should not be added as a dependency
+		return false
+	case errors.Is(err, errUnresolved):
+		// Warn about unresolved non-system include directives
+		if !include.isSystemInclude {
+			lang.handleReportedError(getCcConfig(c).unresolvedDepsMode, err)
+		}
+		return false
+	}
+	return true
+}
+
+// addResolvedDependency adds a resolved dependency to the builder, accounting for platform specificity.
+func (lang *ccLanguage) addResolvedDependency(
+	ccConfig *ccConfig,
+	include ccInclude,
+	resolvedLabel label.Label,
+	builder *platformDepsBuilder,
+) {
+	switch {
+	case !include.isPlatformSpecific:
+		builder.addGeneric(resolvedLabel)
+	case len(include.platforms) == 0:
+		builder.addConstrained(label.New("", "conditions", "default"), resolvedLabel)
+	default:
+		for _, platform := range include.platforms {
+			if platformConfig, exists := ccConfig.platforms[platform]; exists {
+				builder.addConstrained(platformConfig.constraint, resolvedLabel)
+			}
+		}
 	}
 }
 
