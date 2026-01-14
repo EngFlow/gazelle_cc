@@ -51,11 +51,7 @@ func generateLibraryImportSpecs(config *config.Config, rule *rule.Rule, pkg stri
 		return nil
 	}
 
-	// Maximum possible slice, each header is indexed:
-	// - once for its fully-qualified path
-	// - once for its virtual path (if include_prefix or strip_include_prefix is specified)
-	// - at most once for every matching declared -I include directory
-	imports := make([]resolve.ImportSpec, 0, len(attrs.hdrs)*(2+len(attrs.includes)))
+	imports := make([]resolve.ImportSpec, 0, attrs.maxImportSpecs())
 	for _, hdr := range attrs.hdrs {
 		// fullyQualifiedPath is the repository-root-relative path to the header. This path is always reachable via
 		// #include, regardless of the rule's attributes: includes, include_prefix, and strip_include_prefix.
@@ -101,6 +97,14 @@ type publicInterfaceAttributes struct {
 	includePrefix      string
 	stripIncludePrefix string
 	includes           []string
+}
+
+// Each header is indexed:
+// - once for its fully-qualified path
+// - once for its virtual path (if include_prefix or strip_include_prefix is specified)
+// - at most once for every matching declared -I include directory
+func (attrs publicInterfaceAttributes) maxImportSpecs() int {
+	return len(attrs.hdrs) * (2 + len(attrs.includes))
 }
 
 func getPublicInterfaceAttributes(config *config.Config, rule *rule.Rule, pkg string) (publicInterfaceAttributes, error) {
