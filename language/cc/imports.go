@@ -32,70 +32,75 @@ import (
 )
 
 // resolve.Resolver method
-func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
-	var imports []resolve.ImportSpec
-	switch r.Kind() {
+func (*ccLanguage) Imports(config *config.Config, rule *rule.Rule, buildFile *rule.File) []resolve.ImportSpec {
+	switch rule.Kind() {
 	case "cc_proto_library":
-		return generateProtoImportSpecs(r, f.Pkg)
+		return generateProtoImportSpecs(rule, buildFile.Pkg)
+	case "cc_import", "cc_library", "cc_shared_library", "cc_static_library":
+		return generateLibraryImportSpecs(config, rule, buildFile.Pkg)
 	default:
-		hdrs, err := collectStringsAttr(c, r, f.Pkg, "hdrs")
-		if err != nil {
-			log.Printf("gazelle_cc: failed to collect 'hdrs' attribute of %v defined in %v:%v, these would not be indexed: %v", r.Kind(), f.Pkg, r.Name(), err)
-			break
-		}
-		stripIncludePrefix := r.AttrString("strip_include_prefix")
-		if stripIncludePrefix != "" {
-			stripIncludePrefix = path.Clean(stripIncludePrefix)
-		}
-		includePrefix := r.AttrString("include_prefix")
-		if includePrefix != "" {
-			includePrefix = path.Clean(includePrefix)
-		}
-		includes := r.AttrStrings("includes")
-		for i, includeDir := range includes {
-			includes[i] = path.Clean(includeDir)
+		return nil
+	}
+}
+
+func generateLibraryImportSpecs(config *config.Config, rule *rule.Rule, pkg string) []resolve.ImportSpec {
+	hdrs, err := collectStringsAttr(config, rule, pkg, "hdrs")
+	if err != nil {
+		log.Printf("gazelle_cc: failed to collect 'hdrs' attribute of %v defined in %v:%v, these would not be indexed: %v", rule.Kind(), pkg, rule.Name(), err)
+		return nil
+	}
+	stripIncludePrefix := rule.AttrString("strip_include_prefix")
+	if stripIncludePrefix != "" {
+		stripIncludePrefix = path.Clean(stripIncludePrefix)
+	}
+	includePrefix := rule.AttrString("include_prefix")
+	if includePrefix != "" {
+		includePrefix = path.Clean(includePrefix)
+	}
+	includes := rule.AttrStrings("includes")
+	for i, includeDir := range includes {
+		includes[i] = path.Clean(includeDir)
+	}
+
+	// Maximum possible slice, each header is indexed:
+	// - once for its fully-qualified path
+	// - once for its virtual path (if include_prefix or strip_include_prefix is specified)
+	// - at most once for every matching declared -I include directory
+	imports := make([]resolve.ImportSpec, 0, len(hdrs)*(2+len(includes)))
+	for _, hdr := range hdrs {
+		// fullyQualifiedPath is the repository-root-relative path to the header. This path is always reachable via
+		// #include, regardless of the rule's attributes: includes, include_prefix, and strip_include_prefix.
+		fullyQualifiedPath := path.Join(pkg, hdr)
+		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: fullyQualifiedPath})
+
+		// virtualPath allows to reference the header using modified path according to strip_include_prefix and
+		// include_prefix attributes.
+		if virtualPath := transformIncludePath(pkg, stripIncludePrefix, includePrefix, fullyQualifiedPath); virtualPath != fullyQualifiedPath {
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: virtualPath})
 		}
 
-		// Maximum possible slice, each header is indexed:
-		// - once for its fully-qualified path
-		// - once for its virtual path (if include_prefix or strip_include_prefix is specified)
-		// - at most once for every matching declared -I include directory
-		imports = make([]resolve.ImportSpec, 0, len(hdrs)*(2+len(includes)))
-		for _, hdr := range hdrs {
-			// fullyQualifiedPath is the repository-root-relative path to the header. This path is always reachable via
-			// #include, regardless of the rule's attributes: includes, include_prefix, and strip_include_prefix.
-			fullyQualifiedPath := path.Join(f.Pkg, hdr)
-			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: fullyQualifiedPath})
-
-			// virtualPath allows to reference the header using modified path according to strip_include_prefix and
-			// include_prefix attributes.
-			if virtualPath := transformIncludePath(f.Pkg, stripIncludePrefix, includePrefix, fullyQualifiedPath); virtualPath != fullyQualifiedPath {
-				imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: virtualPath})
+		// Index shorter includes paths made valid by each -I <includeDir>
+		// Bazel adds every entry in the `includes` attribute to the compiler’s search path.
+		// With `includes=[include, include/ext]` header `include/ext/foo.h` can be referenced in 3 different ways:
+		// - include/ext/foo.h - the fully qualified (canonical) form
+		// - ext/foo.h - relative to the `include/` directory (1st 'includes' entry)
+		// - foo.h - relative to the `include/ext/` directory (2nd 'includes' entry)
+		// We index the an alterantive variants here if they are matching the includes directory.
+		for _, includeDir := range includes {
+			relativeTo := path.Join(pkg, includeDir)
+			if includeDir == "." {
+				// Include '.' is special: it makes the path resolvable based from directory defining BUILD file instead of repository root
+				relativeTo = pkg
 			}
-
-			// Index shorter includes paths made valid by each -I <includeDir>
-			// Bazel adds every entry in the `includes` attribute to the compiler’s search path.
-			// With `includes=[include, include/ext]` header `include/ext/foo.h` can be referenced in 3 different ways:
-			// - include/ext/foo.h - the fully qualified (canonical) form
-			// - ext/foo.h - relative to the `include/` directory (1st 'includes' entry)
-			// - foo.h - relative to the `include/ext/` directory (2nd 'includes' entry)
-			// We index the an alterantive variants here if they are matching the includes directory.
-			for _, includeDir := range includes {
-				relativeTo := path.Join(f.Pkg, includeDir)
-				if includeDir == "." {
-					// Include '.' is special: it makes the path resolvable based from directory defining BUILD file instead of repository root
-					relativeTo = f.Pkg
-				}
-				// Ensure the prefix ends with path separator to distinguish include=foo hdrs=[foo.h, foo/bar.h]
-				// It was already cleaned so there won't be duplicate path seperators here
-				relativeTo = relativeTo + string(filepath.Separator)
-				relativePath, matching := strings.CutPrefix(fullyQualifiedPath, relativeTo)
-				if !matching {
-					// If the include directory is not relative to canonical form it's would be simply ignored.
-					continue
-				}
-				imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
+			// Ensure the prefix ends with path separator to distinguish include=foo hdrs=[foo.h, foo/bar.h]
+			// It was already cleaned so there won't be duplicate path seperators here
+			relativeTo = relativeTo + string(filepath.Separator)
+			relativePath, matching := strings.CutPrefix(fullyQualifiedPath, relativeTo)
+			if !matching {
+				// If the include directory is not relative to canonical form it's would be simply ignored.
+				continue
 			}
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
 		}
 	}
 
