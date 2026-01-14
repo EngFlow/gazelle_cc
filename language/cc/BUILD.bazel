@@ -6,6 +6,7 @@ go_library(
         "config.go",
         "fileinfo.go",
         "generate.go",
+        "imports.go",
         "lang.go",
         "platform_strings.go",
         "proto.go",
@@ -40,7 +41,7 @@ go_test(
     name = "cc_test",
     srcs = [
         "config_test.go",
-        "resolve_test.go",
+        "imports_test.go",
         "source_groups_test.go",
     ],
     embed = [":cc"],
