@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/pathtools"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
@@ -107,24 +108,19 @@ func getPublicInterfaceAttributes(config *config.Config, rule *rule.Rule, pkg st
 	if err != nil {
 		return publicInterfaceAttributes{}, err
 	}
-	stripIncludePrefix := rule.AttrString("strip_include_prefix")
-	if stripIncludePrefix != "" {
-		stripIncludePrefix = path.Clean(stripIncludePrefix)
-	}
-	includePrefix := rule.AttrString("include_prefix")
-	if includePrefix != "" {
-		includePrefix = path.Clean(includePrefix)
-	}
-	includes := rule.AttrStrings("includes")
-	for i, includeDir := range includes {
-		includes[i] = path.Clean(includeDir)
-	}
 	return publicInterfaceAttributes{
 		hdrs:               hdrs,
-		includePrefix:      includePrefix,
-		stripIncludePrefix: stripIncludePrefix,
-		includes:           includes,
+		includePrefix:      cleanPath(rule.AttrString("include_prefix")),
+		stripIncludePrefix: cleanPath(rule.AttrString("strip_include_prefix")),
+		includes:           collections.MapSlice(rule.AttrStrings("includes"), cleanPath),
 	}, nil
+}
+
+func cleanPath(p string) string {
+	if p != "" {
+		return path.Clean(p)
+	}
+	return p
 }
 
 // transformIncludePath converts a path to a header file into a string by which
@@ -186,11 +182,12 @@ func collectStringsAttr(config *config.Config, r *rule.Rule, dir, attrName strin
 	return nil, nil
 }
 
-// expandGlob expands the glob patterns in the given glob value relative to relPath.
-// It returns a sorted list of paths that match the patterns, excluding those that match the excludes.
-// The paths are relative to relPath, and they are sorted in lexicographical order.
-// It does not use I/O, it uses cached directory info obtained from walk.GetDirInfo
-// so it might panic if the directory was not walked before.
+// expandGlob expands the glob patterns in the given glob value relative to
+// relPath. It returns a sorted list of paths that match the patterns, excluding
+// those that match the excludes. The paths are relative to relPath, and they
+// are sorted in lexicographical order. It does not use I/O, it uses cached
+// directory info obtained from walk.GetDirInfo so it might panic if the
+// directory was not walked before.
 func expandGlob(config *config.Config, dir string, glob rule.GlobValue) ([]string, error) {
 	if len(glob.Patterns) == 0 {
 		return nil, nil
