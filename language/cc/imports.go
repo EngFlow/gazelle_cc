@@ -44,30 +44,18 @@ func (*ccLanguage) Imports(config *config.Config, rule *rule.Rule, buildFile *ru
 }
 
 func generateLibraryImportSpecs(config *config.Config, rule *rule.Rule, pkg string) []resolve.ImportSpec {
-	hdrs, err := collectStringsAttr(config, rule, pkg, "hdrs")
+	attrs, err := getPublicInterfaceAttributes(config, rule, pkg)
 	if err != nil {
-		log.Printf("gazelle_cc: failed to collect 'hdrs' attribute of %v defined in %v:%v, these would not be indexed: %v", rule.Kind(), pkg, rule.Name(), err)
+		log.Printf("gazelle_cc: failed to collect attributes of %s(name = %q) defined in %s: %v", rule.Kind(), rule.Name(), pkg, err)
 		return nil
-	}
-	stripIncludePrefix := rule.AttrString("strip_include_prefix")
-	if stripIncludePrefix != "" {
-		stripIncludePrefix = path.Clean(stripIncludePrefix)
-	}
-	includePrefix := rule.AttrString("include_prefix")
-	if includePrefix != "" {
-		includePrefix = path.Clean(includePrefix)
-	}
-	includes := rule.AttrStrings("includes")
-	for i, includeDir := range includes {
-		includes[i] = path.Clean(includeDir)
 	}
 
 	// Maximum possible slice, each header is indexed:
 	// - once for its fully-qualified path
 	// - once for its virtual path (if include_prefix or strip_include_prefix is specified)
 	// - at most once for every matching declared -I include directory
-	imports := make([]resolve.ImportSpec, 0, len(hdrs)*(2+len(includes)))
-	for _, hdr := range hdrs {
+	imports := make([]resolve.ImportSpec, 0, len(attrs.hdrs)*(2+len(attrs.includes)))
+	for _, hdr := range attrs.hdrs {
 		// fullyQualifiedPath is the repository-root-relative path to the header. This path is always reachable via
 		// #include, regardless of the rule's attributes: includes, include_prefix, and strip_include_prefix.
 		fullyQualifiedPath := path.Join(pkg, hdr)
@@ -75,7 +63,7 @@ func generateLibraryImportSpecs(config *config.Config, rule *rule.Rule, pkg stri
 
 		// virtualPath allows to reference the header using modified path according to strip_include_prefix and
 		// include_prefix attributes.
-		if virtualPath := transformIncludePath(pkg, stripIncludePrefix, includePrefix, fullyQualifiedPath); virtualPath != fullyQualifiedPath {
+		if virtualPath := transformIncludePath(pkg, attrs.stripIncludePrefix, attrs.includePrefix, fullyQualifiedPath); virtualPath != fullyQualifiedPath {
 			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: virtualPath})
 		}
 
@@ -86,7 +74,7 @@ func generateLibraryImportSpecs(config *config.Config, rule *rule.Rule, pkg stri
 		// - ext/foo.h - relative to the `include/` directory (1st 'includes' entry)
 		// - foo.h - relative to the `include/ext/` directory (2nd 'includes' entry)
 		// We index the an alterantive variants here if they are matching the includes directory.
-		for _, includeDir := range includes {
+		for _, includeDir := range attrs.includes {
 			relativeTo := path.Join(pkg, includeDir)
 			if includeDir == "." {
 				// Include '.' is special: it makes the path resolvable based from directory defining BUILD file instead of repository root
@@ -105,6 +93,38 @@ func generateLibraryImportSpecs(config *config.Config, rule *rule.Rule, pkg stri
 	}
 
 	return imports
+}
+
+type publicInterfaceAttributes struct {
+	hdrs               []string
+	includePrefix      string
+	stripIncludePrefix string
+	includes           []string
+}
+
+func getPublicInterfaceAttributes(config *config.Config, rule *rule.Rule, pkg string) (publicInterfaceAttributes, error) {
+	hdrs, err := collectStringsAttr(config, rule, pkg, "hdrs")
+	if err != nil {
+		return publicInterfaceAttributes{}, err
+	}
+	stripIncludePrefix := rule.AttrString("strip_include_prefix")
+	if stripIncludePrefix != "" {
+		stripIncludePrefix = path.Clean(stripIncludePrefix)
+	}
+	includePrefix := rule.AttrString("include_prefix")
+	if includePrefix != "" {
+		includePrefix = path.Clean(includePrefix)
+	}
+	includes := rule.AttrStrings("includes")
+	for i, includeDir := range includes {
+		includes[i] = path.Clean(includeDir)
+	}
+	return publicInterfaceAttributes{
+		hdrs:               hdrs,
+		includePrefix:      includePrefix,
+		stripIncludePrefix: stripIncludePrefix,
+		includes:           includes,
+	}, nil
 }
 
 // transformIncludePath converts a path to a header file into a string by which
