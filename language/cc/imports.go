@@ -104,7 +104,7 @@ type publicInterfaceAttributes struct {
 }
 
 func getPublicInterfaceAttributes(config *config.Config, rule *rule.Rule, pkg string) (publicInterfaceAttributes, error) {
-	hdrs, err := collectStringsAttr(config, rule, pkg, "hdrs")
+	hdrs, err := readListOrGlob(config, rule, pkg, "hdrs")
 	if err != nil {
 		return publicInterfaceAttributes{}, err
 	}
@@ -162,11 +162,11 @@ func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel stri
 	return cleanRel
 }
 
-// collectStringsAttr collects the values of the given attribute from the rule.
+// readListOrGlob collects the values of the given attribute from the rule.
 // If the attribute is a list of strings, it returns the list. If the attribute
 // is a glob, it expands the glob patterns relative to dir and returns the
 // resulting paths.
-func collectStringsAttr(config *config.Config, r *rule.Rule, dir, attrName string) ([]string, error) {
+func readListOrGlob(config *config.Config, r *rule.Rule, dir, attrName string) ([]string, error) {
 	// Fast path: plain list of strings in the BUILD file.
 	if ss := r.AttrStrings(attrName); ss != nil {
 		return ss, nil
