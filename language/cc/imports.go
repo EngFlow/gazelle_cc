@@ -53,40 +53,46 @@ func generateLibraryImportSpecs(config *config.Config, rule *rule.Rule, pkg stri
 
 	imports := make([]resolve.ImportSpec, 0, attrs.maxImportSpecs())
 	for _, hdr := range attrs.hdrs {
-		// fullyQualifiedPath is the repository-root-relative path to the header. This path is always reachable via
-		// #include, regardless of the rule's attributes: includes, include_prefix, and strip_include_prefix.
-		fullyQualifiedPath := path.Join(pkg, hdr)
-		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: fullyQualifiedPath})
+		imports = appendHeaderImportSpecs(imports, hdr, pkg, attrs)
+	}
 
-		// virtualPath allows to reference the header using modified path according to strip_include_prefix and
-		// include_prefix attributes.
-		if virtualPath := transformIncludePath(pkg, attrs.stripIncludePrefix, attrs.includePrefix, fullyQualifiedPath); virtualPath != fullyQualifiedPath {
-			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: virtualPath})
-		}
+	return imports
+}
 
-		// Index shorter includes paths made valid by each -I <includeDir>
-		// Bazel adds every entry in the `includes` attribute to the compiler’s search path.
-		// With `includes=[include, include/ext]` header `include/ext/foo.h` can be referenced in 3 different ways:
-		// - include/ext/foo.h - the fully qualified (canonical) form
-		// - ext/foo.h - relative to the `include/` directory (1st 'includes' entry)
-		// - foo.h - relative to the `include/ext/` directory (2nd 'includes' entry)
-		// We index the an alterantive variants here if they are matching the includes directory.
-		for _, includeDir := range attrs.includes {
-			relativeTo := path.Join(pkg, includeDir)
-			if includeDir == "." {
-				// Include '.' is special: it makes the path resolvable based from directory defining BUILD file instead of repository root
-				relativeTo = pkg
-			}
-			// Ensure the prefix ends with path separator to distinguish include=foo hdrs=[foo.h, foo/bar.h]
-			// It was already cleaned so there won't be duplicate path seperators here
-			relativeTo = relativeTo + string(filepath.Separator)
-			relativePath, matching := strings.CutPrefix(fullyQualifiedPath, relativeTo)
-			if !matching {
-				// If the include directory is not relative to canonical form it's would be simply ignored.
-				continue
-			}
-			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
+func appendHeaderImportSpecs(imports []resolve.ImportSpec, header, pkg string, attrs publicInterfaceAttributes) []resolve.ImportSpec {
+	// fullyQualifiedPath is the repository-root-relative path to the header. This path is always reachable via
+	// #include, regardless of the rule's attributes: includes, include_prefix, and strip_include_prefix.
+	fullyQualifiedPath := path.Join(pkg, header)
+	imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: fullyQualifiedPath})
+
+	// virtualPath allows to reference the header using modified path according to strip_include_prefix and
+	// include_prefix attributes.
+	if virtualPath := transformIncludePath(pkg, attrs.stripIncludePrefix, attrs.includePrefix, fullyQualifiedPath); virtualPath != fullyQualifiedPath {
+		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: virtualPath})
+	}
+
+	// Index shorter includes paths made valid by each -I <includeDir>
+	// Bazel adds every entry in the `includes` attribute to the compiler’s search path.
+	// With `includes=[include, include/ext]` header `include/ext/foo.h` can be referenced in 3 different ways:
+	// - include/ext/foo.h - the fully qualified (canonical) form
+	// - ext/foo.h - relative to the `include/` directory (1st 'includes' entry)
+	// - foo.h - relative to the `include/ext/` directory (2nd 'includes' entry)
+	// We index the an alterantive variants here if they are matching the includes directory.
+	for _, includeDir := range attrs.includes {
+		relativeTo := path.Join(pkg, includeDir)
+		if includeDir == "." {
+			// Include '.' is special: it makes the path resolvable based from directory defining BUILD file instead of repository root
+			relativeTo = pkg
 		}
+		// Ensure the prefix ends with path separator to distinguish include=foo hdrs=[foo.h, foo/bar.h]
+		// It was already cleaned so there won't be duplicate path seperators here
+		relativeTo = relativeTo + string(filepath.Separator)
+		relativePath, matching := strings.CutPrefix(fullyQualifiedPath, relativeTo)
+		if !matching {
+			// If the include directory is not relative to canonical form it's would be simply ignored.
+			continue
+		}
+		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: relativePath})
 	}
 
 	return imports
