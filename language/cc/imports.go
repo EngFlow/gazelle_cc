@@ -38,7 +38,7 @@ func (*ccLanguage) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resol
 	case "cc_proto_library":
 		return generateProtoImportSpecs(r, f.Pkg)
 	default:
-		hdrs, err := collectStringsAttr(*c, r, f.Pkg, "hdrs")
+		hdrs, err := collectStringsAttr(c, r, f.Pkg, "hdrs")
 		if err != nil {
 			log.Printf("gazelle_cc: failed to collect 'hdrs' attribute of %v defined in %v:%v, these would not be indexed: %v", r.Kind(), f.Pkg, r.Name(), err)
 			break
@@ -145,7 +145,7 @@ func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel stri
 // If the attribute is a list of strings, it returns the list. If the attribute
 // is a glob, it expands the glob patterns relative to dir and returns the
 // resulting paths.
-func collectStringsAttr(c config.Config, r *rule.Rule, dir, attrName string) ([]string, error) {
+func collectStringsAttr(config *config.Config, r *rule.Rule, dir, attrName string) ([]string, error) {
 	// Fast path: plain list of strings in the BUILD file.
 	if ss := r.AttrStrings(attrName); ss != nil {
 		return ss, nil
@@ -156,7 +156,7 @@ func collectStringsAttr(c config.Config, r *rule.Rule, dir, attrName string) ([]
 		return nil, nil
 	}
 	if globValue, ok := rule.ParseGlobExpr(expr); ok {
-		return expandGlob(c, dir, globValue)
+		return expandGlob(config, dir, globValue)
 	}
 	return nil, nil
 }
@@ -166,7 +166,7 @@ func collectStringsAttr(c config.Config, r *rule.Rule, dir, attrName string) ([]
 // The paths are relative to relPath, and they are sorted in lexicographical order.
 // It does not use I/O, it uses cached directory info obtained from walk.GetDirInfo
 // so it might panic if the directory was not walked before.
-func expandGlob(config config.Config, dir string, glob rule.GlobValue) ([]string, error) {
+func expandGlob(config *config.Config, dir string, glob rule.GlobValue) ([]string, error) {
 	if len(glob.Patterns) == 0 {
 		return nil, nil
 	}
