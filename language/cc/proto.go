@@ -87,7 +87,7 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 
 			ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
 			result.Gen = append(result.Gen, ccProtoLibraryRule)
-			result.Imports = append(result.Imports, nil)
+			result.Imports = append(result.Imports, ccImports{})
 		}
 	}
 

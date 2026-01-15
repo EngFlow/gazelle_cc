@@ -33,12 +33,7 @@ import (
 func (c *ccLanguage) Name() string                                        { return languageName }
 func (c *ccLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
 func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports any, from label.Label) {
-	ccImports, hasImports := imports.(ccImports)
-	if !hasImports {
-		return
-	}
-
-	publicDeps, privateDeps := lang.resolveDeps(c, ix, r, ccImports, from)
+	publicDeps, privateDeps := lang.resolveDeps(c, ix, r, imports.(ccImports), from)
 	if len(publicDeps.all) > 0 {
 		r.SetAttr("deps", publicDeps.build())
 	}
