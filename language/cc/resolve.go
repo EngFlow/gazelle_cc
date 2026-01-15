@@ -47,7 +47,12 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	}
 }
 
-func (lang *ccLanguage) resolveDeps(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, imports ccImports, from label.Label) (publicDeps, privateDeps platformDepsBuilder) {
+func (lang *ccLanguage) resolveDeps(
+	c *config.Config,
+	ix *resolve.RuleIndex,
+	r *rule.Rule,
+	imports ccImports,
+	from label.Label) (publicDeps, privateDeps platformDepsBuilder) {
 	switch resolveCCRuleKind(r.Kind(), c) {
 	case "cc_library":
 		publicDeps, privateDeps = lang.resolveCcLibraryDeps(c, ix, r, imports, from)
@@ -59,7 +64,12 @@ func (lang *ccLanguage) resolveDeps(c *config.Config, ix *resolve.RuleIndex, r *
 	return
 }
 
-func (lang *ccLanguage) resolveCcLibraryDeps(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, imports ccImports, from label.Label) (publicDeps, privateDeps platformDepsBuilder) {
+func (lang *ccLanguage) resolveCcLibraryDeps(
+	c *config.Config,
+	ix *resolve.RuleIndex,
+	r *rule.Rule,
+	imports ccImports,
+	from label.Label) (publicDeps, privateDeps platformDepsBuilder) {
 	// Only cc_library has 'implementation_deps' attribute If dependency is
 	// added by header (via "deps") ensure it would not be duplicated inside
 	// "implementation_deps".
@@ -68,7 +78,12 @@ func (lang *ccLanguage) resolveCcLibraryDeps(c *config.Config, ix *resolve.RuleI
 	return
 }
 
-func (lang *ccLanguage) resolveCcTestDeps(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, imports ccImports, from label.Label) platformDepsBuilder {
+func (lang *ccLanguage) resolveCcTestDeps(
+	c *config.Config,
+	ix *resolve.RuleIndex,
+	r *rule.Rule,
+	imports ccImports,
+	from label.Label) (publicDeps platformDepsBuilder) {
 	deps := lang.resolveGenericDeps(c, ix, r, imports, from)
 
 	// cc_test might have implicit dependency on test runner - cc_library
@@ -80,7 +95,12 @@ func (lang *ccLanguage) resolveCcTestDeps(c *config.Config, ix *resolve.RuleInde
 	return deps
 }
 
-func (lang *ccLanguage) resolveGenericDeps(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, imports ccImports, from label.Label) platformDepsBuilder {
+func (lang *ccLanguage) resolveGenericDeps(
+	c *config.Config,
+	ix *resolve.RuleIndex,
+	r *rule.Rule,
+	imports ccImports,
+	from label.Label) (publicDeps platformDepsBuilder) {
 	return lang.resolveIncludes(c, ix, r, from, imports.allIncludes(), collections.Set[label.Label]{})
 }
 
@@ -92,8 +112,7 @@ func (lang *ccLanguage) resolveIncludes(
 	r *rule.Rule,
 	from label.Label,
 	includes []ccInclude,
-	excluded collections.Set[label.Label],
-) platformDepsBuilder {
+	excluded collections.Set[label.Label]) platformDepsBuilder {
 	ccConfig := getCcConfig(c)
 	result := newPlatformDepsBuilder()
 
@@ -127,8 +146,7 @@ func (lang *ccLanguage) resolveSingleInclude(
 	ix *resolve.RuleIndex,
 	r *rule.Rule,
 	from label.Label,
-	include ccInclude,
-) (label.Label, error) {
+	include ccInclude) (label.Label, error) {
 	resolvedLabel := label.NoLabel
 	err := errUnresolved
 
@@ -147,6 +165,13 @@ func (lang *ccLanguage) resolveSingleInclude(
 	return resolvedLabel, err
 }
 
+var (
+	errAmbiguousImport         = errors.New("multiple libraries provide the same header")
+	errMissingModuleDependency = errors.New("header file found in external library not declared in MODULE.bazel")
+	errSelfImport              = errors.New("library includes itself")
+	errUnresolved              = errors.New("could not find a library providing header")
+)
+
 // Handles errors from include resolution and logs appropriate warnings. Returns
 // true if the resolution should continue (dependency can be added), false if it
 // should be skipped.
@@ -154,8 +179,7 @@ func (lang *ccLanguage) handleIncludeResolutionError(
 	c *config.Config,
 	include ccInclude,
 	resolvedLabel label.Label,
-	err error,
-) bool {
+	err error) bool {
 	switch {
 	case errors.Is(err, errAmbiguousImport):
 		// Warn about ambiguous imports, but still add one of the candidates (if
@@ -182,13 +206,6 @@ func (lang *ccLanguage) handleIncludeResolutionError(
 	return resolvedLabel != label.NoLabel
 }
 
-var (
-	errAmbiguousImport         = errors.New("multiple libraries provide the same header")
-	errMissingModuleDependency = errors.New("header file found in external library not declared in MODULE.bazel")
-	errSelfImport              = errors.New("library includes itself")
-	errUnresolved              = errors.New("could not find a library providing header")
-)
-
 func containsMultipleRepos(labels []label.Label) bool {
 	if len(labels) > 1 {
 		firstRepo := labels[0].Repo
@@ -201,7 +218,12 @@ func containsMultipleRepos(labels []label.Label) bool {
 	return false
 }
 
-func resolveAmbiguousDependency(resolvedDeps []label.Label, mode ambiguousDepsMode, r *rule.Rule, from label.Label, include ccInclude) (label.Label, error) {
+func resolveAmbiguousDependency(
+	resolvedDeps []label.Label,
+	mode ambiguousDepsMode,
+	r *rule.Rule,
+	from label.Label,
+	include ccInclude) (label.Label, error) {
 	// Respect the existing dependency before triggering an ambiguity warning
 	if existingDeps, ok := r.PrivateAttr(ccExistingDepsKey).(collections.Set[label.Label]); ok {
 		if commonDeps := existingDeps.Intersect(collections.ToSet(resolvedDeps)); len(commonDeps) == 1 {
@@ -242,7 +264,13 @@ func resolveAmbiguousDependency(resolvedDeps []label.Label, mode ambiguousDepsMo
 //
 // Returns the resolved label, optionally with a wrapped one of 'err*' errors.
 // For errUnresolved the returned label is label.NoLabel.
-func (lang *ccLanguage) resolveImportSpec(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, from label.Label, importSpec resolve.ImportSpec, include ccInclude) (label.Label, error) {
+func (lang *ccLanguage) resolveImportSpec(
+	c *config.Config,
+	ix *resolve.RuleIndex,
+	r *rule.Rule,
+	from label.Label,
+	importSpec resolve.ImportSpec,
+	include ccInclude) (label.Label, error) {
 	conf := getCcConfig(c)
 	// Resolve the gazele:resolve overrides if defined
 	if resolvedLabel, ok := resolve.FindRuleWithOverride(c, importSpec, languageName); ok {
