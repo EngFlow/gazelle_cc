@@ -38,23 +38,22 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 		return
 	}
 	ccImports := imports.(ccImports)
-
-	publicDeps := newPlatformDepsBuilder()
-	privateDeps := newPlatformDepsBuilder()
+	var privateDeps, publicDeps platformDepsBuilder
 
 	switch resolveCCRuleKind(r.Kind(), c) {
 	case "cc_library":
 		// Only cc_library has 'implementation_deps' attribute
 		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
-		lang.resolveIncludes(c, ix, r, from, ccImports.hdrIncludes, &publicDeps, collections.Set[label.Label]{})
-		lang.resolveIncludes(c, ix, r, from, ccImports.srcIncludes, &privateDeps, publicDeps.all)
+		publicDeps = lang.resolveIncludes(c, ix, r, from, ccImports.hdrIncludes, collections.Set[label.Label]{})
+		privateDeps = lang.resolveIncludes(c, ix, r, from, ccImports.srcIncludes, publicDeps.all)
 	default:
+		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)
+		publicDeps = lang.resolveIncludes(c, ix, r, from, includes, collections.Set[label.Label]{})
+
 		// cc_test might have implicit dependency on test runner - cc_library defining main method required when linking
 		if testRunnerDep, ok := r.PrivateAttr(ccTestRunnerDepKey).(label.Label); ok {
 			publicDeps.addGeneric(testRunnerDep)
 		}
-		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)
-		lang.resolveIncludes(c, ix, r, from, includes, &publicDeps, collections.Set[label.Label]{})
 	}
 
 	if len(publicDeps.all) > 0 {
@@ -73,10 +72,10 @@ func (lang *ccLanguage) resolveIncludes(
 	r *rule.Rule,
 	from label.Label,
 	includes []ccInclude,
-	builder *platformDepsBuilder,
 	excluded collections.Set[label.Label],
-) {
+) platformDepsBuilder {
 	ccConfig := getCcConfig(c)
+	result := newPlatformDepsBuilder()
 
 	for _, include := range includes {
 		if path.IsAbs(include.path) || filepath.IsAbs(include.path) {
@@ -92,9 +91,11 @@ func (lang *ccLanguage) resolveIncludes(
 		// Successfully resolved
 		resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
 		if !excluded.Contains(resolvedLabel) {
-			builder.addResolved(resolvedLabel, ccConfig, include)
+			result.addResolved(resolvedLabel, ccConfig, include)
 		}
 	}
+
+	return result
 }
 
 // Attempts to resolve a single include directive to a rule label. It tries
