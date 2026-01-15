@@ -95,8 +95,8 @@ func (lang *ccLanguage) resolveIncludes(
 
 		// Successfully resolved
 		resolvedLabel = resolvedLabel.Rel(from.Repo, from.Pkg)
-		if _, isExcluded := excluded[resolvedLabel]; !isExcluded {
-			lang.addResolvedDependency(ccConfig, include, resolvedLabel, builder)
+		if !excluded.Contains(resolvedLabel) {
+			builder.addResolved(resolvedLabel, ccConfig, include)
 		}
 	}
 }
@@ -163,27 +163,6 @@ func (lang *ccLanguage) handleIncludeResolutionError(
 		return false
 	}
 	return true
-}
-
-// addResolvedDependency adds a resolved dependency to the builder, accounting for platform specificity.
-func (lang *ccLanguage) addResolvedDependency(
-	ccConfig *ccConfig,
-	include ccInclude,
-	resolvedLabel label.Label,
-	builder *platformDepsBuilder,
-) {
-	switch {
-	case !include.isPlatformSpecific:
-		builder.addGeneric(resolvedLabel)
-	case len(include.platforms) == 0:
-		builder.addConstrained(label.New("", "conditions", "default"), resolvedLabel)
-	default:
-		for _, platform := range include.platforms {
-			if platformConfig, exists := ccConfig.platforms[platform]; exists {
-				builder.addConstrained(platformConfig.constraint, resolvedLabel)
-			}
-		}
-	}
 }
 
 var (
@@ -303,10 +282,12 @@ func newPlatformDepsBuilder() platformDepsBuilder {
 		constrained: make(map[label.Label]collections.Set[label.Label]),
 	}
 }
+
 func (b *platformDepsBuilder) addGeneric(dependency label.Label) {
 	b.all.Add(dependency)
 	b.generic.Add(dependency)
 }
+
 func (b *platformDepsBuilder) addConstrained(condition label.Label, dependency label.Label) {
 	b.all.Add(dependency)
 	deps, exists := b.constrained[condition]
@@ -316,6 +297,28 @@ func (b *platformDepsBuilder) addConstrained(condition label.Label, dependency l
 	}
 	deps.Add(dependency)
 }
+
+// Pseudo-label for Bazel select() function, considered to match if no other
+// condition matches.
+var defaultCondition = label.New("", "conditions", "default")
+
+// Add a resolved dependency to the builder, accounting for platform
+// specificity.
+func (b *platformDepsBuilder) addResolved(dependency label.Label, config *ccConfig, include ccInclude) {
+	switch {
+	case !include.isPlatformSpecific:
+		b.addGeneric(dependency)
+	case len(include.platforms) == 0:
+		b.addConstrained(defaultCondition, dependency)
+	default:
+		for _, platform := range include.platforms {
+			if platformConfig, exists := config.platforms[platform]; exists {
+				b.addConstrained(platformConfig.constraint, dependency)
+			}
+		}
+	}
+}
+
 func (b *platformDepsBuilder) build() ccPlatformStringsExprs {
 	return newCcPlatformStringsExprs(b.generic, b.constrained)
 }
