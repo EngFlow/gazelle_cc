@@ -33,7 +33,7 @@ import (
 // Creates an index defining mapping between header and the Bazel rule that defines it, based on the Conan Bazel integration.
 // The created index can be used as input for gazelle_cc allowing to resolve external dependenices.
 func main() {
-	moduleBzl := flag.String("module_bazel", "./MODULE.bazel", "Path to MODULE.bazel containg bazel_dep directives")
+	moduleBazelPath := flag.String("module_bazel", "./MODULE.bazel", "Path to MODULE.bazel containg bazel_dep directives")
 	flag.Parse()
 
 	callerRoot, err := cli.ResolveWorkingDir()
@@ -42,9 +42,9 @@ func main() {
 	}
 	log.Printf("Would run in %v", callerRoot)
 
-	moduleBazelPath := *moduleBzl
-	if !filepath.IsAbs(moduleBazelPath) {
-		moduleBazelPath = filepath.Join(callerRoot, moduleBazelPath)
+	absModuleBazelPath := *moduleBazelPath
+	if !filepath.IsAbs(absModuleBazelPath) {
+		absModuleBazelPath = filepath.Join(callerRoot, absModuleBazelPath)
 	}
 
 	bcrConfig := bcr.NewBazelRegistryConfig()
@@ -55,9 +55,9 @@ func main() {
 	}
 
 	if bcrConfig.Verbose {
-		log.Printf("Parsing %v to find bazel_dep directives", moduleBazelPath)
+		log.Printf("Parsing %v to find bazel_dep directives", absModuleBazelPath)
 	}
-	modules := resolveBazelDepModules(moduleBazelPath, bcrClient)
+	modules := resolveBazelDepModules(absModuleBazelPath, bcrClient)
 	indexingResult := indexer.CreateHeaderIndex(modules)
 	indexingResult.WriteToFile(cli.ResolveOutputFile())
 
@@ -67,7 +67,7 @@ func main() {
 }
 
 func resolveBazelDepModules(moduleBzlPath string, bcrClient bcr.BazelRegistry) []indexer.Module {
-	bazelDeps := make(chan BazelDependency)
+	bazelDeps := make(chan bazelDependency)
 	resolveResults := make(chan bcr.ResolveModuleInfoResult)
 	var wg sync.WaitGroup
 
@@ -76,10 +76,9 @@ func resolveBazelDepModules(moduleBzlPath string, bcrClient bcr.BazelRegistry) [
 		for bazelDep := range bazelDeps {
 			result := bcrClient.ResolveModuleInfo(bazelDep.Name, bazelDep.Version)
 			if *cli.Verbose {
-				switch {
-				case result.IsResolved():
+				if result.IsResolved() {
 					fmt.Fprintf(os.Stderr, "%-50s: resolved - cc_libraries: %d\n", result.Info.Module.String(), len(result.Info.Targets))
-				default:
+				} else {
 					fmt.Fprintf(os.Stderr, "%-50s: failed   - %s\n", result.Unresolved.Module.String(), result.Unresolved.Reason)
 				}
 			}
@@ -98,11 +97,11 @@ func resolveBazelDepModules(moduleBzlPath string, bcrClient bcr.BazelRegistry) [
 		if err != nil {
 			log.Fatalf("Failed t read file: %v - %v", moduleBzlPath, err)
 		}
-		file, err := build.ParseModule(filepath.Base(moduleBzlPath), content)
+		moduleFile, err := build.ParseModule(filepath.Base(moduleBzlPath), content)
 		if err != nil {
 			log.Fatalf("Failed to parse: %v - %v", moduleBzlPath, err)
 		}
-		for _, bazelDep := range ExtractBazelDependencies(*file) {
+		for _, bazelDep := range extractBazelDependencies(*moduleFile) {
 			bazelDeps <- bazelDep
 		}
 		close(bazelDeps)
@@ -112,82 +111,83 @@ func resolveBazelDepModules(moduleBzlPath string, bcrClient bcr.BazelRegistry) [
 
 	var resolvedModules []indexer.Module
 	var emptyModules []string
-	var failed int
+	var failedModules []string
 	for result := range resolveResults {
 		switch {
 		case result.IsResolved() && len(result.Info.Targets) > 0:
-			if len(result.Info.Targets) == 0 {
-				emptyModules = append(emptyModules, result.Info.Module.Name)
-				continue
-			}
 			resolvedModules = append(
 				resolvedModules,
 				result.Info.ToIndexerModule().WithAmbiguousTargetsResolved(),
 			)
+		case result.IsResolved() && len(result.Info.Targets) == 0:
+			emptyModules = append(emptyModules, result.Info.Module.Name)
 		case result.IsUnresolved():
-			failed++
+			failedModules = append(failedModules, result.Unresolved.Module.Name)
 		}
 	}
 
 	fmt.Printf("Found %d modules with non-empty cc_library defs: %v\n", len(resolvedModules), collections.MapSlice(resolvedModules, func(m indexer.Module) string { return m.Repository }))
 	if len(emptyModules) > 0 {
-		fmt.Printf("Found %d modules with without cc_library defs: %v\n", emptyModules)
-
+		fmt.Printf("Found %d modules without cc_library defs: %v\n", len(emptyModules), emptyModules)
 	}
-	if failed > 0 {
-		fmt.Printf("Failed to gather module information in %d modules\n", failed)
+	if len(failedModules) > 0 {
+		fmt.Printf("Failed to gather module information for %d modules: %v\n", len(failedModules), failedModules)
 	}
 
 	return resolvedModules
 }
 
-type BazelDependency struct {
+type bazelDependency struct {
 	Name    string
 	Version string
 }
 
-func ExtractBazelDependencies(file build.File) []BazelDependency {
-	result := []BazelDependency{}
-	for _, stmt := range file.Stmt {
-		switch tree := stmt.(type) {
-		case *build.CallExpr:
-			receiver, ok := tree.X.(*build.Ident)
+func extractBazelDependencies(moduleFile build.File) []bazelDependency {
+	return collections.FilterMapSlice(moduleFile.Stmt, parseBazelDependency)
+}
+
+func parseBazelDependency(stmt build.Expr) (bazelDependency, bool) {
+	tree, ok := stmt.(*build.CallExpr)
+	if !ok {
+		return bazelDependency{}, false
+	}
+	receiver, ok := tree.X.(*build.Ident)
+	if !ok || receiver.Name != "bazel_dep" {
+		return bazelDependency{}, false
+	}
+	return parseBazelDependencyArgs(tree.List)
+}
+
+func parseBazelDependencyArgs(args []build.Expr) (bazelDependency, bool) {
+	dep := bazelDependency{}
+	for idx, arg := range args {
+		switch arg := arg.(type) {
+		case *build.StringExpr:
+			switch idx {
+			case 0:
+				dep.Name = arg.Value
+			case 1:
+				dep.Version = arg.Value
+			}
+		case *build.AssignExpr:
+			param, ok := arg.LHS.(*build.Ident)
 			if !ok {
 				continue
 			}
-			switch receiver.Name {
-			case "bazel_dep":
-				dep := BazelDependency{}
-			parseArg:
-				for idx, arg := range tree.List {
-					switch arg := arg.(type) {
-					case *build.StringExpr:
-						switch idx {
-						case 0:
-							dep.Name = arg.Value
-						case 1:
-							dep.Version = arg.Value
-						}
-					case *build.AssignExpr:
-						param, ok := arg.LHS.(*build.Ident)
-						if !ok {
-							continue parseArg
-						}
-						rhs, ok := arg.RHS.(*build.StringExpr)
-						if !ok {
-							continue parseArg
-						}
-						switch param.Name {
-						case "name":
-							dep.Name = rhs.Value
-						case "version":
-							dep.Version = rhs.Value
-						}
-					}
-				}
-				result = append(result, dep)
+			rhs, ok := arg.RHS.(*build.StringExpr)
+			if !ok {
+				continue
+			}
+			switch param.Name {
+			case "name":
+				dep.Name = rhs.Value
+			case "version":
+				dep.Version = rhs.Value
 			}
 		}
 	}
-	return result
+	if dep.Name == "" || dep.Version == "" {
+		return bazelDependency{}, false
+	}
+	return dep, true
 }
