@@ -65,7 +65,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	}
 }
 
-// resolveIncludes resolves given includes to rule labels and assigns them to the given builder.
+// Resolves given includes to rule labels and assigns them to the given builder.
 // Excludes explicitly provided labels from being assigned.
 func (lang *ccLanguage) resolveIncludes(
 	c *config.Config,
@@ -85,11 +85,7 @@ func (lang *ccLanguage) resolveIncludes(
 		}
 
 		resolvedLabel, err := lang.resolveSingleInclude(c, ix, r, from, include)
-		if !lang.handleIncludeResolutionError(c, from, include, resolvedLabel, err) {
-			continue
-		}
-
-		if resolvedLabel == label.NoLabel {
+		if !lang.handleIncludeResolutionError(c, include, resolvedLabel, err) {
 			continue
 		}
 
@@ -101,8 +97,8 @@ func (lang *ccLanguage) resolveIncludes(
 	}
 }
 
-// resolveSingleInclude attempts to resolve a single include directive to a rule label.
-// It tries multiple resolution strategies in order:
+// Attempts to resolve a single include directive to a rule label. It tries
+// multiple resolution strategies in order:
 //  1. Fully qualified path (repository-root relative) for non-system includes
 //  2. Exact path using the include directive as-is
 func (lang *ccLanguage) resolveSingleInclude(
@@ -130,21 +126,20 @@ func (lang *ccLanguage) resolveSingleInclude(
 	return resolvedLabel, err
 }
 
-// handleIncludeResolutionError handles errors from include resolution and logs appropriate warnings.
-// Returns true if the resolution should continue (dependency can be added), false if it should be skipped.
+// Handles errors from include resolution and logs appropriate warnings. Returns
+// true if the resolution should continue (dependency can be added), false if it
+// should be skipped.
 func (lang *ccLanguage) handleIncludeResolutionError(
 	c *config.Config,
-	from label.Label,
 	include ccInclude,
 	resolvedLabel label.Label,
 	err error,
 ) bool {
 	switch {
 	case errors.Is(err, errAmbiguousImport):
-		// Warn about ambiguous imports, but still add one of the
-		// candidates (if appropriate cc_ambiguous_deps is set)
+		// Warn about ambiguous imports, but still add one of the candidates (if
+		// appropriate cc_ambiguous_deps is set)
 		log.Print(err)
-		return true
 	case errors.Is(err, errMissingModuleDependency):
 		if !lang.notFoundBzlModDeps.Contains(resolvedLabel.Repo) {
 			// Warn only once per missing module_dep
@@ -162,7 +157,8 @@ func (lang *ccLanguage) handleIncludeResolutionError(
 		}
 		return false
 	}
-	return true
+
+	return resolvedLabel != label.NoLabel
 }
 
 var (
@@ -302,7 +298,7 @@ func (b *platformDepsBuilder) addConstrained(condition label.Label, dependency l
 // condition matches.
 var defaultCondition = label.New("", "conditions", "default")
 
-// Add a resolved dependency to the builder, accounting for platform
+// Adds a resolved dependency to the builder, accounting for platform
 // specificity.
 func (b *platformDepsBuilder) addResolved(dependency label.Label, config *ccConfig, include ccInclude) {
 	switch {
