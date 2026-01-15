@@ -33,33 +33,36 @@ import (
 func (c *ccLanguage) Name() string                                        { return languageName }
 func (c *ccLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
 func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports any, from label.Label) {
-	if imports == nil {
+	ccImports, hasImports := imports.(ccImports)
+	if !hasImports {
 		return
 	}
-	ccImports := imports.(ccImports)
-	var privateDeps, publicDeps platformDepsBuilder
 
-	switch resolveCCRuleKind(r.Kind(), c) {
-	case "cc_library":
-		// Only cc_library has 'implementation_deps' attribute
-		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
-		publicDeps = lang.resolveIncludes(c, ix, r, from, ccImports.hdrIncludes, collections.Set[label.Label]{})
-		privateDeps = lang.resolveIncludes(c, ix, r, from, ccImports.srcIncludes, publicDeps.all)
-	default:
-		publicDeps = lang.resolveIncludes(c, ix, r, from, ccImports.allIncludes(), collections.Set[label.Label]{})
-
-		// cc_test might have implicit dependency on test runner - cc_library defining main method required when linking
-		if testRunnerDep, ok := r.PrivateAttr(ccTestRunnerDepKey).(label.Label); ok {
-			publicDeps.addGeneric(testRunnerDep)
-		}
-	}
-
+	publicDeps, privateDeps := lang.resolveDeps(c, ix, r, ccImports, from)
 	if len(publicDeps.all) > 0 {
 		r.SetAttr("deps", publicDeps.build())
 	}
 	if len(privateDeps.all) > 0 {
 		r.SetAttr("implementation_deps", privateDeps.build())
 	}
+}
+
+func (lang *ccLanguage) resolveDeps(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, imports ccImports, from label.Label) (publicDeps, privateDeps platformDepsBuilder) {
+	switch resolveCCRuleKind(r.Kind(), c) {
+	case "cc_library":
+		// Only cc_library has 'implementation_deps' attribute
+		// If depenedncy is added by header (via 'deps') ensure it would not be duplicated inside 'implementation_deps'
+		publicDeps = lang.resolveIncludes(c, ix, r, from, imports.hdrIncludes, collections.Set[label.Label]{})
+		privateDeps = lang.resolveIncludes(c, ix, r, from, imports.srcIncludes, publicDeps.all)
+	default:
+		publicDeps = lang.resolveIncludes(c, ix, r, from, imports.allIncludes(), collections.Set[label.Label]{})
+
+		// cc_test might have implicit dependency on test runner - cc_library defining main method required when linking
+		if testRunnerDep, ok := r.PrivateAttr(ccTestRunnerDepKey).(label.Label); ok {
+			publicDeps.addGeneric(testRunnerDep)
+		}
+	}
+	return
 }
 
 // Resolves given includes to rule labels and assigns them to the given builder.
