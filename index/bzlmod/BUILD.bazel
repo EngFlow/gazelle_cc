@@ -11,6 +11,7 @@ go_library(
         "//index/internal/indexer/cli",
         "//internal/collections",
         "@com_github_bazelbuild_buildtools//build",
+        "@org_golang_x_sync//errgroup",
     ],
 )
 

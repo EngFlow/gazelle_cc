@@ -21,7 +21,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/EngFlow/gazelle_cc/index/internal/bcr"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
@@ -67,14 +68,32 @@ func main() {
 }
 
 func resolveBazelDepModules(moduleBzlPath string, bcrClient bcr.BazelRegistry) []indexer.Module {
-	bazelDeps := make(chan bazelDependency)
-	resolveResults := make(chan bcr.ResolveModuleInfoResult)
-	var wg sync.WaitGroup
+	// Parse MODULE.bazel to extract dependencies
+	content, err := os.ReadFile(moduleBzlPath)
+	if err != nil {
+		log.Fatalf("Failed to read file: %v - %v", moduleBzlPath, err)
+	}
+	moduleFile, err := build.ParseModule(filepath.Base(moduleBzlPath), content)
+	if err != nil {
+		log.Fatalf("Failed to parse: %v - %v", moduleBzlPath, err)
+	}
+	bazelDeps := extractBazelDependencies(*moduleFile)
 
-	worker := func() {
-		defer wg.Done()
-		for bazelDep := range bazelDeps {
-			result := bcrClient.ResolveModuleInfo(bazelDep.Name, bazelDep.Version)
+	// The processing is mostly IO bound (downloading artifacts, bazel query), use up-to number of avaiable CPUs to now overschedule
+	workerCount := runtime.GOMAXPROCS(0)
+	// Use semaphore pattern for bounded concurrency
+	sem := make(chan struct{}, workerCount)
+	results := make([]bcr.ResolveModuleInfoResult, len(bazelDeps))
+
+	var eg errgroup.Group
+	for i, dep := range bazelDeps {
+		sem <- struct{}{} // acquire semaphore
+		eg.Go(func() error {
+			defer func() { <-sem }() // release semaphore
+
+			result := bcrClient.ResolveModuleInfo(dep.Name, dep.Version)
+			results[i] = result
+
 			if *cli.Verbose {
 				if result.IsResolved() {
 					fmt.Fprintf(os.Stderr, "%-50s: resolved - cc_libraries: %d\n", result.Info.Module.String(), len(result.Info.Targets))
@@ -82,37 +101,19 @@ func resolveBazelDepModules(moduleBzlPath string, bcrClient bcr.BazelRegistry) [
 					fmt.Fprintf(os.Stderr, "%-50s: failed   - %s\n", result.Unresolved.Module.String(), result.Unresolved.Reason)
 				}
 			}
-			resolveResults <- result
-		}
+			return nil
+		})
 	}
 
-	workers := runtime.GOMAXPROCS(0)
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go worker()
+	if err := eg.Wait(); err != nil {
+		log.Fatalf("Failed to resolve modules: %v", err)
 	}
 
-	go func() {
-		content, err := os.ReadFile(moduleBzlPath)
-		if err != nil {
-			log.Fatalf("Failed t read file: %v - %v", moduleBzlPath, err)
-		}
-		moduleFile, err := build.ParseModule(filepath.Base(moduleBzlPath), content)
-		if err != nil {
-			log.Fatalf("Failed to parse: %v - %v", moduleBzlPath, err)
-		}
-		for _, bazelDep := range extractBazelDependencies(*moduleFile) {
-			bazelDeps <- bazelDep
-		}
-		close(bazelDeps)
-		wg.Wait()
-		close(resolveResults)
-	}()
-
+	// Collect results
 	var resolvedModules []indexer.Module
 	var emptyModules []string
 	var failedModules []string
-	for result := range resolveResults {
+	for _, result := range results {
 		switch {
 		case result.IsResolved() && len(result.Info.Targets) > 0:
 			resolvedModules = append(
