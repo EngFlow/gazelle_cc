@@ -23,6 +23,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
@@ -89,6 +90,10 @@ func (include ccInclude) String() string {
 	} else {
 		return fmt.Sprintf("'#include \"%s\"' at %s:%d", include.path, include.sourceFile, include.lineNumber)
 	}
+}
+
+func (imports ccImports) allIncludes() []ccInclude {
+	return slices.Concat(imports.hdrIncludes, imports.srcIncludes)
 }
 
 func NewLanguage() language.Language {

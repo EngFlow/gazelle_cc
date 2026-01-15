@@ -20,7 +20,6 @@ import (
 	"log"
 	"path"
 	"path/filepath"
-	"slices"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -47,8 +46,7 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 		publicDeps = lang.resolveIncludes(c, ix, r, from, ccImports.hdrIncludes, collections.Set[label.Label]{})
 		privateDeps = lang.resolveIncludes(c, ix, r, from, ccImports.srcIncludes, publicDeps.all)
 	default:
-		includes := slices.Concat(ccImports.hdrIncludes, ccImports.srcIncludes)
-		publicDeps = lang.resolveIncludes(c, ix, r, from, includes, collections.Set[label.Label]{})
+		publicDeps = lang.resolveIncludes(c, ix, r, from, ccImports.allIncludes(), collections.Set[label.Label]{})
 
 		// cc_test might have implicit dependency on test runner - cc_library defining main method required when linking
 		if testRunnerDep, ok := r.PrivateAttr(ccTestRunnerDepKey).(label.Label); ok {
