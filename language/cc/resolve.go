@@ -59,7 +59,7 @@ func (lang *ccLanguage) resolveDeps(
 	case "cc_test":
 		publicDeps = lang.resolveCcTestDeps(c, ix, r, imports, from)
 	default:
-		publicDeps = lang.resolveGenericDeps(c, ix, r, imports, from)
+		publicDeps = lang.resolveCcGenericRuleDeps(c, ix, r, imports, from)
 	}
 	return
 }
@@ -84,7 +84,7 @@ func (lang *ccLanguage) resolveCcTestDeps(
 	r *rule.Rule,
 	imports ccImports,
 	from label.Label) (publicDeps platformDepsBuilder) {
-	deps := lang.resolveGenericDeps(c, ix, r, imports, from)
+	deps := lang.resolveCcGenericRuleDeps(c, ix, r, imports, from)
 
 	// cc_test might have implicit dependency on test runner - cc_library
 	// defining main method required when linking
@@ -95,7 +95,7 @@ func (lang *ccLanguage) resolveCcTestDeps(
 	return deps
 }
 
-func (lang *ccLanguage) resolveGenericDeps(
+func (lang *ccLanguage) resolveCcGenericRuleDeps(
 	c *config.Config,
 	ix *resolve.RuleIndex,
 	r *rule.Rule,
