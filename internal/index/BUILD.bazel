@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "index",
     srcs = ["index.go"],
-    importpath = "github.com/EngFlow/gazelle_cc/index",
+    importpath = "github.com/EngFlow/gazelle_cc/internal/index",
     visibility = [
         "//index:__subpackages__",
         "//language/cc:__pkg__",
