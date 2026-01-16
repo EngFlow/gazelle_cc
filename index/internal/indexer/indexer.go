@@ -35,6 +35,7 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
+	"github.com/EngFlow/gazelle_cc/internal/index"
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
 
@@ -124,9 +125,12 @@ func CreateHeaderIndex(modules []Module) IndexingResult {
 // Writes the mapping of IndexingResult.HeaderToRule to disk in JSON format.
 // Labels are stored as renered strings
 func (result IndexingResult) WriteToFile(outputFile string) error {
-	mappings := make(map[string]string, len(result.HeaderToRule))
-	for hdr, label := range result.HeaderToRule {
-		mappings[hdr] = label.String()
+	// TODO: Temporary conversion to the new index.DependencyIndex format, so
+	// "//index:integration_tests" can pass for PR #182. The real migration to
+	// index.DependencyIndex will be done in another PR.
+	mappings := make(index.DependencyIndex, len(result.HeaderToRule))
+	for hdr, dep := range result.HeaderToRule {
+		mappings[hdr] = []label.Label{dep}
 	}
 
 	data, err := json.MarshalIndent(mappings, "", "  ")

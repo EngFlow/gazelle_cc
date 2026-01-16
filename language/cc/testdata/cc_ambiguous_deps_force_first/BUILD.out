@@ -1,6 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 # gazelle:cc_ambiguous_deps force_first
+# gazelle:cc_indexfile indexfile.json
 
 cc_binary(
     name = "explicit_use",
@@ -9,7 +10,25 @@ cc_binary(
 )
 
 cc_binary(
+    name = "explicit_use_indexfile",
+    srcs = ["explicit_use_indexfile.cc"],
+    deps = [
+        "@boost.thread//:thread_posix",
+        "@git//:version",
+    ],
+)
+
+cc_binary(
     name = "use",
     srcs = ["use.cc"],
     deps = ["//ambiguous:rule1"],
+)
+
+cc_binary(
+    name = "use_indexfile",
+    srcs = ["use_indexfile.cc"],
+    deps = [
+        "@boost.thread//:thread_mac",
+        "@git//:libgit_core",
+    ],
 )
