@@ -20,6 +20,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//internal/collections",
+        "//internal/index",
         "//language/internal/cc/parser",
         "//language/internal/cc/platform",
         "@com_github_bazelbuild_buildtools//build",

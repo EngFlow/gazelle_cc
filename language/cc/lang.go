@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
+	"github.com/EngFlow/gazelle_cc/internal/index"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -216,12 +217,15 @@ func loadBuiltInBzlModDependenciesIndex() ccDependencyIndex {
 	return index
 }
 
-func loadDependencyIndex(file string) (ccDependencyIndex, error) {
+func loadUserProvidedDependencyIndex(file string) (index.DependencyIndex, error) {
 	data, err := os.ReadFile(file)
 	if err != nil {
-		return nil, err
+		return index.DependencyIndex{}, err
 	}
-	return unmarshalDependencyIndex(data)
+
+	var result index.DependencyIndex
+	err = json.Unmarshal(data, &result)
+	return result, err
 }
 
 func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {

@@ -25,6 +25,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/EngFlow/gazelle_cc/internal/index"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -120,7 +121,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 				log.Printf("gazelle_cc: absolute paths for %v directive are not allowed, %v would be ignored", d.Key, d.Value)
 				continue
 			}
-			index, err := loadDependencyIndex(path)
+			index, err := loadUserProvidedDependencyIndex(path)
 			if err != nil {
 				log.Printf("gazelle_cc: failed to load cc dependencies index: %v, it would be ignored. Reason: %v", path, err)
 				continue
@@ -280,7 +281,7 @@ type ccConfig struct {
 	// Defines how to handle C++ source parsing errors
 	parsingErrorsMode errorReportingMode
 	// User defined dependency indexes based on the filename
-	dependencyIndexes []ccDependencyIndex
+	dependencyIndexes []index.DependencyIndex
 	// Defines how to handle ambiguous dependencies, that is headers resolved to multiple rules
 	ambiguousDepsMode ambiguousDepsMode
 	// List of 'gazelle:cc_search' directives, used to construct RelsToIndex.

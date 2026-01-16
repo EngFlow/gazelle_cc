@@ -286,8 +286,8 @@ func (lang *ccLanguage) resolveImportSpec(
 	}
 
 	for _, index := range conf.dependencyIndexes {
-		if result, exists := index[importSpec.Imp]; exists {
-			return result, nil
+		if resolvedDeps, exists := index[importSpec.Imp]; exists {
+			return resolveAmbiguousDependency(resolvedDeps, conf.ambiguousDepsMode, r, from, include)
 		}
 	}
 
