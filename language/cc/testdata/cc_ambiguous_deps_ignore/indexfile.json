@@ -1,0 +1,12 @@
+{
+    "boost/thread/thread.hpp": [
+        "@boost.thread//:thread_mac",
+        "@boost.thread//:thread_posix",
+        "@boost.thread//:thread_windows"
+    ],
+    "version.h": [
+        "@git//:libgit_core",
+        "@git//:version",
+        "@openvdb//:openvdb"
+    ]
+}
