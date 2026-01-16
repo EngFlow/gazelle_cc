@@ -1,16 +1,44 @@
 {
-  "fmt/args.h": "//third-party:fmt",
-  "fmt/base.h": "//third-party:fmt",
-  "fmt/chrono.h": "//third-party:fmt",
-  "fmt/color.h": "//third-party:fmt",
-  "fmt/compile.h": "//third-party:fmt",
-  "fmt/core.h": "//third-party:fmt",
-  "fmt/format-inl.h": "//third-party:fmt",
-  "fmt/format.h": "//third-party:fmt",
-  "fmt/os.h": "//third-party:fmt",
-  "fmt/ostream.h": "//third-party:fmt",
-  "fmt/printf.h": "//third-party:fmt",
-  "fmt/ranges.h": "//third-party:fmt",
-  "fmt/std.h": "//third-party:fmt",
-  "fmt/xchar.h": "//third-party:fmt"
+  "fmt/args.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/base.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/chrono.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/color.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/compile.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/core.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/format-inl.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/format.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/os.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/ostream.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/printf.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/ranges.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/std.h": [
+    "//third-party:fmt"
+  ],
+  "fmt/xchar.h": [
+    "//third-party:fmt"
+  ]
 }

@@ -10,6 +10,7 @@ go_library(
     visibility = ["//index:__subpackages__"],
     deps = [
         "//internal/collections",
+        "//internal/index",
         "@gazelle//label",
     ],
 )
