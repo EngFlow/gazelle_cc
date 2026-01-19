@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//index/internal/indexer",
         "//index/internal/indexer/cli",
+        "//internal/index",
         "@gazelle//label",
     ],
 )

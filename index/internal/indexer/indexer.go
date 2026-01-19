@@ -25,13 +25,8 @@
 package indexer
 
 import (
-	"encoding/json"
-	"fmt"
-	"maps"
-	"os"
 	"path"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
@@ -58,31 +53,8 @@ type (
 	}
 )
 
-// IndexingResult contains the results of indexing headers across multiple modules.
-type IndexingResult struct {
-	// HeaderToRule maps header include paths to exactly one Bazel rule.
-	// Only unambiguous mappings are included here.
-	HeaderToRule map[string]label.Label
-
-	// Ambiguous contains headers that are defined by multiple rules across different modules.
-	// This captures CROSS-MODULE ambiguity (e.g., both @moduleA//:lib and @moduleB//:lib
-	// expose "common/header.h"). This is distinct from intra-module ambiguity which is
-	// resolved by WithAmbiguousTargetsResolved() before indexing.
-	//
-	// These headers cannot be automatically resolved and may require manual configuration
-	// or explicit dependency declarations in user BUILD files.
-	Ambiguous map[string][]label.Label
-}
-
-// CreateHeaderIndex processes a list of modules to create a uniform index mapping headers
-// to exactly one rule that provides their definition.
-//
-// Note: This function expects that intra-module ambiguity has already been resolved
-// (via WithAmbiguousTargetsResolved) before calling. Cross-module ambiguity (the same
-// header exposed by targets in different modules) is captured in IndexingResult.Ambiguous.
-func CreateHeaderIndex(modules []Module) IndexingResult {
-	// headersMapping will store header paths to a collections.Set of Labels.
-	headersMapping := make(map[string][]label.Label)
+func CreateHeaderIndex(modules []Module) index.DependencyIndex {
+	headersMapping := make(index.DependencyIndex)
 	for _, module := range modules {
 		for _, target := range module.Targets {
 			// Create a targetLabel for the target using the module repository.
@@ -99,69 +71,7 @@ func CreateHeaderIndex(modules []Module) IndexingResult {
 			}
 		}
 	}
-
-	// Partition the headers into non-conflicting (exactly one label) and ambiguous (multiple labels).
-	headerToRule := make(map[string]label.Label)
-	ambiguous := make(map[string][]label.Label)
-	for path, labels := range headersMapping {
-		if len(labels) == 1 {
-			// Extract the only label in the collections.Set.
-			for _, l := range labels {
-				headerToRule[path] = l
-				break
-			}
-		} else {
-			// If there are multiple labels, mark as ambiguous
-			ambiguous[path] = labels
-		}
-	}
-
-	return IndexingResult{
-		HeaderToRule: headerToRule,
-		Ambiguous:    ambiguous,
-	}
-}
-
-// Writes the mapping of IndexingResult.HeaderToRule to disk in JSON format.
-// Labels are stored as renered strings
-func (result IndexingResult) WriteToFile(outputFile string) error {
-	// TODO: Temporary conversion to the new index.DependencyIndex format, so
-	// "//index:integration_tests" can pass for PR #182. The real migration to
-	// index.DependencyIndex will be done in another PR.
-	mappings := make(index.DependencyIndex, len(result.HeaderToRule))
-	for hdr, dep := range result.HeaderToRule {
-		mappings[hdr] = []label.Label{dep}
-	}
-
-	data, err := json.MarshalIndent(mappings, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to serialize header index to json: %w", err)
-	}
-
-	os.MkdirAll(filepath.Dir(outputFile), 0777)
-	if err := os.WriteFile(outputFile, data, 0666); err != nil {
-		return fmt.Errorf("failed to write index file: %w", err)
-	}
-	return nil
-}
-
-// String returns a human-readable string representation of the IndexingResult.
-func (result IndexingResult) String() string {
-	var sb strings.Builder
-
-	sb.WriteString("Indexing result:\n")
-
-	sb.WriteString(fmt.Sprintf("Headers with mapping: %d\n", len(result.HeaderToRule)))
-	for _, hdr := range slices.Sorted(maps.Keys(result.HeaderToRule)) {
-		sb.WriteString(fmt.Sprintf("%-80s: %v\n", hdr, result.HeaderToRule[hdr]))
-	}
-
-	sb.WriteString(fmt.Sprintf("Ambiguous headers: %d\n", len(result.Ambiguous)))
-	for _, hdr := range slices.Sorted(maps.Keys(result.Ambiguous)) {
-		sb.WriteString(fmt.Sprintf("%-80s: %v\n", hdr, result.Ambiguous[hdr]))
-	}
-
-	return sb.String()
+	return headersMapping
 }
 
 func shouldExcludeHeader(path string) bool {

@@ -71,13 +71,11 @@ func run() error {
 	}
 
 	index := indexer.CreateHeaderIndex(modules)
-	fmt.Fprintf(os.Stderr, "Direct mapping created for %d headers\n", len(index.HeaderToRule))
-	fmt.Fprintf(os.Stderr, "Ambiguous header assignment for %d entries\n", len(index.Ambiguous))
-	if err := index.WriteToFile(cfg.outputPath); err != nil {
+	if err := index.WriteJSONFile(cfg.outputPath); err != nil {
 		return fmt.Errorf("failed to write index file: %w", err)
 	}
 	if cfg.verbose {
-		log.Println(index.String())
+		log.Println(index.Summary())
 	}
 	return nil
 }

@@ -51,10 +51,10 @@ func main() {
 	}
 
 	indexingResult := indexer.CreateHeaderIndex(modules)
-	indexingResult.WriteToFile(outputFile)
+	indexingResult.WriteJSONFile(outputFile)
 
 	if *cli.Verbose {
-		log.Println(indexingResult.String())
+		log.Println(indexingResult.Summary())
 	}
 }
 
