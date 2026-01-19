@@ -166,7 +166,9 @@ func gatherModuleInfos(bcrClient bcr.BazelRegistry) ([]indexer.Module, error) {
 		return infos[i].Module.Name < infos[j].Module.Name
 	})
 	modules := collections.MapSlice(infos, func(m bcr.ModuleInfo) indexer.Module {
-		return m.ToIndexerModule().WithAmbiguousTargetsResolved()
+		// TODO: WithAmbiguousTargetsResolved() is disabled until ready to
+		// associate "grpcpp/grpcpp.h" with "@grpc//:grpc++"
+		return m.ToIndexerModule()
 	})
 	return modules, nil
 }
