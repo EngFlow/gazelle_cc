@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -104,4 +106,21 @@ func (index DependencyIndex) Summary() string {
 	}
 
 	return sb.String()
+}
+
+func (index DependencyIndex) WriteJSONFile(path string) error {
+	var data []byte
+	var err error
+
+	data, err = json.MarshalIndent(index, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	err = os.MkdirAll(filepath.Dir(path), 0777)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0666)
 }
