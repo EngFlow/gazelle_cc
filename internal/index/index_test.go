@@ -17,6 +17,8 @@ package index
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -131,6 +133,55 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, input, output)
+}
+
+func TestSummary(t *testing.T) {
+	input := DependencyIndex{
+		"header0.h": {},
+		"header1.h": {
+			label.New("repo", "pkg", "target"),
+		},
+		"header2.h": {
+			label.New("repo", "pkg", "target_a"),
+			label.New("repo", "pkg", "target_b"),
+		},
+	}
+
+	expected := `Indexing result:
+  Unique mappings (1):
+    "header1.h"                                                                     : @repo//pkg:target
+  Ambiguous mappings (1):
+    "header2.h"                                                                     : [@repo//pkg:target_a @repo//pkg:target_b]
+`
+	assert.Equal(t, expected, input.Summary())
+}
+
+func TestWriteJSONFile(t *testing.T) {
+	index := DependencyIndex{
+		"header1.h": {
+			label.New("repo", "pkg", "target"),
+		},
+		"header2.h": {
+			label.New("repo", "pkg", "target_a"),
+			label.New("repo", "pkg", "target_b"),
+		},
+	}
+
+	outputPath := filepath.Join(t.TempDir(), "test-index.json")
+	assert.NoError(t, index.WriteJSONFile(outputPath))
+	data, err := os.ReadFile(outputPath)
+	assert.NoError(t, err)
+
+	expected := `{
+  "header1.h": [
+    "@repo//pkg:target"
+  ],
+  "header2.h": [
+    "@repo//pkg:target_a",
+    "@repo//pkg:target_b"
+  ]
+}`
+	assert.Equal(t, expected, string(data))
 }
 
 func ExampleDependencyIndex_MarshalJSON() {

@@ -30,7 +30,6 @@ import (
 	"github.com/EngFlow/gazelle_cc/internal/index"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/config"
-	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
@@ -44,7 +43,7 @@ const (
 type (
 	ccLanguage struct {
 		// Index of header includes parsed from Bazel Central Registry
-		bzlmodBuiltInIndex ccDependencyIndex
+		bzlmodBuiltInIndex index.DependencyIndex
 		// Set of missing bazel_dep modules referenced in includes but not defined
 		// Used for deduplication of missing modul_dep warnings
 		notFoundBzlModDeps collections.Set[string]
@@ -77,7 +76,6 @@ type (
 		srcIncludes []ccInclude
 		// TODO: module imports / exports
 	}
-	ccDependencyIndex map[string]label.Label
 )
 
 // Directory from which include is resolved
@@ -99,7 +97,7 @@ func (imports ccImports) allIncludes() []ccInclude {
 
 func NewLanguage() language.Language {
 	return &ccLanguage{
-		bzlmodBuiltInIndex: loadBuiltInBzlModDependenciesIndex(),
+		bzlmodBuiltInIndex: loadBuiltInDependencyIndex(),
 		notFoundBzlModDeps: make(collections.Set[string]),
 		buildFileDirRels:   make(collections.Set[string]),
 	}
@@ -215,14 +213,15 @@ func hasMatchingExtension(filename string, extensions []string) bool {
 }
 
 //go:embed bzldep-index.json
-var bzlDepHeadersIndex string
+var builtInDependencyIndexJson []byte
 
-func loadBuiltInBzlModDependenciesIndex() ccDependencyIndex {
-	index, err := unmarshalDependencyIndex([]byte(bzlDepHeadersIndex))
+func loadBuiltInDependencyIndex() index.DependencyIndex {
+	var result index.DependencyIndex
+	err := json.Unmarshal(builtInDependencyIndexJson, &result)
 	if err != nil {
-		index = make(ccDependencyIndex)
+		log.Fatalf("Failed to unmarshal built-in bazel dependency index: %v", err)
 	}
-	return index
+	return result
 }
 
 func loadUserProvidedDependencyIndex(file string) (index.DependencyIndex, error) {
@@ -234,21 +233,6 @@ func loadUserProvidedDependencyIndex(file string) (index.DependencyIndex, error)
 	var result index.DependencyIndex
 	err = json.Unmarshal(data, &result)
 	return result, err
-}
-
-func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {
-	var rawLabels map[string]string
-	if err := json.Unmarshal(data, &rawLabels); err != nil {
-		return nil, err
-	}
-
-	index := make(ccDependencyIndex, len(rawLabels))
-	for hdr, target := range rawLabels {
-		if decoded, err := label.Parse(target); err == nil {
-			index[hdr] = decoded
-		}
-	}
-	return index, nil
 }
 
 // language.LifecycleManager methods
