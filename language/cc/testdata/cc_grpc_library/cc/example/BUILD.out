@@ -1,0 +1,19 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+cc_binary(
+    name = "example_client",
+    srcs = ["example_client.cc"],
+    deps = [
+        "//proto/example:example_cc_grpc",
+        "@grpc//:grpc++",
+    ],
+)
+
+cc_binary(
+    name = "example_server",
+    srcs = ["example_server.cc"],
+    deps = [
+        "//proto/example:example_cc_grpc",
+        "@grpc//:grpc++",
+    ],
+)
