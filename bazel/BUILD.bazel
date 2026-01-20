@@ -1,0 +1,7 @@
+load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "default_test_runner")
+
+default_test_runner(
+    name = "bazel_builder",
+    bazel_cmds = ["--nosystem_rc --nohome_rc build //..."],  # exclude external rc files for a hermetic build
+    visibility = ["//:__subpackages__"],
+)
