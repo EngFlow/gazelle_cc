@@ -122,8 +122,7 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 			MergeableAttrs: map[string]bool{"srcs": true, "deps": true},
 			ResolveAttrs:   map[string]bool{"deps": true},
 		}
-		switch commonDef {
-		case "cc_library":
+		if commonDef == "cc_library" {
 			kindInfo.NonEmptyAttrs = mergeMaps(kindInfo.NonEmptyAttrs, map[string]bool{
 				"hdrs":                true,
 				"implementation_deps": true,
@@ -146,12 +145,17 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 		MergeableAttrs: map[string]bool{"deps": true},
 		ResolveAttrs:   map[string]bool{"deps": true},
 	}
+	kinds["cc_grpc_library"] = rule.KindInfo{
+		NonEmptyAttrs:  map[string]bool{"srcs": true, "deps": true},
+		MergeableAttrs: map[string]bool{"srcs": true, "deps": true, "grpc_only": true},
+		ResolveAttrs:   map[string]bool{"srcs": true, "deps": true},
+	}
 
 	return kinds
 }
 
 var ccRuleDefs = []string{
-	"cc_library", "cc_shared_libary", "cc_static_library",
+	"cc_library", "cc_shared_library", "cc_static_library",
 	"cc_import",
 	"cc_binary",
 	"cc_test",
@@ -162,7 +166,7 @@ func (c *ccLanguage) Loads() []rule.LoadInfo {
 }
 
 func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
-	apparentOfDefaultName := func(moduleName, defaultName string) string {
+	apparentOrDefaultName := func(moduleName, defaultName string) string {
 		if module := moduleToApparentName(moduleName); module != "" {
 			return module
 		} else {
@@ -172,12 +176,16 @@ func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rul
 
 	return []rule.LoadInfo{
 		{
-			Name:    fmt.Sprintf("@%s//cc:defs.bzl", apparentOfDefaultName("rules_cc", "rules_cc")),
+			Name:    fmt.Sprintf("@%s//cc:defs.bzl", apparentOrDefaultName("rules_cc", "rules_cc")),
 			Symbols: ccRuleDefs,
 		},
 		{
-			Name:    fmt.Sprintf("@%s//bazel:cc_proto_library.bzl", apparentOfDefaultName("protobuf", "com_google_protobuf")),
+			Name:    fmt.Sprintf("@%s//bazel:cc_proto_library.bzl", apparentOrDefaultName("protobuf", "com_google_protobuf")),
 			Symbols: []string{"cc_proto_library"},
+		},
+		{
+			Name:    fmt.Sprintf("@%s//bazel:cc_grpc_library.bzl", apparentOrDefaultName("grpc", "com_github_grpc_grpc")),
+			Symbols: []string{"cc_grpc_library"},
 		},
 	}
 }

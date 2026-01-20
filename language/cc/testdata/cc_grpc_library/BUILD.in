@@ -1,0 +1,2 @@
+# TODO: This won't be needed after #173 has been completed
+# gazelle:resolve cc grpcpp/grpcpp.h @grpc//:grpc++
