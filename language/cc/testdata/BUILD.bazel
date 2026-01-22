@@ -37,10 +37,12 @@ gazelle_binary(
     ])
 ]))]
 
+COMPILATION_TEST_DIRS = [
+    "cc_grpc_library",
+    "virtual_include_paths",
+]
+
 gazelle_compilation_tests(
     name = "compilation_tests",
-    test_data_map = {
-        "cc_grpc_library_compilation_test": glob(["cc_grpc_library/**"]),
-        "virtual_include_paths_compilation_test": glob(["virtual_include_paths/**"]),
-    }
+    test_data_map = {test_dir + "_compilation_test": glob([test_dir + "/**"]) for test_dir in COMPILATION_TEST_DIRS},
 )
