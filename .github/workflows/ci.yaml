@@ -27,11 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build
-        run: |
-          bazel build //...
+        run: bazel build //...
       - name: Test
-        run: |
-          bazel test --test_output=errors //...
+        run: bazel test --test_output=errors //...
+      - name: Compile testdata workspaces
+        run: bazel test --test_output=errors //language/cc/testdata:compilation_tests
 
   # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
   bcr_test_module:
