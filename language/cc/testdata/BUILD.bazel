@@ -44,5 +44,6 @@ COMPILATION_TEST_DIRS = [
 
 gazelle_compilation_tests(
     name = "compilation_tests",
+    size = "medium",
     test_data_map = {test_dir + "_compilation_test": glob([test_dir + "/**"]) for test_dir in COMPILATION_TEST_DIRS},
 )

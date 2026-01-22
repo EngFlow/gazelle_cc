@@ -51,7 +51,7 @@ convert_directory_structure = rule(
 def gazelle_compilation_test(name, test_data, **kwargs):
     """
     gazelle_compilation_test is a macro complementary to gazelle_generation_test.
-    
+
     It accepts the same input file structure as gazelle_generation_test, but instead of generating BUILD files from
     scratch, it assumes that BUILD files are already present (i.e., gazelle has already been run) and simply verifies
     that the existing BUILD files allow the workspace to be built successfully by Bazel.
@@ -85,27 +85,31 @@ def gazelle_compilation_test(name, test_data, **kwargs):
 def gazelle_compilation_tests(
         name,
         test_data_map,
-        tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS,
-        **kwargs):
-    """_summary_
+        size = None,
+        visibility = None,
+        tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS):
+    """
+    gazelle_compilation_tests is a macro that creates a suite of gazelle_compilation_test tests.
 
     Args:
         name: The name of the test suite.
         test_data_map: A map from subtest names to the test data passed to each single gazelle_compilation_test.
+        size: Size attribute to apply to all subtests.
+        visibility: Visibility attribute to apply to all subtests.
         tags: Tags to apply to the test suite and all subtests.
-        **kwargs: Attributes that are passed directly to each gazelle_compilation_test and to the test_suite.
     """
     for subtest_name, test_data in test_data_map.items():
         gazelle_compilation_test(
             name = subtest_name,
             test_data = test_data,
+            size = size,
+            visibility = visibility,
             tags = tags,
-            **kwargs
         )
 
     native.test_suite(
         name = name,
         tests = [":" + subtest_name for subtest_name in test_data_map.keys()],
+        visibility = visibility,
         tags = tags,
-        **kwargs
     )
