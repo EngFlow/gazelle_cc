@@ -44,7 +44,7 @@ convert_directory_structure = rule(
     },
 )
 
-def gazelle_compilation_test(name, test_data):
+def gazelle_compilation_test(name, test_data, **kwargs):
     convert_directory_structure(
         name = name + "_workspace",
         test_data = test_data,
@@ -61,4 +61,5 @@ def gazelle_compilation_test(name, test_data):
         test_runner = "//bazel:bazel_builder",
         workspace_files = [":" + name + "_workspace"],
         workspace_path = workspace_path,
+        **kwargs
     )

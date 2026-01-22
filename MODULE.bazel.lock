@@ -361,6 +361,61 @@
         "recordedRepoMappingEntries": []
       }
     },
+    "@@rules_bazel_integration_test+//:extensions.bzl%bazel_binaries": {
+      "general": {
+        "bzlTransitiveDigest": "XC9nqZ31LIbq8N7cEK+rYa2iXNQLcJ3cyGWw+zPZlc0=",
+        "usagesDigest": "lsxdPPTEkORaFsmOj/MiFo5qAFJ3NS6STApm+ZILUIs=",
+        "recordedFileInputs": {},
+        "recordedDirentsInputs": {},
+        "envVariables": {},
+        "generatedRepoSpecs": {
+          "bazel_binaries_bazelisk": {
+            "repoRuleId": "@@rules_bazel_integration_test+//bazel_integration_test/private:bazel_binaries.bzl%bazelisk_binary",
+            "attributes": {
+              "version": "1.26.0"
+            }
+          },
+          "build_bazel_bazel_.bazelversion": {
+            "repoRuleId": "@@rules_bazel_integration_test+//bazel_integration_test/private:bazel_binaries.bzl%bazel_binary",
+            "attributes": {
+              "version_file": "@@//:.bazelversion",
+              "bazelisk": "@bazel_binaries_bazelisk//:bazelisk"
+            }
+          },
+          "bazel_binaries": {
+            "repoRuleId": "@@rules_bazel_integration_test+//bazel_integration_test/bzlmod:bazel_binaries.bzl%_bazel_binaries_helper",
+            "attributes": {
+              "version_to_repo": {
+                "'@@//:.bazelversion'": "build_bazel_bazel_.bazelversion"
+              },
+              "current_version": "'@@//:.bazelversion'"
+            }
+          }
+        },
+        "moduleExtensionMetadata": {
+          "explicitRootModuleDirectDeps": [],
+          "explicitRootModuleDirectDevDeps": [
+            "bazel_binaries_bazelisk",
+            "build_bazel_bazel_.bazelversion",
+            "bazel_binaries"
+          ],
+          "useAllRepos": "NO",
+          "reproducible": false
+        },
+        "recordedRepoMappingEntries": [
+          [
+            "rules_bazel_integration_test+",
+            "bazel_skylib",
+            "bazel_skylib+"
+          ],
+          [
+            "rules_bazel_integration_test+",
+            "cgrindel_bazel_starlib",
+            "cgrindel_bazel_starlib+"
+          ]
+        ]
+      }
+    },
     "@@rules_kotlin+//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions": {
       "general": {
         "bzlTransitiveDigest": "OlvsB0HsvxbR8ZN+J9Vf00X/+WVz/Y/5Xrq2LgcVfdo=",

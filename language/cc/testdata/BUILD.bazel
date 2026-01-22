@@ -1,6 +1,7 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:sets.bzl", "sets")
 load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("//bazel:gazelle_compilation_test.bzl", "gazelle_compilation_test")
 
 # Exclude this entire directly from having anything gnerated by Gazelle. That
 # way the test cases won't be fixed by `bazel run //:gazelle` when run in this
@@ -35,3 +36,13 @@ gazelle_binary(
         "**/MODULE.bazel",
     ])
 ]))]
+
+gazelle_compilation_test(
+    name = "virtual_include_paths_compilation_test",
+    test_data = glob(["virtual_include_paths/**"]),
+)
+
+gazelle_compilation_test(
+    name = "cc_grpc_library_compilation_test",
+    test_data = glob(["cc_grpc_library/**"]),
+)
