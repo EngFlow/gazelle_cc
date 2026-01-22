@@ -1,7 +1,8 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:sets.bzl", "sets")
-load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("@gazelle//:def.bzl", "gazelle_binary")
 load("//bazel:gazelle_compilation_test.bzl", "gazelle_compilation_tests")
+load("//bazel:gazelle_generation_test.bzl", "gazelle_generation_tests")
 
 # Exclude this entire directly from having anything gnerated by Gazelle. That
 # way the test cases won't be fixed by `bazel run //:gazelle` when run in this
@@ -18,32 +19,25 @@ gazelle_binary(
     visibility = ["//visibility:private"],
 )
 
-[gazelle_generation_test(
-    # Name the test the path to the directory containing the WORKSPACE file.
-    name = test_dir,
-    gazelle_binary = ":gazelle_cc",
-    local = False,
-    test_data = glob(
-        include = [test_dir + "/**"],
-    ),
-) for test_dir in sets.to_list(sets.make([
-    paths.dirname(p)
-    # Note that glob matches "this package's directories and non-subpackage
-    # subdirectories," so any directory with a BUILD or BUILD.bazel file
-    # will not match, but those with BUILD.in and BUILD.out will.
-    for p in glob([
-        "**/WORKSPACE",
-        "**/MODULE.bazel",
-    ])
-]))]
+# Note that glob matches "this package's directories and non-subpackage
+# subdirectories," so any directory with a BUILD or BUILD.bazel file
+# will not match, but those with BUILD.in and BUILD.out will.
+ALL_TEST_DIRS = sets.to_list(sets.make([
+    paths.dirname(p) for p in glob(["**/MODULE.bazel", "**/WORKSPACE"])
+]))
 
 COMPILATION_TEST_DIRS = [
     "cc_grpc_library",
     "virtual_include_paths",
 ]
 
+gazelle_generation_tests(
+    name = "generation_tests",
+    gazelle_binary = ":gazelle_cc",
+    test_data_map = {test_dir + "_generation_test": glob([test_dir + "/**"]) for test_dir in ALL_TEST_DIRS},
+)
+
 gazelle_compilation_tests(
     name = "compilation_tests",
-    size = "medium",
     test_data_map = {test_dir + "_compilation_test": glob([test_dir + "/**"]) for test_dir in COMPILATION_TEST_DIRS},
 )
