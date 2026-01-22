@@ -1,6 +1,6 @@
 load("@bazel_binaries//:defs.bzl", "bazel_binaries")
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "bazel_integration_test")
+load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "bazel_integration_test", "integration_test_utils")
 
 def _rename_input_file(ctx, root_dir, input_file):
     output_basename = "BUILD.bazel" if input_file.basename == "BUILD.out" else input_file.basename
@@ -45,8 +45,10 @@ convert_directory_structure = rule(
 )
 
 def gazelle_compilation_test(name, test_data, **kwargs):
+    workspace_name = name + "_workspace"
+
     convert_directory_structure(
-        name = name + "_workspace",
+        name = workspace_name,
         test_data = test_data,
         testonly = True,
     )
@@ -59,7 +61,27 @@ def gazelle_compilation_test(name, test_data, **kwargs):
         bazel_binaries = bazel_binaries,
         bazel_version = bazel_binaries.versions.current,
         test_runner = "//bazel:bazel_builder",
-        workspace_files = [":" + name + "_workspace"],
+        workspace_files = [":" + workspace_name],
         workspace_path = workspace_path,
+        **kwargs
+    )
+
+def gazelle_compilation_tests(
+        name,
+        test_data_map,
+        tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS,
+        **kwargs):
+    for subtest_name, test_data in test_data_map.items():
+        gazelle_compilation_test(
+            name = subtest_name,
+            test_data = test_data,
+            tags = tags,
+            **kwargs
+        )
+
+    native.test_suite(
+        name = name,
+        tests = [":" + subtest_name for subtest_name in test_data_map.keys()],
+        tags = tags,
         **kwargs
     )
