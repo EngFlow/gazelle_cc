@@ -10,8 +10,7 @@ def gazelle_generation_tests(
         test_data_map,
         size = None,
         visibility = None,
-        tags = None
-):
+        tags = None):
     """
     gazelle_generation_tests is a macro that creates a suite of gazelle_generation_test tests.
 

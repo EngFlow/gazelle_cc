@@ -19,6 +19,7 @@ go_library(
 
 go_test(
     name = "parser_test",
+    size = "small",
     srcs = [
         "expr_test.go",
         "macros_test.go",

@@ -12,6 +12,7 @@ go_library(
 
 go_test(
     name = "collections_test",
+    size = "small",
     srcs = [
         "collections_test.go",
         "set_test.go",

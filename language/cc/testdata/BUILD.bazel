@@ -23,7 +23,11 @@ gazelle_binary(
 # subdirectories," so any directory with a BUILD or BUILD.bazel file
 # will not match, but those with BUILD.in and BUILD.out will.
 ALL_TEST_DIRS = sets.to_list(sets.make([
-    paths.dirname(p) for p in glob(["**/MODULE.bazel", "**/WORKSPACE"])
+    paths.dirname(p)
+    for p in glob([
+        "**/MODULE.bazel",
+        "**/WORKSPACE",
+    ])
 ]))
 
 COMPILATION_TEST_DIRS = [
@@ -33,11 +37,13 @@ COMPILATION_TEST_DIRS = [
 
 gazelle_generation_tests(
     name = "generation_tests",
+    size = "small",
     gazelle_binary = ":gazelle_cc",
     test_data_map = {test_dir + "_generation_test": glob([test_dir + "/**"]) for test_dir in ALL_TEST_DIRS},
 )
 
 gazelle_compilation_tests(
     name = "compilation_tests",
+    size = "medium",
     test_data_map = {test_dir + "_compilation_test": glob([test_dir + "/**"]) for test_dir in COMPILATION_TEST_DIRS},
 )

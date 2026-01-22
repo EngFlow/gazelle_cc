@@ -87,8 +87,7 @@ def gazelle_compilation_tests(
         test_data_map,
         size = None,
         visibility = None,
-        tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS,
-):
+        tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS):
     """
     gazelle_compilation_tests is a macro that creates a suite of gazelle_compilation_test tests.
 

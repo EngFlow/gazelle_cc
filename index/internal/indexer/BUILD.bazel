@@ -17,6 +17,7 @@ go_library(
 
 go_test(
     name = "indexer_test",
+    size = "small",
     srcs = [
         "ambiguity_handling_test.go",
         "indexer_test.go",

@@ -18,6 +18,7 @@ go_library(
 
 go_test(
     name = "bcr_test",
+    size = "small",
     srcs = ["registry_test.go"],
     embed = [":bcr"],
     deps = [
