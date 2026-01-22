@@ -48,6 +48,12 @@ convert_directory_structure = rule(
     },
 )
 
+def _resolve_workspace_path(test_data):
+    for path in test_data:
+        if paths.basename(path) in ["WORKSPACE", "MODULE.bazel"]:
+            return paths.dirname(path)
+    fail("test data must contain either a WORKSPACE or MODULE.bazel file")
+
 def gazelle_compilation_test(name, test_data, **kwargs):
     """
     gazelle_compilation_test is a macro complementary to gazelle_generation_test.
@@ -69,16 +75,13 @@ def gazelle_compilation_test(name, test_data, **kwargs):
         testonly = True,
     )
 
-    # Resolve as parent directory of the shallowest file path
-    workspace_path = paths.dirname(min(test_data, key = lambda p: len(p.split("/"))))
-
     bazel_integration_test(
         name = name,
         bazel_binaries = bazel_binaries,
         bazel_version = bazel_binaries.versions.current,
         test_runner = "//bazel:bazel_builder",
         workspace_files = [":" + workspace_name],
-        workspace_path = workspace_path,
+        workspace_path = _resolve_workspace_path(test_data),
         **kwargs
     )
 
