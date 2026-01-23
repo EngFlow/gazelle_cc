@@ -8,14 +8,17 @@ load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "bazel_integration_test", "integration_test_utils")
 
 def _rename_input_file(ctx, root_dir, input_file):
-    output_basename = "BUILD.bazel" if input_file.basename == "BUILD.out" else input_file.basename
-    output_rel_dir = paths.relativize(input_file.dirname, ctx.label.package)
-    output_path = paths.join(root_dir, output_rel_dir, output_basename)
+    output_relative_path = paths.relativize(input_file.path, ctx.label.package).removesuffix(ctx.attr.trimmed_suffix)
+    output_path = paths.join(root_dir, output_relative_path)
     return ctx.actions.declare_file(output_path)
 
 def _convert_directory_structure_impl(ctx):
     # Ignore BUILD.in files
-    input_files = [file for file in ctx.files.test_data if file.basename != "BUILD.in"]
+    input_files = [
+        file
+        for file in ctx.files.workspace_files
+        if not file.basename.endswith(ctx.attr.ignored_files_suffix)
+    ]
 
     # Rename BUILD.out to BUILD.bazel
     root_dir = ctx.attr.name + "_"
@@ -40,10 +43,18 @@ _convert_directory_structure = rule(
     """,
     implementation = _convert_directory_structure_impl,
     attrs = {
-        "test_data": attr.label_list(
+        "workspace_files": attr.label_list(
             allow_files = True,
             mandatory = True,
             doc = "Workspace contents intended for gazelle_generation_test()",
+        ),
+        "ignored_files_suffix": attr.string(
+            default = ".in",
+            doc = "Suffix of workspace files to be ignored",
+        ),
+        "trimmed_suffix": attr.string(
+            default = ".out",
+            doc = "Suffix of workspace files to be trimmed",
         ),
     },
 )
@@ -62,11 +73,10 @@ def gazelle_compilation_test(*, name, workspace_path, **kwargs):
         **kwargs: Attributes that are passed directly to the bazel_integration_test macro.
     """
     converted_workspace_name = name + "_workspace"
-    workspace_files = native.glob([paths.join(workspace_path, "**")])
 
     _convert_directory_structure(
         name = converted_workspace_name,
-        test_data = workspace_files,
+        workspace_files = native.glob([paths.join(workspace_path, "**")]),
         testonly = True,
     )
 
