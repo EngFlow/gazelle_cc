@@ -76,7 +76,7 @@ def gazelle_compilation_test(*, name, workspace_path, **kwargs):
 
     _convert_directory_structure(
         name = converted_workspace_name,
-        workspace_files = native.glob([paths.join(workspace_path, "**")]),
+        workspace_files = integration_test_utils.glob_workspace_files(workspace_path),
         testonly = True,
     )
 

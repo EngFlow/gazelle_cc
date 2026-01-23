@@ -19,30 +19,65 @@ gazelle_binary(
     visibility = ["//visibility:private"],
 )
 
-default_test_runner(
-    name = "compilation_test_runner",
-    bazel_cmds = ["--nosystem_rc --nohome_rc build //..."],  # exclude external rc files for a hermetic build
-)
-
-ALL_TEST_DIRS = [paths.dirname(p) for p in glob([
+ALL_WORKSPACES = [paths.dirname(p) for p in glob([
     "**/MODULE.bazel",
     "**/WORKSPACE",
 ])]
-
-COMPILATION_TEST_DIRS = [
-    "virtual_include_paths",
-]
 
 gazelle_generation_test_suite(
     name = "generation_tests",
     size = "small",
     gazelle_binary = ":gazelle_cc",
-    workspace_paths = ALL_TEST_DIRS,
+    workspace_paths = ALL_WORKSPACES,
+)
+
+COMPILABLE_WORKSPACES = [paths.dirname(p) for p in glob(
+    include = [
+        "**/MODULE.bazel",
+        "**/WORKSPACE",
+    ],
+    exclude = [
+        # Expected unresolved include paths, won't compile.
+        "absolute_include/**",
+        "cc_ambiguous_deps_*/**",
+        "cc_generate/**",
+        "cc_unresolved_deps_*/**",
+        "cycle-in-existing-units_no_merge/**",
+        "deps_external/**",
+        "deps_index/**",
+        "index_globs/**",
+        "kind_name_collisions/**",
+
+        # Sources with syntax errors of course won't compile.
+        "cc_parsing_errors_*/**",
+
+        # TODO: Contains gazelle:map_kind pointing to non-existing custom_cc.bzl file.
+        "map_kind/**",
+        "non_locale_file_deps/**",
+
+        # TODO: a_test.c and d_test.c both contain main function, but they're packed into the same "a_test" cc_test.
+        "package_by_directory/**",
+
+        # TODO: undefined //platforms package.
+        "platforms/**",
+
+        # TODO: No such target //:root_proto.
+        "protobuf/**",
+
+        # Expected invalid layout of test runners, won't compile.
+        "tests_directory/**",
+    ],
+)]
+
+default_test_runner(
+    name = "compilation_test_runner",
+    bazel_cmds = ["--nosystem_rc --nohome_rc build //..."],  # exclude external rc files for a hermetic build
 )
 
 gazelle_compilation_test_suite(
     name = "compilation_tests",
     size = "medium",
+    tags = ["manual"],  # do not include "exclusive" tag so the tests can run in parallel
     test_runner = ":compilation_test_runner",
-    workspace_paths = COMPILATION_TEST_DIRS,
+    workspace_paths = COMPILABLE_WORKSPACES,
 )

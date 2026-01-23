@@ -2,8 +2,8 @@
 Additional macros for Gazelle generation tests.
 """
 
-load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@gazelle//:def.bzl", "gazelle_generation_test")
+load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "integration_test_utils")
 
 def gazelle_generation_test_suite(
         *,
@@ -32,7 +32,7 @@ def gazelle_generation_test_suite(
         gazelle_generation_test(
             name = subtest_name(workspace_path),
             gazelle_binary = gazelle_binary,
-            test_data = native.glob([paths.join(workspace_path, "**")]),
+            test_data = integration_test_utils.glob_workspace_files(workspace_path),
             size = size,
             **kwargs
         )

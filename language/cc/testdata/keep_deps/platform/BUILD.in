@@ -1,6 +1,9 @@
 # gazelle:cc_platform android aarch64 @platforms//os:android
 # gazelle:cc_platform qnx aarch64 @platforms//os:qnx
 
+# keep
+cc_library(name = "do_not_delete")
+
 cc_library(
     name = "platform",
     srcs = ["custom.cc"],
