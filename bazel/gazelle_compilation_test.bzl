@@ -33,7 +33,7 @@ def _convert_directory_structure_impl(ctx):
 
     return DefaultInfo(files = depset(output_files))
 
-convert_directory_structure = rule(
+_convert_directory_structure = rule(
     doc = """
     Prepares a test workspace intended for gazelle_generation_test() to make it buildable by Bazel. To achieve this, all
     BUILD.out files are renamed to BUILD.bazel files.
@@ -48,13 +48,7 @@ convert_directory_structure = rule(
     },
 )
 
-def _resolve_workspace_path(test_data):
-    for path in test_data:
-        if paths.basename(path) in ["WORKSPACE", "MODULE.bazel"]:
-            return paths.dirname(path)
-    fail("test data must contain either a WORKSPACE or MODULE.bazel file")
-
-def gazelle_compilation_test(*, name, test_data, **kwargs):
+def gazelle_compilation_test(*, name, workspace_path, **kwargs):
     """
     gazelle_compilation_test is a macro complementary to gazelle_generation_test.
 
@@ -64,14 +58,15 @@ def gazelle_compilation_test(*, name, test_data, **kwargs):
 
     Args:
         name: The name of the test.
-        test_data: A list of targets of the test data files you will pass to the test.
+        workspace_path: The path to the tested workspace.
         **kwargs: Attributes that are passed directly to the bazel_integration_test macro.
     """
     converted_workspace_name = name + "_workspace"
+    workspace_files = native.glob([paths.join(workspace_path, "**")])
 
-    convert_directory_structure(
+    _convert_directory_structure(
         name = converted_workspace_name,
-        test_data = test_data,
+        test_data = workspace_files,
         testonly = True,
     )
 
@@ -80,7 +75,7 @@ def gazelle_compilation_test(*, name, test_data, **kwargs):
         bazel_binaries = bazel_binaries,
         bazel_version = bazel_binaries.versions.current,
         workspace_files = [":" + converted_workspace_name],
-        workspace_path = _resolve_workspace_path(test_data),
+        workspace_path = workspace_path,
         **kwargs
     )
 
@@ -88,7 +83,8 @@ def gazelle_compilation_test_suite(
         *,
         name,
         test_runner,
-        test_data_map,
+        workspace_paths,
+        subtest_suffix = "_compilation_test",
         size = None,
         tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS,
         **kwargs):
@@ -98,16 +94,21 @@ def gazelle_compilation_test_suite(
     Args:
         name: The name of the test suite.
         test_runner: A test runner binary. See bazel_integration_test docs for details.
-        test_data_map: A map from subtest names to the test data passed to each single gazelle_compilation_test.
+        workspace_paths: A list of workspace paths to create subtests for.
+        subtest_suffix: Suffix to append to each subtest name.
         size: Size attribute to apply to all subtests.
         tags: Tags to apply to the test suite and all subtests.
         **kwargs: Attributes that are passed directly to the test suite and all subtests.
     """
-    for subtest_name, test_data in test_data_map.items():
+
+    def subtest_name(workspace_path):
+        return workspace_path.replace("/", "_") + subtest_suffix
+
+    for workspace_path in workspace_paths:
         gazelle_compilation_test(
-            name = subtest_name,
+            name = subtest_name(workspace_path),
             test_runner = test_runner,
-            test_data = test_data,
+            workspace_path = workspace_path,
             size = size,
             tags = tags,
             **kwargs
@@ -115,7 +116,7 @@ def gazelle_compilation_test_suite(
 
     native.test_suite(
         name = name,
-        tests = [":" + subtest_name for subtest_name in test_data_map.keys()],
+        tests = [":" + subtest_name(workspace_path) for workspace_path in workspace_paths],
         tags = tags,
         **kwargs
     )

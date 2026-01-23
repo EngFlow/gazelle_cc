@@ -37,12 +37,12 @@ gazelle_generation_test_suite(
     name = "generation_tests",
     size = "small",
     gazelle_binary = ":gazelle_cc",
-    test_data_map = {test_dir + "_generation_test": glob([test_dir + "/**"]) for test_dir in ALL_TEST_DIRS},
+    workspace_paths = ALL_TEST_DIRS,
 )
 
 gazelle_compilation_test_suite(
     name = "compilation_tests",
     size = "medium",
     test_runner = ":compilation_test_runner",
-    test_data_map = {test_dir + "_compilation_test": glob([test_dir + "/**"]) for test_dir in COMPILATION_TEST_DIRS},
+    workspace_paths = COMPILATION_TEST_DIRS,
 )
