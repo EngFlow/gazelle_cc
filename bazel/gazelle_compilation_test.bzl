@@ -9,8 +9,8 @@ load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "bazel_in
 
 def _rename_input_file(ctx, root_dir, input_file):
     output_basename = "BUILD.bazel" if input_file.basename == "BUILD.out" else input_file.basename
-    output_dir = paths.relativize(input_file.dirname, ctx.label.package)
-    output_path = paths.join(root_dir, output_dir, output_basename)
+    output_rel_dir = paths.relativize(input_file.dirname, ctx.label.package)
+    output_path = paths.join(root_dir, output_rel_dir, output_basename)
     return ctx.actions.declare_file(output_path)
 
 def _convert_directory_structure_impl(ctx):
@@ -54,7 +54,7 @@ def _resolve_workspace_path(test_data):
             return paths.dirname(path)
     fail("test data must contain either a WORKSPACE or MODULE.bazel file")
 
-def gazelle_compilation_test(name, test_data, **kwargs):
+def gazelle_compilation_test(*, name, test_data, **kwargs):
     """
     gazelle_compilation_test is a macro complementary to gazelle_generation_test.
 
@@ -64,13 +64,13 @@ def gazelle_compilation_test(name, test_data, **kwargs):
 
     Args:
         name: The name of the test.
-        test_data: A list of target of the test data files you will pass to the test.
+        test_data: A list of targets of the test data files you will pass to the test.
         **kwargs: Attributes that are passed directly to the bazel_integration_test macro.
     """
-    workspace_name = name + "_workspace"
+    converted_workspace_name = name + "_workspace"
 
     convert_directory_structure(
-        name = workspace_name,
+        name = converted_workspace_name,
         test_data = test_data,
         testonly = True,
     )
@@ -80,39 +80,40 @@ def gazelle_compilation_test(name, test_data, **kwargs):
         bazel_binaries = bazel_binaries,
         bazel_version = bazel_binaries.versions.current,
         test_runner = "//bazel:bazel_builder",
-        workspace_files = [":" + workspace_name],
+        workspace_files = [":" + converted_workspace_name],
         workspace_path = _resolve_workspace_path(test_data),
         **kwargs
     )
 
-def gazelle_compilation_tests(
+def gazelle_compilation_test_suite(
+        *,
         name,
         test_data_map,
         size = None,
-        visibility = None,
-        tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS):
+        tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS,
+        **kwargs):
     """
-    gazelle_compilation_tests is a macro that creates a suite of gazelle_compilation_test tests.
+    gazelle_compilation_test_suite is a macro that creates a suite of gazelle_compilation_test tests.
 
     Args:
         name: The name of the test suite.
         test_data_map: A map from subtest names to the test data passed to each single gazelle_compilation_test.
         size: Size attribute to apply to all subtests.
-        visibility: Visibility attribute to apply to all subtests.
         tags: Tags to apply to the test suite and all subtests.
+        **kwargs: Attributes that are passed directly to the test suite and all subtests.
     """
     for subtest_name, test_data in test_data_map.items():
         gazelle_compilation_test(
             name = subtest_name,
             test_data = test_data,
             size = size,
-            visibility = visibility,
             tags = tags,
+            **kwargs
         )
 
     native.test_suite(
         name = name,
         tests = [":" + subtest_name for subtest_name in test_data_map.keys()],
-        visibility = visibility,
         tags = tags,
+        **kwargs
     )
