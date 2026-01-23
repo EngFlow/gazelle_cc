@@ -31,7 +31,6 @@ ALL_TEST_DIRS = sets.to_list(sets.make([
 ]))
 
 COMPILATION_TEST_DIRS = [
-    "cc_grpc_library",
     "virtual_include_paths",
 ]
 
