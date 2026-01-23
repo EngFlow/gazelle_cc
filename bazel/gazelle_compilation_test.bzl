@@ -79,7 +79,6 @@ def gazelle_compilation_test(*, name, test_data, **kwargs):
         name = name,
         bazel_binaries = bazel_binaries,
         bazel_version = bazel_binaries.versions.current,
-        test_runner = "//bazel:bazel_builder",
         workspace_files = [":" + converted_workspace_name],
         workspace_path = _resolve_workspace_path(test_data),
         **kwargs
@@ -88,6 +87,7 @@ def gazelle_compilation_test(*, name, test_data, **kwargs):
 def gazelle_compilation_test_suite(
         *,
         name,
+        test_runner,
         test_data_map,
         size = None,
         tags = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS,
@@ -97,6 +97,7 @@ def gazelle_compilation_test_suite(
 
     Args:
         name: The name of the test suite.
+        test_runner: A test runner binary. See bazel_integration_test docs for details.
         test_data_map: A map from subtest names to the test data passed to each single gazelle_compilation_test.
         size: Size attribute to apply to all subtests.
         tags: Tags to apply to the test suite and all subtests.
@@ -105,6 +106,7 @@ def gazelle_compilation_test_suite(
     for subtest_name, test_data in test_data_map.items():
         gazelle_compilation_test(
             name = subtest_name,
+            test_runner = test_runner,
             test_data = test_data,
             size = size,
             tags = tags,

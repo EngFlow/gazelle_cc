@@ -1,5 +1,6 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@gazelle//:def.bzl", "gazelle_binary")
+load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "default_test_runner")
 load("//bazel:gazelle_compilation_test.bzl", "gazelle_compilation_test_suite")
 load("//bazel:gazelle_generation_test.bzl", "gazelle_generation_test_suite")
 
@@ -16,6 +17,11 @@ gazelle_binary(
         "//language/cc",
     ],
     visibility = ["//visibility:private"],
+)
+
+default_test_runner(
+    name = "compilation_test_runner",
+    bazel_cmds = ["--nosystem_rc --nohome_rc build //..."],  # exclude external rc files for a hermetic build
 )
 
 ALL_TEST_DIRS = [paths.dirname(p) for p in glob([
@@ -37,5 +43,6 @@ gazelle_generation_test_suite(
 gazelle_compilation_test_suite(
     name = "compilation_tests",
     size = "medium",
+    test_runner = ":compilation_test_runner",
     test_data_map = {test_dir + "_compilation_test": glob([test_dir + "/**"]) for test_dir in COMPILATION_TEST_DIRS},
 )
