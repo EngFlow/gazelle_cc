@@ -6,6 +6,7 @@ shopt -s extglob
 IGNORE_PATHS=(
   "example/*"
   "index/internal/bazel/proto/build.proto"
+  "language/cc/integration_test/*"
   "language/cc/testdata/*"
 )
 
