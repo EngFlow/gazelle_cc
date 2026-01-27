@@ -312,6 +312,19 @@ bazel_dep(name = "fmt", version = "11.1.4", repo_name = "fmt_repo")
 #include "boost/chrono.hpp"       // Warning: defined in @boost.chrono//:boost.chrono but not added as bazel_dep
 ```
 
+It is also possible to create a dedicated index based on `bazel_dep` directives found in the `MODULE.bazel` file using dedicated `@gazelle_cc//index/bzlmod` binary 
+
+```bash
+bazel run @gazelle_cc//index/bzlmod -- --output=bzlmod.ccindex
+```
+
+```bazel
+# gazelle:cc_indexfile bzlmod.ccindex
+
+## disabled built-in index
+# gazelle:cc_use_builtin_bzlmod_index false
+```
+
 #### `conan`
 
 Resolving external dependencies managed by [Conan](https://docs.conan.io/2/integrations/bazel.html) requires creation of index by the user using `@gazelle_cc//index/conan` binary.

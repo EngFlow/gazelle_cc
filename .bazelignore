@@ -1,5 +1,6 @@
 example/bzlmod/
 example/workspace/
+index/bzlmod/integration_tests/testcases
 index/conan/integration_tests/testcases
 index/internal/tests/example_integration_test/testcases
 index/rules_foreign_cc/integration_tests/testcases
