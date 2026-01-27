@@ -1,4 +1,6 @@
 load("@gazelle//:def.bzl", "gazelle_generation_test")
+load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "default_test_runner")
+load("//bazel:gazelle_compilation_test.bzl", "gazelle_compilation_test")
 
 TEST_DATA = glob(
     include = ["**"],
@@ -6,8 +8,20 @@ TEST_DATA = glob(
 )
 
 gazelle_generation_test(
-    name = "integration_test_generation",
+    name = "generation_only_test",
     size = "small",
     gazelle_binary = "//language/cc:gazelle_for_tests",
     test_data = TEST_DATA,
+)
+
+default_test_runner(
+    name = "integration_test_runner",
+    bazel_cmds = ["--nosystem_rc --nohome_rc build //..."],  # exclude external rc files for a hermetic build
+)
+
+gazelle_compilation_test(
+    name = "integration_test",
+    size = "medium",
+    test_data = TEST_DATA,
+    test_runner = ":integration_test_runner",
 )

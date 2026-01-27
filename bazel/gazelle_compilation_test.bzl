@@ -5,7 +5,7 @@ the workspace to be built successfully by Bazel.
 
 load("@bazel_binaries//:defs.bzl", "bazel_binaries")
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "bazel_integration_test", "integration_test_utils")
+load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "bazel_integration_test")
 
 def _rename_input_file(ctx, root_dir, input_file):
     output_relative_path = paths.relativize(input_file.path, ctx.label.package).removesuffix(ctx.attr.trimmed_suffix)
@@ -59,7 +59,13 @@ _convert_directory_structure = rule(
     },
 )
 
-def gazelle_compilation_test(*, name, workspace_path, **kwargs):
+def _resolve_workspace_path(test_data):
+    for path in test_data:
+        if paths.basename(path) in ["WORKSPACE", "MODULE.bazel"]:
+            return paths.dirname(path)
+    fail("test data must contain either a WORKSPACE or MODULE.bazel file")
+
+def gazelle_compilation_test(*, name, test_data, **kwargs):
     """
     gazelle_compilation_test is a macro complementary to gazelle_generation_test.
 
@@ -69,14 +75,12 @@ def gazelle_compilation_test(*, name, workspace_path, **kwargs):
 
     Args:
         name: The name of the test.
-        workspace_path: The path to the tested workspace.
+        test_data: Test data files you will pass to the test. Same as for gazelle_generation_test.
         **kwargs: Attributes that are passed directly to the bazel_integration_test macro.
     """
-    converted_workspace_name = name + "_workspace"
-
     _convert_directory_structure(
-        name = converted_workspace_name,
-        workspace_files = integration_test_utils.glob_workspace_files(workspace_path),
+        name = "{}_workspace".format(name),
+        workspace_files = test_data,
         testonly = True,
     )
 
@@ -84,7 +88,7 @@ def gazelle_compilation_test(*, name, workspace_path, **kwargs):
         name = name,
         bazel_binaries = bazel_binaries,
         bazel_version = bazel_binaries.versions.current,
-        workspace_files = [":" + converted_workspace_name],
-        workspace_path = workspace_path,
+        workspace_files = [":{}_workspace".format(name)],
+        workspace_path = _resolve_workspace_path(test_data),
         **kwargs
     )
