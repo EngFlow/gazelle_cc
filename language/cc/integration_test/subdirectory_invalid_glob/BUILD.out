@@ -1,0 +1,7 @@
+# gazelle:cc_group subdirectory
+# gazelle:cc_group_subdirectory_include src/**
+# gazelle:cc_group_subdirectory_include [
+# gazelle:cc_group_subdirectory_src src/**
+# gazelle:cc_group_subdirectory_src [
+# gazelle:cc_group_subdirectory_test src/**
+# gazelle:cc_group_subdirectory_test [

@@ -1,0 +1,12 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "a",
+    srcs = ["a.cc"],
+    hdrs = ["a.h"],
+    implementation_deps = [
+        "//relative_include_paths:config",
+        "//relative_include_paths/module_a/internal:lib",
+    ],
+    visibility = ["//visibility:public"],
+)

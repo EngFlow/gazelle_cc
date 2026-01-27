@@ -4,3 +4,5 @@ sandbox/*
 .scala-build
 .metals
 .bsp
+
+language/cc/integration_test/MODULE.bazel.lock

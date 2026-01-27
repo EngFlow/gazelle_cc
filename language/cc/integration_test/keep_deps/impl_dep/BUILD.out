@@ -1,0 +1,8 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//keep_deps/dep:__pkg__"])
+
+cc_library(
+    name = "impl_dep",
+    hdrs = ["impl_dep.h"],
+)

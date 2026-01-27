@@ -1,0 +1,16 @@
+cc_library(
+    name = "a",
+    srcs = ["a.c"],
+    hdrs = ["a.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "a_test",
+    srcs = ["a_test.c"],
+)
+
+cc_binary(
+    name = "a_main",
+    srcs = ["a_main.cc"],
+)

@@ -1,0 +1,5 @@
+# gazelle:cc_group directory
+
+cc_library(name = "my_library", defines = ["FOO"])
+cc_binary(name = "my_binary", copts = ["-g"])
+cc_test(name = "my_tests", copts = ["-g", "-O0"])
