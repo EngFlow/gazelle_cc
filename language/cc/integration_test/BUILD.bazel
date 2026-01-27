@@ -3,8 +3,13 @@ load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "default_
 load("//bazel:gazelle_compilation_test.bzl", "gazelle_compilation_test")
 
 TEST_DATA = glob(
-    include = ["**"],
-    exclude = ["BUILD.bazel"],
+    include = [
+        "**",
+    ],
+    exclude = [
+        "BUILD.bazel",
+        "*.lock",
+    ],
 )
 
 gazelle_generation_test(
@@ -16,7 +21,11 @@ gazelle_generation_test(
 
 default_test_runner(
     name = "integration_test_runner",
-    bazel_cmds = ["--nosystem_rc --nohome_rc build //..."],  # exclude external rc files for a hermetic build
+    bazel_cmds = [
+        # exclude external rc files for a hermetic build
+        "--nosystem_rc --nohome_rc build //...",
+        "--nosystem_rc --nohome_rc test //...",
+    ],
 )
 
 gazelle_compilation_test(

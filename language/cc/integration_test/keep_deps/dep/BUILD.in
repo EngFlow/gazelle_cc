@@ -1,0 +1,14 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# keep
+cc_library(name = "do_not_delete")
+
+cc_library(
+    name = "dep",
+    srcs = ["dep.cc"],
+    hdrs = ["dep.h"],
+    implementation_deps = [
+        ":do_not_delete",  # keep
+    ],
+    visibility = ["//visibility:public"],
+)
