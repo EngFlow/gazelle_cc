@@ -1,0 +1,4 @@
+# gazelle:cc_group subdirectory
+# gazelle:cc_group_subdirectory_include headers
+# gazelle:cc_group_subdirectory_src sources
+# gazelle:cc_group_subdirectory_test tests

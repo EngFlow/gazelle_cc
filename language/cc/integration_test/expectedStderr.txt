@@ -1,0 +1,9 @@
+gazelle: gazelle_cc: cc_group_subdirectory_include: glob pattern may not match nested subdirectories with / or **: "src/**"
+gazelle: gazelle_cc: cc_group_subdirectory_include: invalid glob pattern: "["
+gazelle: gazelle_cc: cc_group_subdirectory_src: glob pattern may not match nested subdirectories with / or **: "src/**"
+gazelle: gazelle_cc: cc_group_subdirectory_src: invalid glob pattern: "["
+gazelle: gazelle_cc: cc_group_subdirectory_test: glob pattern may not match nested subdirectories with / or **: "src/**"
+gazelle: gazelle_cc: cc_group_subdirectory_test: invalid glob pattern: "["
+gazelle: gazelle_cc: directory subdirectory_match_conflict/include matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
+gazelle: gazelle_cc: directory subdirectory_match_conflict/src matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
+gazelle: gazelle_cc: directory subdirectory_match_conflict/test matches more than one of the cc_subdirectory_srcs, cc_subdirectory_hdrs, cc_subdirectory_test patterns. Make sure the patterns are unambiguous.
