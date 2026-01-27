@@ -5,6 +5,7 @@ load("@gazelle//:def.bzl", "gazelle_generation_test")
     gazelle_generation_test(
         # Name the test the path to the directory containing the WORKSPACE file.
         name = test_dir,
+        size = "small",
         gazelle_binary = "//language/cc:gazelle_for_tests",
         test_data = glob([test_dir + "/**"]),
     )
