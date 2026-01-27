@@ -1,3 +1,4 @@
+gazelle: Rules [lib_a_interface lib_b_interface] defined in %WORKSPACEPATH%/rules_with_no_sources/directory/ambigious are invalidating the 'cc_group directive' setting, their sources [lib_a.h lib_b.h] would be merged into a single rule 'ambigious'. To prevent automatic merging of rules set `# gazelle:cc_group_unit_cycles warn`
 gazelle: gazelle_cc: cc_group_subdirectory_include: glob pattern may not match nested subdirectories with / or **: "src/**"
 gazelle: gazelle_cc: cc_group_subdirectory_include: invalid glob pattern: "["
 gazelle: gazelle_cc: cc_group_subdirectory_src: glob pattern may not match nested subdirectories with / or **: "src/**"
