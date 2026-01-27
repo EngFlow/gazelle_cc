@@ -1,0 +1,18 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+# gazelle:cc_group unit
+
+cc_binary(
+    name = "app",
+    srcs = ["app.cc"],
+    deps = [
+        "//relative_include_paths/module_a:a",
+        "//relative_include_paths/module_b:b",
+    ],
+)
+
+cc_library(
+    name = "config",
+    hdrs = ["config.h"],
+    visibility = ["//visibility:public"],
+)
