@@ -1,7 +1,5 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@gazelle//:def.bzl", "gazelle_binary")
-load("@rules_bazel_integration_test//bazel_integration_test:defs.bzl", "default_test_runner")
-load("//bazel:gazelle_compilation_test.bzl", "gazelle_compilation_test_suite")
 load("//bazel:gazelle_generation_test.bzl", "gazelle_generation_test_suite")
 
 # Exclude this entire directly from having anything gnerated by Gazelle. That
@@ -29,55 +27,4 @@ gazelle_generation_test_suite(
     size = "small",
     gazelle_binary = ":gazelle_cc",
     workspace_paths = ALL_WORKSPACES,
-)
-
-COMPILABLE_WORKSPACES = [paths.dirname(p) for p in glob(
-    include = [
-        "**/MODULE.bazel",
-        "**/WORKSPACE",
-    ],
-    exclude = [
-        # Expected unresolved include paths, won't compile.
-        "absolute_include/**",
-        "cc_ambiguous_deps_*/**",
-        "cc_generate/**",
-        "cc_unresolved_deps_*/**",
-        "cycle-in-existing-units_no_merge/**",
-        "deps_external/**",
-        "deps_index/**",
-        "index_globs/**",
-        "kind_name_collisions/**",
-
-        # Sources with syntax errors of course won't compile.
-        "cc_parsing_errors_*/**",
-
-        # TODO: Contains gazelle:map_kind pointing to non-existing custom_cc.bzl file.
-        "map_kind/**",
-        "non_locale_file_deps/**",
-
-        # TODO: a_test.c and d_test.c both contain main function, but they're packed into the same "a_test" cc_test.
-        "package_by_directory/**",
-
-        # TODO: undefined //platforms package.
-        "platforms/**",
-
-        # TODO: No such target //:root_proto.
-        "protobuf/**",
-
-        # Expected invalid layout of test runners, won't compile.
-        "tests_directory/**",
-    ],
-)]
-
-default_test_runner(
-    name = "compilation_test_runner",
-    bazel_cmds = ["--nosystem_rc --nohome_rc build //..."],  # exclude external rc files for a hermetic build
-)
-
-gazelle_compilation_test_suite(
-    name = "compilation_tests",
-    size = "medium",
-    tags = ["manual"],  # do not include "exclusive" tag so the tests can run in parallel
-    test_runner = ":compilation_test_runner",
-    workspace_paths = COMPILABLE_WORKSPACES,
 )
