@@ -1,4 +1,7 @@
+load("@gazelle//:def.bzl", "gazelle_binary")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+# gazelle:exclude testdata
 
 go_library(
     name = "cc",
@@ -37,7 +40,6 @@ go_library(
     ],
 )
 
-# gazelle:exclude testdata
 go_test(
     name = "cc_test",
     size = "small",
@@ -52,4 +54,14 @@ go_test(
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
     ],
+)
+
+gazelle_binary(
+    name = "gazelle_for_tests",
+    testonly = True,
+    languages = [
+        "@gazelle//language/proto",
+        "//language/cc",
+    ],
+    visibility = ["//language/cc/testdata:__pkg__"],
 )

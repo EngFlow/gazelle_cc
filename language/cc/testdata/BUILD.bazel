@@ -1,21 +1,5 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("@gazelle//:def.bzl", "gazelle_binary")
 load("//bazel:gazelle_generation_test.bzl", "gazelle_generation_test_suite")
-
-# Exclude this entire directly from having anything gnerated by Gazelle. That
-# way the test cases won't be fixed by `bazel run //:gazelle` when run in this
-# repository.
-# gazelle:exclude **
-
-# This test Gazelle binary only has the "//language/cc" plugin installed.
-gazelle_binary(
-    name = "gazelle_cc",
-    languages = [
-        "@gazelle//language/proto",
-        "//language/cc",
-    ],
-    visibility = ["//visibility:private"],
-)
 
 ALL_WORKSPACES = [paths.dirname(p) for p in glob([
     "**/MODULE.bazel",
@@ -25,6 +9,6 @@ ALL_WORKSPACES = [paths.dirname(p) for p in glob([
 gazelle_generation_test_suite(
     name = "generation_tests",
     size = "small",
-    gazelle_binary = ":gazelle_cc",
+    gazelle_binary = "//language/cc:gazelle_for_tests",
     workspace_paths = ALL_WORKSPACES,
 )
