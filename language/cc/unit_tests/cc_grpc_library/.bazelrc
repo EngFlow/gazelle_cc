@@ -1,2 +1,0 @@
-# silence the aligned allocation function error
-build --cxxopt=-faligned-allocation
