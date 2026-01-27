@@ -1,0 +1,13 @@
+load("@gazelle//:def.bzl", "gazelle_generation_test")
+
+TEST_DATA = glob(
+    include = ["**"],
+    exclude = ["BUILD.bazel"],
+)
+
+gazelle_generation_test(
+    name = "integration_test_generation",
+    size = "small",
+    gazelle_binary = "//language/cc:gazelle_for_tests",
+    test_data = TEST_DATA,
+)

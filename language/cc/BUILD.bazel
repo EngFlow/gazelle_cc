@@ -1,6 +1,7 @@
 load("@gazelle//:def.bzl", "gazelle_binary")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+# gazelle:exclude integration_test
 # gazelle:exclude unit_tests
 
 go_library(
@@ -63,5 +64,8 @@ gazelle_binary(
         "@gazelle//language/proto",
         "//language/cc",
     ],
-    visibility = ["//language/cc/unit_tests:__pkg__"],
+    visibility = [
+        "//language/cc/integration_test:__pkg__",
+        "//language/cc/unit_tests:__pkg__",
+    ],
 )
