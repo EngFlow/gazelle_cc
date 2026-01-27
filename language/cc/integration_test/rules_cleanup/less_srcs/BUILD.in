@@ -1,0 +1,19 @@
+cc_binary(
+    name = "a_main",
+    srcs = ["a_main.cc", "b_main.cc"],
+    deps = ["//less_srcs"],
+)
+
+cc_library(
+    name = "less_srcs",
+    srcs = ["a.c", "b.c"],
+    hdrs = ["a.h", "b.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "less_srcs_test",
+    srcs = ["a_test.c", "b_test.c"],
+    deps = ["//less_srcs"],
+)
+
