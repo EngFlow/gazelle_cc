@@ -79,7 +79,7 @@ func resolveBazelDepModules(moduleBzlPath string, bcrClient bcr.BazelRegistry) [
 	}
 	bazelDeps := extractBazelDependencies(*moduleFile)
 
-	// The processing is mostly IO bound (downloading artifacts, bazel query), use up-to number of avaiable CPUs to now overschedule
+	// The processing is mostly IO-bound (downloading artifacts, bazel query), use up-to number of available CPUs to not overschedule
 	workerCount := runtime.GOMAXPROCS(0)
 	// Use semaphore pattern for bounded concurrency
 	sem := make(chan struct{}, workerCount)
