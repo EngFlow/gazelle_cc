@@ -1,0 +1,21 @@
+load("@bazel_skylib//lib:paths.bzl", "paths")
+load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("//bazel:gazelle_compilation_tests.bzl", "gazelle_compilation_test")
+
+gazelle_binary(
+    name = "gazelle_for_tests",
+    languages = ["//language/cc"],
+)
+
+ALL_WORKSPACES = [paths.dirname(p) for p in glob(["**/MODULE.bazel"])]
+
+[gazelle_generation_test(
+    name = test_dir + "_generation",
+    gazelle_binary = ":gazelle_for_tests",
+    test_data = glob([test_dir + "/**"]),
+) for test_dir in ALL_WORKSPACES]
+
+[gazelle_compilation_test(
+    name = test_dir + "_compilation",
+    workspace_path = test_dir,
+) for test_dir in ALL_WORKSPACES]

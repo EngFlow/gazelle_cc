@@ -22,3 +22,13 @@ use_repo(
     "org_golang_google_protobuf",
     "org_golang_x_sync",
 )
+
+bazel_dep(name = "rules_cc", version = "0.2.16", dev_dependency = True)
+
+gazelle_compilation_tests = use_extension("//bazel:gazelle_compilation_tests.bzl", "gazelle_compilation_tests", dev_dependency = True)
+gazelle_compilation_tests.discover(base_directory = "language/cc/generation_and_compilation_tests")
+use_repo(
+    gazelle_compilation_tests,
+    "compilation_test_subdirectory_basic",
+    "compilation_test_virtual_include_paths",
+)
