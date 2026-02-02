@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -euo pipefail
+set -eu
 
 ARG_BUILD_FILE_NAME="BUILD.bazel"
 ARG_PACKAGE_FILEGROUP_NAME="package_rules"
@@ -8,7 +8,7 @@ ARG_WORKSPACE_ROOT=""
 ARG_RULE_KINDS=""
 
 help() {
-    name=$(basename $0)
+    name=$(basename "$0")
 cat << EOF
 Usage:
   $name [options] WORKSPACE_ROOT RULE_KIND [RULE_KIND ...]
@@ -102,7 +102,7 @@ parse_rules() {
     # - "in_rule": looking for rule name
     state="scan_rules"
 
-    while read line; do
+    while read -r line; do
         if [ "$state" = "scan_rules" ] && echo "$line" | grep -Eq "($ARG_RULE_KINDS)\("; then
             state="in_rule"
         elif [ "$state" = "in_rule" ] && echo "$line" | grep -Eq 'name\s*=\s*"'; then
@@ -126,13 +126,13 @@ append_filegroup() {
 }
 
 walk_and_generate_package_filegroups() {
-    find "$ARG_WORKSPACE_ROOT" -name "$ARG_BUILD_FILE_NAME" | while read build_file; do
+    find "$ARG_WORKSPACE_ROOT" -name "$ARG_BUILD_FILE_NAME" | while read -r build_file; do
         package_dir="$(dirname "$build_file")"
 
         if [ "$package_dir" = "$ARG_WORKSPACE_ROOT" ]; then
             package=""
         else
-            package="${package_dir#$ARG_WORKSPACE_ROOT/}"
+            package="${package_dir#"$ARG_WORKSPACE_ROOT"/}"
         fi
 
         labels=$(parse_rules "$build_file")
