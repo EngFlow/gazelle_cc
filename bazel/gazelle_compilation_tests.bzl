@@ -43,13 +43,7 @@ def _compilation_test_repo_impl(repository_ctx):
             repository_ctx.symlink(source_file, dest_path)
 
     # Generate filegroups
-    result = repository_ctx.execute([
-        filegroup_tool,
-        "-m",
-        MAIN_FILEGROUP_NAME,
-        ".",
-        " ".join(repository_ctx.attr.rule_kinds),
-    ])
+    result = repository_ctx.execute([filegroup_tool, "-m", MAIN_FILEGROUP_NAME, "."] + repository_ctx.attr.rule_kinds)
     if result.return_code != 0:
         fail("Failed to generate filegroups in {}: {}".format(repository_ctx.path("."), result.stderr))
 

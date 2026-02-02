@@ -62,7 +62,7 @@ parse_args() {
                 ARG_WORKSPACE_ROOT="$1"
             else
                 # Join rule kinds with '|' operator for regex matching
-                ARG_RULE_KINDS="${ARG_RULE_KINDS+$ARG_RULE_KINDS|}$1"
+                ARG_RULE_KINDS="${ARG_RULE_KINDS:+$ARG_RULE_KINDS|}$1"
             fi
             shift
         ;;
