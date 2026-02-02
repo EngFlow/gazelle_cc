@@ -285,22 +285,28 @@ func (lang *ccLanguage) resolveImportSpec(
 		return resolveAmbiguousDependency(resolvedDeps, conf.ambiguousDepsMode, r, from, include)
 	}
 
+	// Resolve using dependency indexes configured by cc_indexfile
 	for _, index := range conf.dependencyIndexes {
 		if resolvedDeps, exists := index[importSpec.Imp]; exists {
 			return resolveAmbiguousDependency(resolvedDeps, conf.ambiguousDepsMode, r, from, include)
 		}
 	}
 
-	if conf.useBuiltinBzlmodIndex {
-		if result, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists && result.Repo != c.RepoName {
-			// Empty apparentName means that there is no such a repository added by bazel_dep
-			if apparentName := c.ModuleToApparentName(result.Repo); apparentName != "" {
-				result.Repo = apparentName
-				return result, nil
-			} else {
-				return result, fmt.Errorf("%v: %w - %v resolved to %v, but 'bazel_dep(name = \"%v\")' is missing", from, errMissingModuleDependency, include, result, result.Repo)
-			}
+	// Resolve using built-in bzlmod index if enabled
+	if resolvedDeps, exists := lang.bzlmodBuiltInIndex[importSpec.Imp]; exists && conf.useBuiltinBzlmodIndex {
+		result, ambiguityErr := resolveAmbiguousDependency(resolvedDeps, conf.ambiguousDepsMode, r, from, include)
+		if result == label.NoLabel {
+			return result, ambiguityErr
 		}
+
+		// Empty apparentName means that there is no such a repository added by bazel_dep
+		apparentName := c.ModuleToApparentName(result.Repo)
+		if apparentName == "" {
+			return result, fmt.Errorf("%v: %w - %v resolved to %v, but 'bazel_dep(name = \"%v\")' is missing", from, errMissingModuleDependency, include, result, result.Repo)
+		}
+
+		result.Repo = apparentName
+		return result, ambiguityErr
 	}
 
 	return label.NoLabel, fmt.Errorf("%v: %w - %v", from, errUnresolved, include)
