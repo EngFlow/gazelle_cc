@@ -1,0 +1,10 @@
+load(":lexer_test.bzl", "lexer_test_suite")
+load(":parser_test.bzl", "parser_test_suite")
+
+lexer_test_suite(
+    name = "lexer_tests",
+)
+
+parser_test_suite(
+    name = "parser_tests",
+)
