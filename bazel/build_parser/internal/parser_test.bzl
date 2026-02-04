@@ -4,7 +4,7 @@ Unit tests for the BUILD file parser.
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load(":parser.bzl", "parse")
-load(":syntax.bzl", "ast_node")
+load(":syntax.bzl", "ast_node", "ast_node_types")
 
 def _simple_call_test_impl(ctx):
     env = unittest.begin(ctx)
@@ -828,6 +828,132 @@ def _newline_statement_separator_test_impl(ctx):
 
     return unittest.end(env)
 
+def _readme_example_1_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = """
+    cc_library(
+        name = "example",
+        srcs = ["example.cc"],
+    )
+    """
+
+    ast = parse(content)
+
+    asserts.equals(env, ast_node_types.ROOT, ast.nodeType)
+    asserts.equals(env, ast_node_types.CALL, ast.statements[0].nodeType)
+    asserts.equals(env, "cc_library", ast.statements[0].callable.name)
+
+    return unittest.end(env)
+
+def _readme_example_2_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    def extract_function_names(ast):
+        """Extract all function names called in a BUILD file."""
+        asserts.equals(env, ast_node_types.ROOT, ast.nodeType)
+
+        names = []
+        for stmt in ast.statements:
+            if stmt.nodeType == ast_node_types.CALL:
+                if stmt.callable.nodeType == ast_node_types.IDENT:
+                    names.append(stmt.callable.name)
+
+        return names
+
+    # Example usage
+    ast = parse('load("@rules_cc//cc:defs.bzl", "cc_library")\ncc_library(name = "foo")')
+    names = extract_function_names(ast)
+    asserts.equals(env, ["load", "cc_library"], names)
+
+    return unittest.end(env)
+
+def _readme_example_3_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    def find_target_names(ast):
+        """Find all 'name' attributes in function calls."""
+        names = []
+
+        for stmt in ast.statements:
+            if stmt.nodeType == ast_node_types.CALL:
+                for kwarg in stmt.keyword_args:
+                    if kwarg.key == "name" and kwarg.value.nodeType == ast_node_types.STRING:
+                        names.append(kwarg.value.value)
+
+        return names
+
+    ast = parse('cc_library(name = "mylib")\ncc_test(name = "mytest")')
+    target_names = find_target_names(ast)
+    asserts.equals(env, ["mylib", "mytest"], target_names)
+
+    return unittest.end(env)
+
+def _readme_example_4_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = "x = 1 + 2 * 3"
+
+    expected_ast = ast_node.make_root(
+        statements = [
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "x"),
+                op = "=",
+                right = ast_node.make_binary_op(
+                    left = ast_node.make_number(value = "1"),
+                    op = "+",
+                    right = ast_node.make_binary_op(
+                        left = ast_node.make_number(value = "2"),
+                        op = "*",
+                        right = ast_node.make_number(value = "3"),
+                    ),
+                ),
+            ),
+        ],
+    )
+
+    actual_ast = parse(content)
+    asserts.equals(env, expected_ast, actual_ast)
+
+    return unittest.end(env)
+
+def _readme_example_5_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = "srcs = [f + '.cc' for f in files if f != 'main']"
+
+    expected_ast = ast_node.make_root(
+        statements = [
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "srcs"),
+                op = "=",
+                right = ast_node.make_list(
+                    elements = [
+                        ast_node.make_comprehension(
+                            element = ast_node.make_binary_op(
+                                left = ast_node.make_ident(name = "f"),
+                                op = "+",
+                                right = ast_node.make_string(value = ".cc"),
+                            ),
+                            loop_var = ast_node.make_ident(name = "f"),
+                            iterable = ast_node.make_ident(name = "files"),
+                            condition = ast_node.make_binary_op(
+                                left = ast_node.make_ident(name = "f"),
+                                op = "!=",
+                                right = ast_node.make_string(value = "main"),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        ],
+    )
+
+    actual_ast = parse(content)
+    asserts.equals(env, expected_ast, actual_ast)
+
+    return unittest.end(env)
+
 def _buildtools_testdata_001_test_impl(ctx):
     env = unittest.begin(ctx)
 
@@ -1116,6 +1242,11 @@ tuple_test = unittest.make(_tuple_test_impl)
 dict_comprehension_test = unittest.make(_dict_comprehension_test_impl)
 dict_comprehension_filtered_test = unittest.make(_dict_comprehension_filtered_test_impl)
 newline_statement_separator_test = unittest.make(_newline_statement_separator_test_impl)
+readme_example_1_test = unittest.make(_readme_example_1_test_impl)
+readme_example_2_test = unittest.make(_readme_example_2_test_impl)
+readme_example_3_test = unittest.make(_readme_example_3_test_impl)
+readme_example_4_test = unittest.make(_readme_example_4_test_impl)
+readme_example_5_test = unittest.make(_readme_example_5_test_impl)
 buildtools_testdata_001_test = unittest.make(_buildtools_testdata_001_test_impl)
 buildtools_testdata_002_test = unittest.make(_buildtools_testdata_002_test_impl)
 buildtools_testdata_003_test = unittest.make(_buildtools_testdata_003_test_impl)
@@ -1144,6 +1275,13 @@ def parser_test_suite(name):
         dict_comprehension_test,
         dict_comprehension_filtered_test,
         newline_statement_separator_test,
+
+        # Examples from README.md
+        readme_example_1_test,
+        readme_example_2_test,
+        readme_example_3_test,
+        readme_example_4_test,
+        readme_example_5_test,
 
         # Include some examples from https://github.com/bazelbuild/buildtools/tree/main/build/testdata
         buildtools_testdata_001_test,
