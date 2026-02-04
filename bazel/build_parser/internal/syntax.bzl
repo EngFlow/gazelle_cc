@@ -23,7 +23,7 @@ ast_node_types = utils.enum_type(
     "UNARY_OP",
 )
 
-def _makeAttr(*, object, attr):
+def _make_attr(*, object, attr):
     """Attribute access: object.attr."""
     return struct(
         nodeType = ast_node_types.ATTR,
@@ -31,7 +31,7 @@ def _makeAttr(*, object, attr):
         attr = attr,
     )
 
-def _makeBinaryOp(*, left, op, right):
+def _make_binary_op(*, left, op, right):
     """Binary expression: left op right."""
     return struct(
         nodeType = ast_node_types.BINARY_OP,
@@ -40,7 +40,7 @@ def _makeBinaryOp(*, left, op, right):
         right = right,
     )
 
-def _makeCall(*, callable, positional_args, keyword_args):
+def _make_call(*, callable, positional_args, keyword_args):
     """Function call expression: func(args, key=value)."""
     return struct(
         nodeType = ast_node_types.CALL,
@@ -49,7 +49,7 @@ def _makeCall(*, callable, positional_args, keyword_args):
         keyword_args = keyword_args,
     )
 
-def _makeComprehension(*, element, loop_var, iterable, condition = None):
+def _make_comprehension(*, element, loop_var, iterable, condition = None):
     """List comprehension: [element for loop_var in iterable if condition]."""
     return struct(
         nodeType = ast_node_types.COMPREHENSION,
@@ -59,21 +59,21 @@ def _makeComprehension(*, element, loop_var, iterable, condition = None):
         condition = condition,
     )
 
-def _makeDict(*, entries):
+def _make_dict(*, entries):
     """Dictionary literal: {...}."""
     return struct(
         nodeType = ast_node_types.DICT,
         entries = entries,
     )
 
-def _makeIdent(*, name):
+def _make_ident(*, name):
     """Identifier."""
     return struct(
         nodeType = ast_node_types.IDENT,
         name = name,
     )
 
-def _makeIndex(*, object, index):
+def _make_index(*, object, index):
     """Index expression: object[index]."""
     return struct(
         nodeType = ast_node_types.INDEX,
@@ -81,7 +81,7 @@ def _makeIndex(*, object, index):
         index = index,
     )
 
-def _makeKeyValue(*, key, value):
+def _make_key_value(*, key, value):
     """Dictionary entry: 'key: value' or keyword argument 'key=value'."""
     return struct(
         nodeType = ast_node_types.KEY_VALUE,
@@ -89,42 +89,42 @@ def _makeKeyValue(*, key, value):
         value = value,
     )
 
-def _makeList(*, elements):
+def _make_list(*, elements):
     """List literal: [...]."""
     return struct(
         nodeType = ast_node_types.LIST,
         elements = elements,
     )
 
-def _makeNumber(*, value):
+def _make_number(*, value):
     """Number literal."""
     return struct(
         nodeType = ast_node_types.NUMBER,
         value = value,
     )
 
-def _makeParenthesis(*, expr):
+def _make_parenthesis(*, expr):
     """Parenthesized expression: (expr)."""
     return struct(
         nodeType = ast_node_types.PARENTHESIS,
         expr = expr,
     )
 
-def _makeRoot(*, statements):
+def _make_root(*, statements):
     """Root node containing all statements."""
     return struct(
         nodeType = ast_node_types.ROOT,
         statements = statements,
     )
 
-def _makeString(*, value):
+def _make_string(*, value):
     """String literal."""
     return struct(
         nodeType = ast_node_types.STRING,
         value = value,
     )
 
-def _makeTernaryOp(*, condition, true_expr, false_expr):
+def _make_ternary_op(*, condition, true_expr, false_expr):
     """Ternary/conditional expression: true_expr if condition else false_expr."""
     return struct(
         nodeType = ast_node_types.TERNARY_OP,
@@ -133,14 +133,14 @@ def _makeTernaryOp(*, condition, true_expr, false_expr):
         false_expr = false_expr,
     )
 
-def _makeTuple(*, elements):
+def _make_tuple(*, elements):
     """Tuple literal: (...)."""
     return struct(
         nodeType = ast_node_types.TUPLE,
         elements = elements,
     )
 
-def _makeUnaryOp(*, op, operand):
+def _make_unary_op(*, op, operand):
     """Unary expression: op operand (e.g., not x, -x)."""
     return struct(
         nodeType = ast_node_types.UNARY_OP,
@@ -149,22 +149,22 @@ def _makeUnaryOp(*, op, operand):
     )
 
 ast_node = struct(
-    makeAttr = _makeAttr,
-    makeBinaryOp = _makeBinaryOp,
-    makeCall = _makeCall,
-    makeComprehension = _makeComprehension,
-    makeDict = _makeDict,
-    makeIdent = _makeIdent,
-    makeIndex = _makeIndex,
-    makeKeyValue = _makeKeyValue,
-    makeList = _makeList,
-    makeNumber = _makeNumber,
-    makeParenthesis = _makeParenthesis,
-    makeRoot = _makeRoot,
-    makeString = _makeString,
-    makeTernaryOp = _makeTernaryOp,
-    makeTuple = _makeTuple,
-    makeUnaryOp = _makeUnaryOp,
+    make_attr = _make_attr,
+    make_binary_op = _make_binary_op,
+    make_call = _make_call,
+    make_comprehension = _make_comprehension,
+    make_dict = _make_dict,
+    make_ident = _make_ident,
+    make_index = _make_index,
+    make_key_value = _make_key_value,
+    make_list = _make_list,
+    make_number = _make_number,
+    make_parenthesis = _make_parenthesis,
+    make_root = _make_root,
+    make_string = _make_string,
+    make_ternary_op = _make_ternary_op,
+    make_tuple = _make_tuple,
+    make_unary_op = _make_unary_op,
 )
 
 # Operator precedence levels (higher = tighter binding)

@@ -145,13 +145,13 @@ def _parse_impl(tokens):
 
         if token.tokenType == token_types.LITERAL_STRING:
             consume_token()
-            result_stack.append(ast_node.makeString(value = token.value))
+            result_stack.append(ast_node.make_string(value = token.value))
         elif token.tokenType == token_types.LITERAL_NUMBER:
             consume_token()
-            result_stack.append(ast_node.makeNumber(value = token.value))
+            result_stack.append(ast_node.make_number(value = token.value))
         elif token.tokenType == token_types.IDENT:
             consume_token()
-            result_stack.append(ast_node.makeIdent(name = token.value))
+            result_stack.append(ast_node.make_ident(name = token.value))
         else:
             fail("unexpected token: %s" % token.tokenType)
 
@@ -162,7 +162,7 @@ def _parse_impl(tokens):
 
         if token and token.tokenType == token_types.BRACKET_RIGHT:
             expect_token_type(token_types.BRACKET_RIGHT)
-            result_stack.append(ast_node.makeList(elements = elements))
+            result_stack.append(ast_node.make_list(elements = elements))
             return
 
         # Parse first element
@@ -180,11 +180,11 @@ def _parse_impl(tokens):
 
         if token and token.tokenType == token_types.BRACKET_RIGHT:
             expect_token_type(token_types.BRACKET_RIGHT)
-            result_stack.append(ast_node.makeList(elements = elements))
+            result_stack.append(ast_node.make_list(elements = elements))
         elif token and token.tokenType == token_types.FOR:
             # This is a comprehension, not a regular list
             # Don't consume FOR, let parse_primary_check_comprehension handle it
-            result_stack.append(ast_node.makeList(elements = elements))
+            result_stack.append(ast_node.make_list(elements = elements))
         else:
             # Parse next element
             call_stack.append(struct(function = parse_list_collect, args = {"elements": elements}))
@@ -202,7 +202,7 @@ def _parse_impl(tokens):
 
         if token and token.tokenType == token_types.BRACE_RIGHT:
             expect_token_type(token_types.BRACE_RIGHT)
-            result_stack.append(ast_node.makeDict(entries = entries))
+            result_stack.append(ast_node.make_dict(entries = entries))
             return
 
         # Parse first key
@@ -220,7 +220,7 @@ def _parse_impl(tokens):
     def parse_dict_value_collected(entries, key):
         """Collect dict value and create key-value pair."""
         value = result_stack.pop()
-        entries.append(ast_node.makeKeyValue(key = key, value = value))
+        entries.append(ast_node.make_key_value(key = key, value = value))
 
         token = peek_token()
         if token and token.tokenType == token_types.COMMA:
@@ -229,11 +229,11 @@ def _parse_impl(tokens):
 
         if token and token.tokenType == token_types.BRACE_RIGHT:
             expect_token_type(token_types.BRACE_RIGHT)
-            result_stack.append(ast_node.makeDict(entries = entries))
+            result_stack.append(ast_node.make_dict(entries = entries))
         elif token and token.tokenType == token_types.FOR:
             # This is a dict comprehension, not a regular dict
             # Don't consume FOR, let parse_dict_check_comprehension handle it
-            result_stack.append(ast_node.makeDict(entries = entries))
+            result_stack.append(ast_node.make_dict(entries = entries))
         else:
             # Parse next key
             call_stack.append(struct(function = parse_dict_key_collected, args = {"entries": entries}))
@@ -260,7 +260,7 @@ def _parse_impl(tokens):
 
             # Parse loop variable(s) - could be a tuple without parentheses
             first_var_token = expect_token_type(token_types.IDENT)
-            first_var = ast_node.makeIdent(name = first_var_token)
+            first_var = ast_node.make_ident(name = first_var_token)
 
             # Check if this is a tuple (comma-separated variables)
             token = peek_token()
@@ -275,7 +275,7 @@ def _parse_impl(tokens):
                         fail("exceeded maximum parsing iterations")
 
                     var_token = expect_token_type(token_types.IDENT)
-                    var_elements.append(ast_node.makeIdent(name = var_token))
+                    var_elements.append(ast_node.make_ident(name = var_token))
 
                     token = peek_token()
                     if token and token.tokenType == token_types.COMMA:
@@ -283,7 +283,7 @@ def _parse_impl(tokens):
                     else:
                         break
 
-                loop_var = ast_node.makeTuple(elements = var_elements)
+                loop_var = ast_node.make_tuple(elements = var_elements)
             else:
                 # Single variable
                 loop_var = first_var
@@ -314,25 +314,25 @@ def _parse_impl(tokens):
             call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.OR}))
         else:
             expect_token_type(token_types.BRACE_RIGHT)
-            comprehension = ast_node.makeComprehension(
+            comprehension = ast_node.make_comprehension(
                 element = element,
                 loop_var = loop_var,
                 iterable = iterable,
                 condition = None,
             )
-            result_stack.append(ast_node.makeDict(entries = [comprehension]))
+            result_stack.append(ast_node.make_dict(entries = [comprehension]))
 
     def parse_dict_comprehension_condition_collected(element, loop_var, iterable):
         """Collect dict comprehension condition and close brace."""
         condition = result_stack.pop()
         expect_token_type(token_types.BRACE_RIGHT)
-        comprehension = ast_node.makeComprehension(
+        comprehension = ast_node.make_comprehension(
             element = element,
             loop_var = loop_var,
             iterable = iterable,
             condition = condition,
         )
-        result_stack.append(ast_node.makeDict(entries = [comprehension]))
+        result_stack.append(ast_node.make_dict(entries = [comprehension]))
 
     def parse_primary():
         """Parse primary expression (atom, list, dict, or parenthesis)."""
@@ -352,7 +352,7 @@ def _parse_impl(tokens):
             next_token = peek_token()
             if next_token and next_token.tokenType == token_types.PARENTHESIS_RIGHT:
                 expect_token_type(token_types.PARENTHESIS_RIGHT)
-                result_stack.append(ast_node.makeTuple(elements = []))
+                result_stack.append(ast_node.make_tuple(elements = []))
             else:
                 # Parse first element, then check if tuple or parenthesis
                 call_stack.append(struct(function = parse_parenthesis_or_tuple_check, args = {}))
@@ -380,7 +380,7 @@ def _parse_impl(tokens):
 
             # Parse loop variable(s) - could be a tuple without parentheses
             first_var_token = expect_token_type(token_types.IDENT)
-            first_var = ast_node.makeIdent(name = first_var_token)
+            first_var = ast_node.make_ident(name = first_var_token)
 
             # Check if this is a tuple (comma-separated variables)
             token = peek_token()
@@ -395,7 +395,7 @@ def _parse_impl(tokens):
                         fail("exceeded maximum parsing iterations")
 
                     var_token = expect_token_type(token_types.IDENT)
-                    var_elements.append(ast_node.makeIdent(name = var_token))
+                    var_elements.append(ast_node.make_ident(name = var_token))
 
                     token = peek_token()
                     if token and token.tokenType == token_types.COMMA:
@@ -403,7 +403,7 @@ def _parse_impl(tokens):
                     else:
                         break
 
-                loop_var = ast_node.makeTuple(elements = var_elements)
+                loop_var = ast_node.make_tuple(elements = var_elements)
             else:
                 # Single variable
                 loop_var = first_var
@@ -434,25 +434,25 @@ def _parse_impl(tokens):
             call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.OR}))
         else:
             expect_token_type(token_types.BRACKET_RIGHT)
-            comprehension = ast_node.makeComprehension(
+            comprehension = ast_node.make_comprehension(
                 element = element,
                 loop_var = loop_var,
                 iterable = iterable,
                 condition = None,
             )
-            result_stack.append(ast_node.makeList(elements = [comprehension]))
+            result_stack.append(ast_node.make_list(elements = [comprehension]))
 
     def parse_comprehension_condition_collected(element, loop_var, iterable):
         """Collect comprehension condition and close bracket."""
         condition = result_stack.pop()
         expect_token_type(token_types.BRACKET_RIGHT)
-        comprehension = ast_node.makeComprehension(
+        comprehension = ast_node.make_comprehension(
             element = element,
             loop_var = loop_var,
             iterable = iterable,
             condition = condition,
         )
-        result_stack.append(ast_node.makeList(elements = [comprehension]))
+        result_stack.append(ast_node.make_list(elements = [comprehension]))
 
     def parse_parenthesis_or_tuple_check():
         """After parsing first element, check if tuple or parenthesis."""
@@ -468,7 +468,7 @@ def _parse_impl(tokens):
             if next_token and next_token.tokenType == token_types.PARENTHESIS_RIGHT:
                 # Single element tuple with trailing comma: (x,)
                 expect_token_type(token_types.PARENTHESIS_RIGHT)
-                result_stack.append(ast_node.makeTuple(elements = elements))
+                result_stack.append(ast_node.make_tuple(elements = elements))
             else:
                 # Multi-element tuple
                 call_stack.append(struct(function = parse_tuple_collect, args = {"elements": elements}))
@@ -477,7 +477,7 @@ def _parse_impl(tokens):
             # Single element without comma - it's a parenthesis
             expect_token_type(token_types.PARENTHESIS_RIGHT)
             expr = result_stack.pop()
-            result_stack.append(ast_node.makeParenthesis(expr = expr))
+            result_stack.append(ast_node.make_parenthesis(expr = expr))
         else:
             fail("expected comma or closing parenthesis")
 
@@ -492,7 +492,7 @@ def _parse_impl(tokens):
 
         if token and token.tokenType == token_types.PARENTHESIS_RIGHT:
             expect_token_type(token_types.PARENTHESIS_RIGHT)
-            result_stack.append(ast_node.makeTuple(elements = elements))
+            result_stack.append(ast_node.make_tuple(elements = elements))
         else:
             # Parse next element
             call_stack.append(struct(function = parse_tuple_collect, args = {"elements": elements}))
@@ -501,7 +501,7 @@ def _parse_impl(tokens):
     def parse_unary_collected(op):
         """Collect operand for unary operator."""
         operand = result_stack.pop()
-        result_stack.append(ast_node.makeUnaryOp(op = op, operand = operand))
+        result_stack.append(ast_node.make_unary_op(op = op, operand = operand))
 
     def parse_call_args():
         """Parse function call arguments."""
@@ -547,7 +547,7 @@ def _parse_impl(tokens):
         value = result_stack.pop()
 
         if pending_key:
-            keyword_args.append(ast_node.makeKeyValue(key = pending_key, value = value))
+            keyword_args.append(ast_node.make_key_value(key = pending_key, value = value))
         else:
             positional_args.append(value)
 
@@ -616,7 +616,7 @@ def _parse_impl(tokens):
         expect_token_type(token_types.PARENTHESIS_RIGHT)
         args_dict = result_stack.pop()
         callable = result_stack.pop()
-        result_stack.append(ast_node.makeCall(
+        result_stack.append(ast_node.make_call(
             callable = callable,
             positional_args = args_dict["positional_args"],
             keyword_args = args_dict["keyword_args"],
@@ -627,13 +627,13 @@ def _parse_impl(tokens):
         expect_token_type(token_types.BRACKET_RIGHT)
         index_expr = result_stack.pop()
         object_expr = result_stack.pop()
-        result_stack.append(ast_node.makeIndex(object = object_expr, index = index_expr))
+        result_stack.append(ast_node.make_index(object = object_expr, index = index_expr))
 
     def parse_attr_finalize():
         """Finalize attribute access operation."""
         attr_name = expect_token_type(token_types.IDENT)
         object_expr = result_stack.pop()
-        result_stack.append(ast_node.makeAttr(object = object_expr, attr = attr_name))
+        result_stack.append(ast_node.make_attr(object = object_expr, attr = attr_name))
 
     def parse_ternary(min_precedence):
         """Check for ternary conditional operator (x if cond else y)."""
@@ -674,7 +674,7 @@ def _parse_impl(tokens):
         """Finalize ternary operation with all three expressions."""
         false_expr = result_stack.pop()
         true_expr = result_stack.pop()
-        result_stack.append(ast_node.makeTernaryOp(condition = condition, true_expr = true_expr, false_expr = false_expr))
+        result_stack.append(ast_node.make_ternary_op(condition = condition, true_expr = true_expr, false_expr = false_expr))
 
         # Continue checking for more operators at this precedence level
         call_stack.append(struct(function = parse_ternary, args = {"min_precedence": min_precedence}))
@@ -707,7 +707,7 @@ def _parse_impl(tokens):
         """Collect right operand and create binary expression."""
         right = result_stack.pop()
         left = result_stack.pop()
-        result_stack.append(ast_node.makeBinaryOp(left = left, op = op, right = right))
+        result_stack.append(ast_node.make_binary_op(left = left, op = op, right = right))
 
         # Continue parsing operators at same precedence
         call_stack.append(struct(function = parse_binary, args = {"min_precedence": min_precedence}))
@@ -745,7 +745,7 @@ def _parse_impl(tokens):
 
     def parse_root_end(statements):
         """Finalize root node."""
-        result_stack.append(ast_node.makeRoot(statements = statements))
+        result_stack.append(ast_node.make_root(statements = statements))
 
     call_stack.append(struct(function = parse_root_begin, args = {}))
     for err in utils.infinite_loop():

@@ -17,26 +17,26 @@ def _simple_call_test_impl(ctx):
     )
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeCall(
-                callable = ast_node.makeIdent(name = "cc_library"),
+            ast_node.make_call(
+                callable = ast_node.make_ident(name = "cc_library"),
                 positional_args = [],
                 keyword_args = [
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "name",
-                        value = ast_node.makeString(value = "mylib"),
+                        value = ast_node.make_string(value = "mylib"),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "srcs",
-                        value = ast_node.makeList(
-                            elements = [ast_node.makeString(value = "mylib.cc")],
+                        value = ast_node.make_list(
+                            elements = [ast_node.make_string(value = "mylib.cc")],
                         ),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "hdrs",
-                        value = ast_node.makeList(
-                            elements = [ast_node.makeString(value = "mylib.h")],
+                        value = ast_node.make_list(
+                            elements = [ast_node.make_string(value = "mylib.h")],
                         ),
                     ),
                 ],
@@ -56,14 +56,14 @@ def _load_statement_test_impl(ctx):
     load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary")
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeCall(
-                callable = ast_node.makeIdent(name = "load"),
+            ast_node.make_call(
+                callable = ast_node.make_ident(name = "load"),
                 positional_args = [
-                    ast_node.makeString(value = "@rules_cc//cc:defs.bzl"),
-                    ast_node.makeString(value = "cc_library"),
-                    ast_node.makeString(value = "cc_binary"),
+                    ast_node.make_string(value = "@rules_cc//cc:defs.bzl"),
+                    ast_node.make_string(value = "cc_library"),
+                    ast_node.make_string(value = "cc_binary"),
                 ],
                 keyword_args = [],
             ),
@@ -94,52 +94,52 @@ def _multiple_statements_test_impl(ctx):
     )
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeCall(
-                callable = ast_node.makeIdent(name = "load"),
+            ast_node.make_call(
+                callable = ast_node.make_ident(name = "load"),
                 positional_args = [
-                    ast_node.makeString(value = "@rules_cc//cc:defs.bzl"),
-                    ast_node.makeString(value = "cc_library"),
+                    ast_node.make_string(value = "@rules_cc//cc:defs.bzl"),
+                    ast_node.make_string(value = "cc_library"),
                 ],
                 keyword_args = [],
             ),
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "SRCS"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "SRCS"),
                 op = "=",
-                right = ast_node.makeList(
+                right = ast_node.make_list(
                     elements = [
-                        ast_node.makeString(value = "a.cc"),
-                        ast_node.makeString(value = "b.cc"),
+                        ast_node.make_string(value = "a.cc"),
+                        ast_node.make_string(value = "b.cc"),
                     ],
                 ),
             ),
-            ast_node.makeCall(
-                callable = ast_node.makeIdent(name = "cc_library"),
+            ast_node.make_call(
+                callable = ast_node.make_ident(name = "cc_library"),
                 positional_args = [],
                 keyword_args = [
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "name",
-                        value = ast_node.makeString(value = "mylib"),
+                        value = ast_node.make_string(value = "mylib"),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "srcs",
-                        value = ast_node.makeIdent(name = "SRCS"),
+                        value = ast_node.make_ident(name = "SRCS"),
                     ),
                 ],
             ),
-            ast_node.makeCall(
-                callable = ast_node.makeIdent(name = "cc_library"),
+            ast_node.make_call(
+                callable = ast_node.make_ident(name = "cc_library"),
                 positional_args = [],
                 keyword_args = [
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "name",
-                        value = ast_node.makeString(value = "other"),
+                        value = ast_node.make_string(value = "other"),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "srcs",
-                        value = ast_node.makeList(
-                            elements = [ast_node.makeString(value = "other.cc")],
+                        value = ast_node.make_list(
+                            elements = [ast_node.make_string(value = "other.cc")],
                         ),
                     ),
                 ],
@@ -159,16 +159,16 @@ def _string_concatenation_test_impl(ctx):
     "a" + "b" + "c"
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeBinaryOp(
-                    left = ast_node.makeString(value = "a"),
+            ast_node.make_binary_op(
+                left = ast_node.make_binary_op(
+                    left = ast_node.make_string(value = "a"),
                     op = "+",
-                    right = ast_node.makeString(value = "b"),
+                    right = ast_node.make_string(value = "b"),
                 ),
                 op = "+",
-                right = ast_node.makeString(value = "c"),
+                right = ast_node.make_string(value = "c"),
             ),
         ],
     )
@@ -185,15 +185,15 @@ def _higher_order_function_test_impl(ctx):
     i_return_a_function(inner_expr)(outer_expr)
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeCall(
-                callable = ast_node.makeCall(
-                    callable = ast_node.makeIdent(name = "i_return_a_function"),
-                    positional_args = [ast_node.makeIdent(name = "inner_expr")],
+            ast_node.make_call(
+                callable = ast_node.make_call(
+                    callable = ast_node.make_ident(name = "i_return_a_function"),
+                    positional_args = [ast_node.make_ident(name = "inner_expr")],
                     keyword_args = [],
                 ),
-                positional_args = [ast_node.makeIdent(name = "outer_expr")],
+                positional_args = [ast_node.make_ident(name = "outer_expr")],
                 keyword_args = [],
             ),
         ],
@@ -220,23 +220,23 @@ def _binary_operators_priorities_test_impl(ctx):
     #      / \
     #    (2) (3)
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeBinaryOp(
-                    left = ast_node.makeNumber(value = "1"),
+            ast_node.make_binary_op(
+                left = ast_node.make_binary_op(
+                    left = ast_node.make_number(value = "1"),
                     op = "+",
-                    right = ast_node.makeBinaryOp(
-                        left = ast_node.makeNumber(value = "2"),
+                    right = ast_node.make_binary_op(
+                        left = ast_node.make_number(value = "2"),
                         op = "*",
-                        right = ast_node.makeNumber(value = "3"),
+                        right = ast_node.make_number(value = "3"),
                     ),
                 ),
                 op = "-",
-                right = ast_node.makeBinaryOp(
-                    left = ast_node.makeNumber(value = "4"),
+                right = ast_node.make_binary_op(
+                    left = ast_node.make_number(value = "4"),
                     op = "/",
-                    right = ast_node.makeNumber(value = "5"),
+                    right = ast_node.make_number(value = "5"),
                 ),
             ),
         ],
@@ -257,34 +257,34 @@ def _glob_expression_test_impl(ctx):
     )
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeCall(
-                callable = ast_node.makeIdent(name = "cc_library"),
+            ast_node.make_call(
+                callable = ast_node.make_ident(name = "cc_library"),
                 positional_args = [],
                 keyword_args = [
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "name",
-                        value = ast_node.makeString(value = "my_lib"),
+                        value = ast_node.make_string(value = "my_lib"),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "srcs",
-                        value = ast_node.makeCall(
-                            callable = ast_node.makeIdent(name = "glob"),
+                        value = ast_node.make_call(
+                            callable = ast_node.make_ident(name = "glob"),
                             positional_args = [
-                                ast_node.makeList(
+                                ast_node.make_list(
                                     elements = [
-                                        ast_node.makeString(value = "*.c"),
-                                        ast_node.makeString(value = "*.h"),
+                                        ast_node.make_string(value = "*.c"),
+                                        ast_node.make_string(value = "*.h"),
                                     ],
                                 ),
                             ],
                             keyword_args = [
-                                ast_node.makeKeyValue(
+                                ast_node.make_key_value(
                                     key = "exclude",
-                                    value = ast_node.makeList(
+                                    value = ast_node.make_list(
                                         elements = [
-                                            ast_node.makeString(value = "*_test.cc"),
+                                            ast_node.make_string(value = "*_test.cc"),
                                         ],
                                     ),
                                 ),
@@ -323,51 +323,51 @@ def _select_expression_test_impl(ctx):
     )
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeCall(
-                callable = ast_node.makeIdent(name = "cc_library"),
+            ast_node.make_call(
+                callable = ast_node.make_ident(name = "cc_library"),
                 positional_args = [],
                 keyword_args = [
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "name",
-                        value = ast_node.makeString(value = "my_lib"),
+                        value = ast_node.make_string(value = "my_lib"),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "deps",
-                        value = ast_node.makeBinaryOp(
-                            left = ast_node.makeList(
+                        value = ast_node.make_binary_op(
+                            left = ast_node.make_list(
                                 elements = [
-                                    ast_node.makeString(value = "//shared:api"),
+                                    ast_node.make_string(value = "//shared:api"),
                                 ],
                             ),
                             op = "+",
-                            right = ast_node.makeCall(
-                                callable = ast_node.makeIdent(name = "select"),
+                            right = ast_node.make_call(
+                                callable = ast_node.make_ident(name = "select"),
                                 positional_args = [
-                                    ast_node.makeDict(
+                                    ast_node.make_dict(
                                         entries = [
-                                            ast_node.makeKeyValue(
-                                                key = ast_node.makeString(value = "//platforms/linux_x86"),
-                                                value = ast_node.makeList(
+                                            ast_node.make_key_value(
+                                                key = ast_node.make_string(value = "//platforms/linux_x86"),
+                                                value = ast_node.make_list(
                                                     elements = [
-                                                        ast_node.makeString(value = "//select:32bits"),
+                                                        ast_node.make_string(value = "//select:32bits"),
                                                     ],
                                                 ),
                                             ),
-                                            ast_node.makeKeyValue(
-                                                key = ast_node.makeString(value = "@platforms//os:windows"),
-                                                value = ast_node.makeList(
+                                            ast_node.make_key_value(
+                                                key = ast_node.make_string(value = "@platforms//os:windows"),
+                                                value = ast_node.make_list(
                                                     elements = [
-                                                        ast_node.makeString(value = "//select:64bits"),
-                                                        ast_node.makeString(value = "//select:non_unix"),
-                                                        ast_node.makeString(value = "//select:win"),
+                                                        ast_node.make_string(value = "//select:64bits"),
+                                                        ast_node.make_string(value = "//select:non_unix"),
+                                                        ast_node.make_string(value = "//select:win"),
                                                     ],
                                                 ),
                                             ),
-                                            ast_node.makeKeyValue(
-                                                key = ast_node.makeString(value = "//conditions:default"),
-                                                value = ast_node.makeList(
+                                            ast_node.make_key_value(
+                                                key = ast_node.make_string(value = "//conditions:default"),
+                                                value = ast_node.make_list(
                                                     elements = [],
                                                 ),
                                             ),
@@ -395,26 +395,26 @@ def _ternary_expression_test_impl(ctx):
     first = my_list[0] if len(my_list) > 0 else None
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "first"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "first"),
                 op = "=",
-                right = ast_node.makeTernaryOp(
-                    condition = ast_node.makeBinaryOp(
-                        left = ast_node.makeCall(
-                            callable = ast_node.makeIdent(name = "len"),
-                            positional_args = [ast_node.makeIdent(name = "my_list")],
+                right = ast_node.make_ternary_op(
+                    condition = ast_node.make_binary_op(
+                        left = ast_node.make_call(
+                            callable = ast_node.make_ident(name = "len"),
+                            positional_args = [ast_node.make_ident(name = "my_list")],
                             keyword_args = [],
                         ),
                         op = ">",
-                        right = ast_node.makeNumber(value = "0"),
+                        right = ast_node.make_number(value = "0"),
                     ),
-                    true_expr = ast_node.makeIndex(
-                        object = ast_node.makeIdent(name = "my_list"),
-                        index = ast_node.makeNumber(value = "0"),
+                    true_expr = ast_node.make_index(
+                        object = ast_node.make_ident(name = "my_list"),
+                        index = ast_node.make_number(value = "0"),
                     ),
-                    false_expr = ast_node.makeIdent(name = "None"),
+                    false_expr = ast_node.make_ident(name = "None"),
                 ),
             ),
         ],
@@ -432,21 +432,21 @@ def _parenthesis_expression_test_impl(ctx):
     total = (a + b) * c
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "total"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "total"),
                 op = "=",
-                right = ast_node.makeBinaryOp(
-                    left = ast_node.makeParenthesis(
-                        expr = ast_node.makeBinaryOp(
-                            left = ast_node.makeIdent(name = "a"),
+                right = ast_node.make_binary_op(
+                    left = ast_node.make_parenthesis(
+                        expr = ast_node.make_binary_op(
+                            left = ast_node.make_ident(name = "a"),
                             op = "+",
-                            right = ast_node.makeIdent(name = "b"),
+                            right = ast_node.make_ident(name = "b"),
                         ),
                     ),
                     op = "*",
-                    right = ast_node.makeIdent(name = "c"),
+                    right = ast_node.make_ident(name = "c"),
                 ),
             ),
         ],
@@ -482,33 +482,33 @@ def _bitwise_operators_test_impl(ctx):
     #                   \
     #                   (f)
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "r"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "r"),
                 op = "=",
-                right = ast_node.makeBinaryOp(
-                    left = ast_node.makeBinaryOp(
-                        left = ast_node.makeIdent(name = "a"),
+                right = ast_node.make_binary_op(
+                    left = ast_node.make_binary_op(
+                        left = ast_node.make_ident(name = "a"),
                         op = "&",
-                        right = ast_node.makeIdent(name = "b"),
+                        right = ast_node.make_ident(name = "b"),
                     ),
                     op = "|",
-                    right = ast_node.makeBinaryOp(
-                        left = ast_node.makeIdent(name = "c"),
+                    right = ast_node.make_binary_op(
+                        left = ast_node.make_ident(name = "c"),
                         op = "^",
-                        right = ast_node.makeBinaryOp(
-                            left = ast_node.makeBinaryOp(
-                                left = ast_node.makeIdent(name = "d"),
+                        right = ast_node.make_binary_op(
+                            left = ast_node.make_binary_op(
+                                left = ast_node.make_ident(name = "d"),
                                 op = "<<",
-                                right = ast_node.makeIdent(name = "e"),
+                                right = ast_node.make_ident(name = "e"),
                             ),
                             op = ">>",
-                            right = ast_node.makeUnaryOp(
+                            right = ast_node.make_unary_op(
                                 op = "~",
-                                operand = ast_node.makeUnaryOp(
+                                operand = ast_node.make_unary_op(
                                     op = "~",
-                                    operand = ast_node.makeIdent(name = "f"),
+                                    operand = ast_node.make_ident(name = "f"),
                                 ),
                             ),
                         ),
@@ -530,14 +530,14 @@ def _get_attribute_test_impl(ctx):
     CONSTANT = my_struct.attribute.sub_attribute
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "CONSTANT"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "CONSTANT"),
                 op = "=",
-                right = ast_node.makeAttr(
-                    object = ast_node.makeAttr(
-                        object = ast_node.makeIdent(name = "my_struct"),
+                right = ast_node.make_attr(
+                    object = ast_node.make_attr(
+                        object = ast_node.make_ident(name = "my_struct"),
                         attr = "attribute",
                     ),
                     attr = "sub_attribute",
@@ -558,20 +558,20 @@ def _list_comprehension_test_impl(ctx):
     [x * x for x in range(10)]
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeList(
+            ast_node.make_list(
                 elements = [
-                    ast_node.makeComprehension(
-                        element = ast_node.makeBinaryOp(
-                            left = ast_node.makeIdent(name = "x"),
+                    ast_node.make_comprehension(
+                        element = ast_node.make_binary_op(
+                            left = ast_node.make_ident(name = "x"),
                             op = "*",
-                            right = ast_node.makeIdent(name = "x"),
+                            right = ast_node.make_ident(name = "x"),
                         ),
-                        loop_var = ast_node.makeIdent(name = "x"),
-                        iterable = ast_node.makeCall(
-                            callable = ast_node.makeIdent(name = "range"),
-                            positional_args = [ast_node.makeNumber(value = "10")],
+                        loop_var = ast_node.make_ident(name = "x"),
+                        iterable = ast_node.make_call(
+                            callable = ast_node.make_ident(name = "range"),
+                            positional_args = [ast_node.make_number(value = "10")],
                             keyword_args = [],
                         ),
                         condition = None,
@@ -593,30 +593,30 @@ def _list_comprehension_filtered_test_impl(ctx):
     [x * x for x in range(10) if x % 2 == 0]
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeList(
+            ast_node.make_list(
                 elements = [
-                    ast_node.makeComprehension(
-                        element = ast_node.makeBinaryOp(
-                            left = ast_node.makeIdent(name = "x"),
+                    ast_node.make_comprehension(
+                        element = ast_node.make_binary_op(
+                            left = ast_node.make_ident(name = "x"),
                             op = "*",
-                            right = ast_node.makeIdent(name = "x"),
+                            right = ast_node.make_ident(name = "x"),
                         ),
-                        loop_var = ast_node.makeIdent(name = "x"),
-                        iterable = ast_node.makeCall(
-                            callable = ast_node.makeIdent(name = "range"),
-                            positional_args = [ast_node.makeNumber(value = "10")],
+                        loop_var = ast_node.make_ident(name = "x"),
+                        iterable = ast_node.make_call(
+                            callable = ast_node.make_ident(name = "range"),
+                            positional_args = [ast_node.make_number(value = "10")],
                             keyword_args = [],
                         ),
-                        condition = ast_node.makeBinaryOp(
-                            left = ast_node.makeBinaryOp(
-                                left = ast_node.makeIdent(name = "x"),
+                        condition = ast_node.make_binary_op(
+                            left = ast_node.make_binary_op(
+                                left = ast_node.make_ident(name = "x"),
                                 op = "%",
-                                right = ast_node.makeNumber(value = "2"),
+                                right = ast_node.make_number(value = "2"),
                             ),
                             op = "==",
-                            right = ast_node.makeNumber(value = "0"),
+                            right = ast_node.make_number(value = "0"),
                         ),
                     ),
                 ],
@@ -639,20 +639,20 @@ def _dict_test_impl(ctx):
     }
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "my_dict"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "my_dict"),
                 op = "=",
-                right = ast_node.makeDict(
+                right = ast_node.make_dict(
                     entries = [
-                        ast_node.makeKeyValue(
-                            key = ast_node.makeString(value = "key1"),
-                            value = ast_node.makeString(value = "value1"),
+                        ast_node.make_key_value(
+                            key = ast_node.make_string(value = "key1"),
+                            value = ast_node.make_string(value = "value1"),
                         ),
-                        ast_node.makeKeyValue(
-                            key = ast_node.makeString(value = "key2"),
-                            value = ast_node.makeString(value = "value2"),
+                        ast_node.make_key_value(
+                            key = ast_node.make_string(value = "key2"),
+                            value = ast_node.make_string(value = "value2"),
                         ),
                     ],
                 ),
@@ -675,39 +675,39 @@ def _tuple_test_impl(ctx):
     tuple_multiple_elements = (1, "two", 3)
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "empty_tuple"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "empty_tuple"),
                 op = "=",
-                right = ast_node.makeTuple(
+                right = ast_node.make_tuple(
                     elements = [],
                 ),
             ),
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "string"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "string"),
                 op = "=",
-                right = ast_node.makeParenthesis(
-                    expr = ast_node.makeString(value = "not_a_tuple"),
+                right = ast_node.make_parenthesis(
+                    expr = ast_node.make_string(value = "not_a_tuple"),
                 ),
             ),
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "tuple_single_element"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "tuple_single_element"),
                 op = "=",
-                right = ast_node.makeTuple(
+                right = ast_node.make_tuple(
                     elements = [
-                        ast_node.makeString(value = "i_am_a_tuple"),
+                        ast_node.make_string(value = "i_am_a_tuple"),
                     ],
                 ),
             ),
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "tuple_multiple_elements"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "tuple_multiple_elements"),
                 op = "=",
-                right = ast_node.makeTuple(
+                right = ast_node.make_tuple(
                     elements = [
-                        ast_node.makeNumber(value = "1"),
-                        ast_node.makeString(value = "two"),
-                        ast_node.makeNumber(value = "3"),
+                        ast_node.make_number(value = "1"),
+                        ast_node.make_string(value = "two"),
+                        ast_node.make_number(value = "3"),
                     ],
                 ),
             ),
@@ -726,22 +726,22 @@ def _dict_comprehension_test_impl(ctx):
     {k: v for k, v in iterable}
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeDict(
+            ast_node.make_dict(
                 entries = [
-                    ast_node.makeComprehension(
-                        element = ast_node.makeKeyValue(
-                            key = ast_node.makeIdent(name = "k"),
-                            value = ast_node.makeIdent(name = "v"),
+                    ast_node.make_comprehension(
+                        element = ast_node.make_key_value(
+                            key = ast_node.make_ident(name = "k"),
+                            value = ast_node.make_ident(name = "v"),
                         ),
-                        loop_var = ast_node.makeTuple(
+                        loop_var = ast_node.make_tuple(
                             elements = [
-                                ast_node.makeIdent(name = "k"),
-                                ast_node.makeIdent(name = "v"),
+                                ast_node.make_ident(name = "k"),
+                                ast_node.make_ident(name = "v"),
                             ],
                         ),
-                        iterable = ast_node.makeIdent(name = "iterable"),
+                        iterable = ast_node.make_ident(name = "iterable"),
                         condition = None,
                     ),
                 ],
@@ -761,26 +761,26 @@ def _dict_comprehension_filtered_test_impl(ctx):
     {k: v for k, v in iterable if k != "skip"}
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeDict(
+            ast_node.make_dict(
                 entries = [
-                    ast_node.makeComprehension(
-                        element = ast_node.makeKeyValue(
-                            key = ast_node.makeIdent(name = "k"),
-                            value = ast_node.makeIdent(name = "v"),
+                    ast_node.make_comprehension(
+                        element = ast_node.make_key_value(
+                            key = ast_node.make_ident(name = "k"),
+                            value = ast_node.make_ident(name = "v"),
                         ),
-                        loop_var = ast_node.makeTuple(
+                        loop_var = ast_node.make_tuple(
                             elements = [
-                                ast_node.makeIdent(name = "k"),
-                                ast_node.makeIdent(name = "v"),
+                                ast_node.make_ident(name = "k"),
+                                ast_node.make_ident(name = "v"),
                             ],
                         ),
-                        iterable = ast_node.makeIdent(name = "iterable"),
-                        condition = ast_node.makeBinaryOp(
-                            left = ast_node.makeIdent(name = "k"),
+                        iterable = ast_node.make_ident(name = "iterable"),
+                        condition = ast_node.make_binary_op(
+                            left = ast_node.make_ident(name = "k"),
                             op = "!=",
-                            right = ast_node.makeString(value = "skip"),
+                            right = ast_node.make_string(value = "skip"),
                         ),
                     ),
                 ],
@@ -806,19 +806,19 @@ def _newline_statement_separator_test_impl(ctx):
     ("we")
     """
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeString(value = "we"),
-            ast_node.makeString(value = "are"),
-            ast_node.makeString(value = "separated"),
-            ast_node.makeParenthesis(
-                expr = ast_node.makeString(value = "so"),
+            ast_node.make_string(value = "we"),
+            ast_node.make_string(value = "are"),
+            ast_node.make_string(value = "separated"),
+            ast_node.make_parenthesis(
+                expr = ast_node.make_string(value = "so"),
             ),
-            ast_node.makeParenthesis(
-                expr = ast_node.makeString(value = "as"),
+            ast_node.make_parenthesis(
+                expr = ast_node.make_string(value = "as"),
             ),
-            ast_node.makeParenthesis(
-                expr = ast_node.makeString(value = "we"),
+            ast_node.make_parenthesis(
+                expr = ast_node.make_string(value = "we"),
             ),
         ],
     )
@@ -833,53 +833,53 @@ def _buildtools_testdata_001_test_impl(ctx):
 
     content = """cc_test(name="bar",size="small",srcs=["b.cc","a.cc","c.cc"],deps=["//base",":foo","//util:map-util"], data = [ "datum" ], datum = [ "data", ])"""
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeCall(
-                callable = ast_node.makeIdent(name = "cc_test"),
+            ast_node.make_call(
+                callable = ast_node.make_ident(name = "cc_test"),
                 positional_args = [],
                 keyword_args = [
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "name",
-                        value = ast_node.makeString(value = "bar"),
+                        value = ast_node.make_string(value = "bar"),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "size",
-                        value = ast_node.makeString(value = "small"),
+                        value = ast_node.make_string(value = "small"),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "srcs",
-                        value = ast_node.makeList(
+                        value = ast_node.make_list(
                             elements = [
-                                ast_node.makeString(value = "b.cc"),
-                                ast_node.makeString(value = "a.cc"),
-                                ast_node.makeString(value = "c.cc"),
+                                ast_node.make_string(value = "b.cc"),
+                                ast_node.make_string(value = "a.cc"),
+                                ast_node.make_string(value = "c.cc"),
                             ],
                         ),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "deps",
-                        value = ast_node.makeList(
+                        value = ast_node.make_list(
                             elements = [
-                                ast_node.makeString(value = "//base"),
-                                ast_node.makeString(value = ":foo"),
-                                ast_node.makeString(value = "//util:map-util"),
+                                ast_node.make_string(value = "//base"),
+                                ast_node.make_string(value = ":foo"),
+                                ast_node.make_string(value = "//util:map-util"),
                             ],
                         ),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "data",
-                        value = ast_node.makeList(
+                        value = ast_node.make_list(
                             elements = [
-                                ast_node.makeString(value = "datum"),
+                                ast_node.make_string(value = "datum"),
                             ],
                         ),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "datum",
-                        value = ast_node.makeList(
+                        value = ast_node.make_list(
                             elements = [
-                                ast_node.makeString(value = "data"),
+                                ast_node.make_string(value = "data"),
                             ],
                         ),
                     ),
@@ -898,37 +898,37 @@ def _buildtools_testdata_002_test_impl(ctx):
 
     content = """cc_test ( name = 'b\\"ar\\'"' , srcs = [ 'a.cc' , "b.cc" , "c.cc" ] , size = "small" , deps = [ "//base" , ":foo", "//util:map-util", ] )"""
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeCall(
-                callable = ast_node.makeIdent(name = "cc_test"),
+            ast_node.make_call(
+                callable = ast_node.make_ident(name = "cc_test"),
                 positional_args = [],
                 keyword_args = [
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "name",
-                        value = ast_node.makeString(value = 'b\"ar\'"'),
+                        value = ast_node.make_string(value = 'b\"ar\'"'),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "srcs",
-                        value = ast_node.makeList(
+                        value = ast_node.make_list(
                             elements = [
-                                ast_node.makeString(value = "a.cc"),
-                                ast_node.makeString(value = "b.cc"),
-                                ast_node.makeString(value = "c.cc"),
+                                ast_node.make_string(value = "a.cc"),
+                                ast_node.make_string(value = "b.cc"),
+                                ast_node.make_string(value = "c.cc"),
                             ],
                         ),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "size",
-                        value = ast_node.makeString(value = "small"),
+                        value = ast_node.make_string(value = "small"),
                     ),
-                    ast_node.makeKeyValue(
+                    ast_node.make_key_value(
                         key = "deps",
-                        value = ast_node.makeList(
+                        value = ast_node.make_list(
                             elements = [
-                                ast_node.makeString(value = "//base"),
-                                ast_node.makeString(value = ":foo"),
-                                ast_node.makeString(value = "//util:map-util"),
+                                ast_node.make_string(value = "//base"),
+                                ast_node.make_string(value = ":foo"),
+                                ast_node.make_string(value = "//util:map-util"),
                             ],
                         ),
                     ),
@@ -972,58 +972,58 @@ def _buildtools_testdata_003_test_impl(ctx):
   0xe45,
 ]"""
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "numbers"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "numbers"),
                 op = "=",
-                right = ast_node.makeList(
+                right = ast_node.make_list(
                     elements = [
-                        ast_node.makeNumber(value = "0"),
-                        ast_node.makeNumber(value = "11"),
-                        ast_node.makeNumber(value = "123.456"),
-                        ast_node.makeNumber(value = "123."),
-                        ast_node.makeNumber(value = ".456"),
-                        ast_node.makeNumber(value = "1.23e45"),
-                        ast_node.makeUnaryOp(
+                        ast_node.make_number(value = "0"),
+                        ast_node.make_number(value = "11"),
+                        ast_node.make_number(value = "123.456"),
+                        ast_node.make_number(value = "123."),
+                        ast_node.make_number(value = ".456"),
+                        ast_node.make_number(value = "1.23e45"),
+                        ast_node.make_unary_op(
                             op = "-",
-                            operand = ast_node.makeNumber(value = "1"),
+                            operand = ast_node.make_number(value = "1"),
                         ),
-                        ast_node.makeUnaryOp(
+                        ast_node.make_unary_op(
                             op = "+",
-                            operand = ast_node.makeNumber(value = "1"),
+                            operand = ast_node.make_number(value = "1"),
                         ),
-                        ast_node.makeNumber(value = "0.0"),
-                        ast_node.makeUnaryOp(
+                        ast_node.make_number(value = "0.0"),
+                        ast_node.make_unary_op(
                             op = "-",
-                            operand = ast_node.makeNumber(value = "0.0"),
+                            operand = ast_node.make_number(value = "0.0"),
                         ),
-                        ast_node.makeNumber(value = "1.0"),
-                        ast_node.makeUnaryOp(
+                        ast_node.make_number(value = "1.0"),
+                        ast_node.make_unary_op(
                             op = "-",
-                            operand = ast_node.makeNumber(value = "1.0"),
+                            operand = ast_node.make_number(value = "1.0"),
                         ),
-                        ast_node.makeUnaryOp(
+                        ast_node.make_unary_op(
                             op = "+",
-                            operand = ast_node.makeNumber(value = "1.0"),
+                            operand = ast_node.make_number(value = "1.0"),
                         ),
-                        ast_node.makeNumber(value = "1e6"),
-                        ast_node.makeUnaryOp(
+                        ast_node.make_number(value = "1e6"),
+                        ast_node.make_unary_op(
                             op = "-",
-                            operand = ast_node.makeNumber(value = "1e6"),
+                            operand = ast_node.make_number(value = "1e6"),
                         ),
-                        ast_node.makeUnaryOp(
+                        ast_node.make_unary_op(
                             op = "-",
-                            operand = ast_node.makeNumber(value = "1.23e-45"),
+                            operand = ast_node.make_number(value = "1.23e-45"),
                         ),
-                        ast_node.makeNumber(value = "3.539537889086625e+24"),
-                        ast_node.makeNumber(value = "3.539537889086625E+24"),
-                        ast_node.makeNumber(value = "3.539537889086625e00024000"),
-                        ast_node.makeNumber(value = "3.539537889086625e+00024000"),
-                        ast_node.makeNumber(value = "3539537889086624823140625"),
-                        ast_node.makeNumber(value = "0x123"),
-                        ast_node.makeNumber(value = "0xE45"),
-                        ast_node.makeNumber(value = "0xe45"),
+                        ast_node.make_number(value = "3.539537889086625e+24"),
+                        ast_node.make_number(value = "3.539537889086625E+24"),
+                        ast_node.make_number(value = "3.539537889086625e00024000"),
+                        ast_node.make_number(value = "3.539537889086625e+00024000"),
+                        ast_node.make_number(value = "3539537889086624823140625"),
+                        ast_node.make_number(value = "0x123"),
+                        ast_node.make_number(value = "0xE45"),
+                        ast_node.make_number(value = "0xe45"),
                     ],
                 ),
             ),
@@ -1042,17 +1042,17 @@ def _buildtools_testdata_004_test_impl(ctx):
                "Baz.java", "Quux.java"
              ]"""
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "JAVA_FILES"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "JAVA_FILES"),
                 op = "=",
-                right = ast_node.makeList(
+                right = ast_node.make_list(
                     elements = [
-                        ast_node.makeString(value = "Foo.java"),
-                        ast_node.makeString(value = "Bar.java"),
-                        ast_node.makeString(value = "Baz.java"),
-                        ast_node.makeString(value = "Quux.java"),
+                        ast_node.make_string(value = "Foo.java"),
+                        ast_node.make_string(value = "Bar.java"),
+                        ast_node.make_string(value = "Baz.java"),
+                        ast_node.make_string(value = "Quux.java"),
                     ],
                 ),
             ),
@@ -1075,17 +1075,17 @@ def _buildtools_testdata_005_test_impl(ctx):
     "Quux.java"
 ]"""
 
-    expected_ast = ast_node.makeRoot(
+    expected_ast = ast_node.make_root(
         statements = [
-            ast_node.makeBinaryOp(
-                left = ast_node.makeIdent(name = "JAVA_FILES"),
+            ast_node.make_binary_op(
+                left = ast_node.make_ident(name = "JAVA_FILES"),
                 op = "=",
-                right = ast_node.makeList(
+                right = ast_node.make_list(
                     elements = [
-                        ast_node.makeString(value = "Foo.java"),
-                        ast_node.makeString(value = "Bar.java"),
-                        ast_node.makeString(value = "Baz.java"),
-                        ast_node.makeString(value = "Quux.java"),
+                        ast_node.make_string(value = "Foo.java"),
+                        ast_node.make_string(value = "Bar.java"),
+                        ast_node.make_string(value = "Baz.java"),
+                        ast_node.make_string(value = "Quux.java"),
                     ],
                 ),
             ),
