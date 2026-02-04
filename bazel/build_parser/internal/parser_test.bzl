@@ -793,6 +793,41 @@ def _dict_comprehension_filtered_test_impl(ctx):
 
     return unittest.end(env)
 
+def _newline_statement_separator_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = """
+    "we"
+    "are"
+    "separated"
+
+    ("so")
+    ("as")
+    ("we")
+    """
+
+    expected_ast = ast_node.makeRoot(
+        statements = [
+            ast_node.makeString(value = "we"),
+            ast_node.makeString(value = "are"),
+            ast_node.makeString(value = "separated"),
+            ast_node.makeParenthesis(
+                expr = ast_node.makeString(value = "so"),
+            ),
+            ast_node.makeParenthesis(
+                expr = ast_node.makeString(value = "as"),
+            ),
+            ast_node.makeParenthesis(
+                expr = ast_node.makeString(value = "we"),
+            ),
+        ],
+    )
+
+    actual_ast = parse(content)
+    asserts.equals(env, expected_ast, actual_ast)
+
+    return unittest.end(env)
+
 simple_call_test = unittest.make(_simple_call_test_impl)
 load_statement_test = unittest.make(_load_statement_test_impl)
 multiple_statements_test = unittest.make(_multiple_statements_test_impl)
@@ -811,6 +846,7 @@ dict_test = unittest.make(_dict_test_impl)
 tuple_test = unittest.make(_tuple_test_impl)
 dict_comprehension_test = unittest.make(_dict_comprehension_test_impl)
 dict_comprehension_filtered_test = unittest.make(_dict_comprehension_filtered_test_impl)
+newline_statement_separator_test = unittest.make(_newline_statement_separator_test_impl)
 
 def parser_test_suite(name):
     unittest.suite(
@@ -833,4 +869,5 @@ def parser_test_suite(name):
         tuple_test,
         dict_comprehension_test,
         dict_comprehension_filtered_test,
+        newline_statement_separator_test,
     )

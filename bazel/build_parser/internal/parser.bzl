@@ -30,48 +30,60 @@ def _parse_impl(tokens):
     call_stack = []
     result_stack = []
 
-    def has_token():
+    def has_token(ignore_newline = True):
         """Check if there are more tokens to process.
+
+        Args:
+            ignore_newline: If True, skip newline tokens.
 
         Returns:
             True if there are more tokens, False otherwise.
         """
+        if ignore_newline and index[0] < len(tokens) and tokens[index[0]].tokenType == token_types.NEWLINE:
+            index[0] += 1
         return index[0] < len(tokens)
 
-    def peek_token():
+    def peek_token(ignore_newline = True):
         """Peek the next token without consuming it.
+
+        Args:
+            ignore_newline: If True, skip newline tokens.
 
         Returns:
             The next token, or None if at the end of the token list.
         """
-        return tokens[index[0]] if has_token() else None
+        return tokens[index[0]] if has_token(ignore_newline) else None
 
-    def consume_token():
+    def consume_token(ignore_newline = True):
         """Consume and return the next token.
 
         Increments the current token index.
 
+        Args:
+            ignore_newline: If True, skip newline tokens.
+
         Returns:
             The next token or None if at the end of the token list.
         """
-        token = peek_token()
+        token = peek_token(ignore_newline)
         if token != None:
             index[0] += 1
         return token
 
-    def expect_token_type(expected_type):
+    def expect_token_type(expected_type, ignore_newline = True):
         """Consume the next token and ensure it is of the expected type.
 
         Increments the current token index.
 
         Args:
             expected_type: The expected token type.
+            ignore_newline: If True, skip newline tokens.
 
         Returns:
             The value of the consumed token or fails if the token type does not
             match.
         """
-        token = consume_token()
+        token = consume_token(ignore_newline)
         if not token or token.tokenType != expected_type:
             found = token.tokenType if token else "EOF"
             fail("expected %s but got %s" % (expected_type, found))
@@ -576,7 +588,7 @@ def _parse_impl(tokens):
 
     def parse_postfix(min_precedence):
         """Check for postfix operators (calls, indexing, etc.)."""
-        token = peek_token()
+        token = peek_token(ignore_newline = False)
 
         if token and token.tokenType == token_types.PARENTHESIS_LEFT and op_precedence.CALL >= min_precedence:
             # Function call
@@ -707,12 +719,7 @@ def _parse_impl(tokens):
 
     def parse_statement():
         """Parse one statement."""
-        call_stack.append(struct(function = parse_statement_end, args = {}))
         call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
-
-    def parse_statement_end():
-        """Collect parsed statement."""
-        # Statement is already on result_stack, leave it there
 
     def parse_root_begin():
         """Begin parsing root node."""
@@ -722,7 +729,7 @@ def _parse_impl(tokens):
 
     def parse_root_statements(statements):
         """Parse all statements in root."""
-        if not has_token():
+        if not has_token(ignore_newline = False):
             return
 
         call_stack.append(struct(function = parse_root_collect_statement, args = {"statements": statements}))
@@ -732,7 +739,7 @@ def _parse_impl(tokens):
         """Collect one statement and continue parsing."""
         statements.append(result_stack.pop())
 
-        if has_token():
+        if has_token(ignore_newline = False):
             call_stack.append(struct(function = parse_root_collect_statement, args = {"statements": statements}))
             call_stack.append(struct(function = parse_statement, args = {}))
 

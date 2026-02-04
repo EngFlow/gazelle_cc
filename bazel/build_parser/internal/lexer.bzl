@@ -33,6 +33,7 @@ token_types = utils.enum_type(
     "LOGICAL_OR",
     "MINUS",
     "MOD",
+    "NEWLINE",
     "OPERATOR_ASSIGN",
     "OPERATOR_EQUAL",
     "OPERATOR_GREATER_OR_EQUAL",
@@ -82,17 +83,26 @@ def tokenize(content):
         if i < skip_until:
             continue
 
-        # Skip whitespace
-        if c in " \t\n\r":
+        # Skip whitespace (but handle newlines specially)
+        if c in " \t\r":
             continue
 
-        # Skip comments
+        if c == "\n":
+            # Join consecutive newlines
+            skip_until = n  # Default to EOF
+            for j in range(i + 1, n):
+                if content[j] != "\n":
+                    skip_until = j
+                    break
+            tokens.append(make_token(tokenType = token_types.NEWLINE, value = "\n" * (skip_until - i)))
+            continue
+
         if c == "#":
             # Find end of line
             skip_until = n  # Default to end of file if no newline found
             for j in range(i + 1, n):
                 if content[j] == "\n":
-                    skip_until = j + 1
+                    skip_until = j
                     break
             continue
 

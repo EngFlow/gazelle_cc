@@ -18,25 +18,31 @@ def _simple_call_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "cc_library"),
         make_token(tokenType = token_types.PARENTHESIS_LEFT, value = "("),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "name"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.LITERAL_STRING, value = "mylib"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "srcs"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.BRACKET_LEFT, value = "["),
         make_token(tokenType = token_types.LITERAL_STRING, value = "mylib.cc"),
         make_token(tokenType = token_types.BRACKET_RIGHT, value = "]"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "hdrs"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.BRACKET_LEFT, value = "["),
         make_token(tokenType = token_types.LITERAL_STRING, value = "mylib.h"),
         make_token(tokenType = token_types.BRACKET_RIGHT, value = "]"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
@@ -50,6 +56,7 @@ def _load_statement_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "load"),
         make_token(tokenType = token_types.PARENTHESIS_LEFT, value = "("),
         make_token(tokenType = token_types.LITERAL_STRING, value = "@rules_cc//cc:defs.bzl"),
@@ -58,6 +65,7 @@ def _load_statement_test_impl(ctx):
         make_token(tokenType = token_types.COMMA, value = ","),
         make_token(tokenType = token_types.LITERAL_STRING, value = "cc_binary"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
@@ -73,6 +81,7 @@ def _assignment_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "MY_SRCS"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.BRACKET_LEFT, value = "["),
@@ -80,9 +89,11 @@ def _assignment_test_impl(ctx):
         make_token(tokenType = token_types.COMMA, value = ","),
         make_token(tokenType = token_types.LITERAL_STRING, value = "b.cc"),
         make_token(tokenType = token_types.BRACKET_RIGHT, value = "]"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "MY_VALUE"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.LITERAL_NUMBER, value = "42"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "MY_DICT"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.BRACE_LEFT, value = "{"),
@@ -94,6 +105,7 @@ def _assignment_test_impl(ctx):
         make_token(tokenType = token_types.COLON, value = ":"),
         make_token(tokenType = token_types.LITERAL_STRING, value = "val2"),
         make_token(tokenType = token_types.BRACE_RIGHT, value = "}"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
@@ -111,13 +123,19 @@ def _comments_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "cc_library"),
         make_token(tokenType = token_types.PARENTHESIS_LEFT, value = "("),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "name"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.LITERAL_STRING, value = "lib"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
@@ -143,12 +161,14 @@ def _multiple_statements_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "load"),
         make_token(tokenType = token_types.PARENTHESIS_LEFT, value = "("),
         make_token(tokenType = token_types.LITERAL_STRING, value = "@rules_cc//cc:defs.bzl"),
         make_token(tokenType = token_types.COMMA, value = ","),
         make_token(tokenType = token_types.LITERAL_STRING, value = "cc_library"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n\n"),
         make_token(tokenType = token_types.IDENT, value = "SRCS"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.BRACKET_LEFT, value = "["),
@@ -156,30 +176,39 @@ def _multiple_statements_test_impl(ctx):
         make_token(tokenType = token_types.COMMA, value = ","),
         make_token(tokenType = token_types.LITERAL_STRING, value = "b.cc"),
         make_token(tokenType = token_types.BRACKET_RIGHT, value = "]"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n\n"),
         make_token(tokenType = token_types.IDENT, value = "cc_library"),
         make_token(tokenType = token_types.PARENTHESIS_LEFT, value = "("),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "name"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.LITERAL_STRING, value = "mylib"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "srcs"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.IDENT, value = "SRCS"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n\n"),
         make_token(tokenType = token_types.IDENT, value = "cc_library"),
         make_token(tokenType = token_types.PARENTHESIS_LEFT, value = "("),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "name"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.LITERAL_STRING, value = "other"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "srcs"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.BRACKET_LEFT, value = "["),
         make_token(tokenType = token_types.LITERAL_STRING, value = "other.cc"),
         make_token(tokenType = token_types.BRACKET_RIGHT, value = "]"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
@@ -195,9 +224,11 @@ def _triple_quote_string_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "my_string"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.LITERAL_STRING, value = 'This is a\n    multi-line string\n    with "quotes" and \'single quotes\'.'),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
@@ -217,24 +248,29 @@ def _get_item_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "load"),
         make_token(tokenType = token_types.PARENTHESIS_LEFT, value = "("),
         make_token(tokenType = token_types.LITERAL_STRING, value = "@bazel_skylib//lib:paths.bzl"),
         make_token(tokenType = token_types.COMMA, value = ","),
         make_token(tokenType = token_types.LITERAL_STRING, value = "paths"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "load"),
         make_token(tokenType = token_types.PARENTHESIS_LEFT, value = "("),
         make_token(tokenType = token_types.LITERAL_STRING, value = "//:my_rules.bzl"),
         make_token(tokenType = token_types.COMMA, value = ","),
         make_token(tokenType = token_types.LITERAL_STRING, value = "magic_rule"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n\n"),
         make_token(tokenType = token_types.IDENT, value = "magic_rule"),
         make_token(tokenType = token_types.PARENTHESIS_LEFT, value = "("),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "name"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.LITERAL_STRING, value = "magic"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "data"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.IDENT, value = "paths"),
@@ -246,7 +282,9 @@ def _get_item_test_impl(ctx):
         make_token(tokenType = token_types.LITERAL_STRING, value = "file.txt"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
         make_token(tokenType = token_types.COMMA, value = ","),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.PARENTHESIS_RIGHT, value = ")"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
@@ -260,7 +298,9 @@ def _escape_characters_in_string_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.LITERAL_STRING, value = 'Line1\nLine2\tTabbed\\Backslash"DoubleQuote\'SingleQuote'),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
@@ -274,6 +314,7 @@ def _list_comprehension_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "my_list"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.BRACKET_LEFT, value = "["),
@@ -294,6 +335,7 @@ def _list_comprehension_test_impl(ctx):
         make_token(tokenType = token_types.OPERATOR_EQUAL, value = "=="),
         make_token(tokenType = token_types.LITERAL_NUMBER, value = "0"),
         make_token(tokenType = token_types.BRACKET_RIGHT, value = "]"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
@@ -307,6 +349,7 @@ def _bitwise_operators_test_impl(ctx):
     tokens = tokenize(content)
 
     asserts.equals(env, [
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
         make_token(tokenType = token_types.IDENT, value = "result"),
         make_token(tokenType = token_types.OPERATOR_ASSIGN, value = "="),
         make_token(tokenType = token_types.IDENT, value = "a"),
@@ -322,6 +365,7 @@ def _bitwise_operators_test_impl(ctx):
         make_token(tokenType = token_types.BITWISE_NOT, value = "~"),
         make_token(tokenType = token_types.BITWISE_NOT, value = "~"),
         make_token(tokenType = token_types.IDENT, value = "f"),
+        make_token(tokenType = token_types.NEWLINE, value = "\n"),
     ], tokens)
 
     return unittest.end(env)
