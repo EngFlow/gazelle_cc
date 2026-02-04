@@ -370,6 +370,17 @@ def _bitwise_operators_test_impl(ctx):
 
     return unittest.end(env)
 
+def _float_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = "123.456"
+    tokens = tokenize(content)
+    asserts.equals(env, [
+        make_token(tokenType = token_types.LITERAL_NUMBER, value = "123.456"),
+    ], tokens)
+
+    return unittest.end(env)
+
 simple_call_test = unittest.make(_simple_call_test_impl)
 load_statement_test = unittest.make(_load_statement_test_impl)
 assignment_test = unittest.make(_assignment_test_impl)
@@ -380,6 +391,7 @@ get_item_test = unittest.make(_get_item_test_impl)
 escape_characters_in_string_test = unittest.make(_escape_characters_in_string_test_impl)
 list_comprehension_test = unittest.make(_list_comprehension_test_impl)
 bitwise_operators_test = unittest.make(_bitwise_operators_test_impl)
+float_test = unittest.make(_float_test_impl)
 
 def lexer_test_suite(name):
     unittest.suite(
@@ -394,4 +406,5 @@ def lexer_test_suite(name):
         escape_characters_in_string_test,
         list_comprehension_test,
         bitwise_operators_test,
+        float_test,
     )

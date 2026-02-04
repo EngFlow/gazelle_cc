@@ -129,16 +129,22 @@ def tokenize(content):
 
                 # Handle escape sequences
                 if content[j] == "\\" and j + 1 < n:
-                    if content[j + 1] == "n":
+                    next_char = content[j + 1]
+                    if next_char == "n":
                         value += "\n"
-                    elif content[j + 1] == "t":
+                    elif next_char == "t":
                         value += "\t"
-                    elif content[j + 1] == "r":
+                    elif next_char == "r":
                         value += "\r"
-                    elif content[j + 1] == "\\":
+                    elif next_char == "\\":
                         value += "\\"
+                    elif next_char == '"':
+                        value += '"'
+                    elif next_char == "'":
+                        value += "'"
                     else:
-                        value += content[j + 1]
+                        # Other characters after backslash: just include them
+                        value += next_char
 
                     skip_until = j + 2
 
@@ -148,16 +154,54 @@ def tokenize(content):
             tokens.append(make_token(tokenType = token_types.LITERAL_STRING, value = value))
             continue
 
-        # Numbers
-        if c.isdigit() or (c == "-" and i + 1 < n and content[i + 1].isdigit()):
+        # Numbers (including floats, scientific notation, and hex)
+        # Note: +/- signs are handled by the parser as unary operators
+        if c.isdigit() or (c == "." and i + 1 < n and content[i + 1].isdigit()):
             start = i
-            end = i + 1 if c == "-" else i
+            end = i
+            has_dot = False
 
+            # Handle leading dot for floats like .456
+            if content[end] == ".":
+                has_dot = True
+                end += 1
+
+            # Check for hex numbers (0x...)
+            if end < n and content[end] == "0" and end + 1 < n and (content[end + 1] == "x" or content[end + 1] == "X"):
+                end += 2
+                for j in range(end, n):
+                    if content[j].isdigit() or content[j] in "abcdefABCDEF":
+                        end = j + 1
+                    else:
+                        break
+                tokens.append(make_token(tokenType = token_types.LITERAL_NUMBER, value = content[start:end]))
+                skip_until = end
+                continue
+
+            # Parse integer or decimal part
             for j in range(end, n):
-                if content[j].isdigit() or content[j] == ".":
+                if content[j].isdigit():
+                    end = j + 1
+                elif content[j] == "." and not has_dot:
+                    has_dot = True
                     end = j + 1
                 else:
                     break
+
+            # Check for scientific notation (e or E)
+            if end < n and (content[end] == "e" or content[end] == "E"):
+                end += 1
+
+                # Optional sign after e
+                if end < n and (content[end] == "+" or content[end] == "-"):
+                    end += 1
+
+                # Exponent digits
+                for j in range(end, n):
+                    if content[j].isdigit():
+                        end = j + 1
+                    else:
+                        break
 
             tokens.append(make_token(tokenType = token_types.LITERAL_NUMBER, value = content[start:end]))
             skip_until = end

@@ -224,19 +224,19 @@ def _binary_operators_priorities_test_impl(ctx):
         statements = [
             ast_node.makeBinaryOp(
                 left = ast_node.makeBinaryOp(
-                    left = ast_node.makeNumber(value = 1),
+                    left = ast_node.makeNumber(value = "1"),
                     op = "+",
                     right = ast_node.makeBinaryOp(
-                        left = ast_node.makeNumber(value = 2),
+                        left = ast_node.makeNumber(value = "2"),
                         op = "*",
-                        right = ast_node.makeNumber(value = 3),
+                        right = ast_node.makeNumber(value = "3"),
                     ),
                 ),
                 op = "-",
                 right = ast_node.makeBinaryOp(
-                    left = ast_node.makeNumber(value = 4),
+                    left = ast_node.makeNumber(value = "4"),
                     op = "/",
-                    right = ast_node.makeNumber(value = 5),
+                    right = ast_node.makeNumber(value = "5"),
                 ),
             ),
         ],
@@ -408,11 +408,11 @@ def _ternary_expression_test_impl(ctx):
                             keyword_args = [],
                         ),
                         op = ">",
-                        right = ast_node.makeNumber(value = 0),
+                        right = ast_node.makeNumber(value = "0"),
                     ),
                     true_expr = ast_node.makeIndex(
                         object = ast_node.makeIdent(name = "my_list"),
-                        index = ast_node.makeNumber(value = 0),
+                        index = ast_node.makeNumber(value = "0"),
                     ),
                     false_expr = ast_node.makeIdent(name = "None"),
                 ),
@@ -571,7 +571,7 @@ def _list_comprehension_test_impl(ctx):
                         loop_var = ast_node.makeIdent(name = "x"),
                         iterable = ast_node.makeCall(
                             callable = ast_node.makeIdent(name = "range"),
-                            positional_args = [ast_node.makeNumber(value = 10)],
+                            positional_args = [ast_node.makeNumber(value = "10")],
                             keyword_args = [],
                         ),
                         condition = None,
@@ -606,17 +606,17 @@ def _list_comprehension_filtered_test_impl(ctx):
                         loop_var = ast_node.makeIdent(name = "x"),
                         iterable = ast_node.makeCall(
                             callable = ast_node.makeIdent(name = "range"),
-                            positional_args = [ast_node.makeNumber(value = 10)],
+                            positional_args = [ast_node.makeNumber(value = "10")],
                             keyword_args = [],
                         ),
                         condition = ast_node.makeBinaryOp(
                             left = ast_node.makeBinaryOp(
                                 left = ast_node.makeIdent(name = "x"),
                                 op = "%",
-                                right = ast_node.makeNumber(value = 2),
+                                right = ast_node.makeNumber(value = "2"),
                             ),
                             op = "==",
-                            right = ast_node.makeNumber(value = 0),
+                            right = ast_node.makeNumber(value = "0"),
                         ),
                     ),
                 ],
@@ -705,9 +705,9 @@ def _tuple_test_impl(ctx):
                 op = "=",
                 right = ast_node.makeTuple(
                     elements = [
-                        ast_node.makeNumber(value = 1),
+                        ast_node.makeNumber(value = "1"),
                         ast_node.makeString(value = "two"),
-                        ast_node.makeNumber(value = 3),
+                        ast_node.makeNumber(value = "3"),
                     ],
                 ),
             ),
@@ -828,6 +828,275 @@ def _newline_statement_separator_test_impl(ctx):
 
     return unittest.end(env)
 
+def _buildtools_testdata_001_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = """cc_test(name="bar",size="small",srcs=["b.cc","a.cc","c.cc"],deps=["//base",":foo","//util:map-util"], data = [ "datum" ], datum = [ "data", ])"""
+
+    expected_ast = ast_node.makeRoot(
+        statements = [
+            ast_node.makeCall(
+                callable = ast_node.makeIdent(name = "cc_test"),
+                positional_args = [],
+                keyword_args = [
+                    ast_node.makeKeyValue(
+                        key = "name",
+                        value = ast_node.makeString(value = "bar"),
+                    ),
+                    ast_node.makeKeyValue(
+                        key = "size",
+                        value = ast_node.makeString(value = "small"),
+                    ),
+                    ast_node.makeKeyValue(
+                        key = "srcs",
+                        value = ast_node.makeList(
+                            elements = [
+                                ast_node.makeString(value = "b.cc"),
+                                ast_node.makeString(value = "a.cc"),
+                                ast_node.makeString(value = "c.cc"),
+                            ],
+                        ),
+                    ),
+                    ast_node.makeKeyValue(
+                        key = "deps",
+                        value = ast_node.makeList(
+                            elements = [
+                                ast_node.makeString(value = "//base"),
+                                ast_node.makeString(value = ":foo"),
+                                ast_node.makeString(value = "//util:map-util"),
+                            ],
+                        ),
+                    ),
+                    ast_node.makeKeyValue(
+                        key = "data",
+                        value = ast_node.makeList(
+                            elements = [
+                                ast_node.makeString(value = "datum"),
+                            ],
+                        ),
+                    ),
+                    ast_node.makeKeyValue(
+                        key = "datum",
+                        value = ast_node.makeList(
+                            elements = [
+                                ast_node.makeString(value = "data"),
+                            ],
+                        ),
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    actual_ast = parse(content)
+    asserts.equals(env, expected_ast, actual_ast)
+
+    return unittest.end(env)
+
+def _buildtools_testdata_002_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = """cc_test ( name = 'b\\"ar\\'"' , srcs = [ 'a.cc' , "b.cc" , "c.cc" ] , size = "small" , deps = [ "//base" , ":foo", "//util:map-util", ] )"""
+
+    expected_ast = ast_node.makeRoot(
+        statements = [
+            ast_node.makeCall(
+                callable = ast_node.makeIdent(name = "cc_test"),
+                positional_args = [],
+                keyword_args = [
+                    ast_node.makeKeyValue(
+                        key = "name",
+                        value = ast_node.makeString(value = 'b\"ar\'"'),
+                    ),
+                    ast_node.makeKeyValue(
+                        key = "srcs",
+                        value = ast_node.makeList(
+                            elements = [
+                                ast_node.makeString(value = "a.cc"),
+                                ast_node.makeString(value = "b.cc"),
+                                ast_node.makeString(value = "c.cc"),
+                            ],
+                        ),
+                    ),
+                    ast_node.makeKeyValue(
+                        key = "size",
+                        value = ast_node.makeString(value = "small"),
+                    ),
+                    ast_node.makeKeyValue(
+                        key = "deps",
+                        value = ast_node.makeList(
+                            elements = [
+                                ast_node.makeString(value = "//base"),
+                                ast_node.makeString(value = ":foo"),
+                                ast_node.makeString(value = "//util:map-util"),
+                            ],
+                        ),
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    actual_ast = parse(content)
+    asserts.equals(env, expected_ast, actual_ast)
+
+    return unittest.end(env)
+
+def _buildtools_testdata_003_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = """numbers = [
+  0,
+  11,
+  123.456,
+  123.,
+  .456,
+  1.23e45,
+  -1,
+  +1,
+  0.0,
+  -0.0,
+  1.0,
+  -1.0,
+  +1.0,
+  1e6,
+  -1e6,
+  -1.23e-45,
+  3.539537889086625e+24,
+  3.539537889086625E+24,
+  3.539537889086625e00024000,
+  3.539537889086625e+00024000,
+  3539537889086624823140625,
+  0x123,
+  0xE45,
+  0xe45,
+]"""
+
+    expected_ast = ast_node.makeRoot(
+        statements = [
+            ast_node.makeBinaryOp(
+                left = ast_node.makeIdent(name = "numbers"),
+                op = "=",
+                right = ast_node.makeList(
+                    elements = [
+                        ast_node.makeNumber(value = "0"),
+                        ast_node.makeNumber(value = "11"),
+                        ast_node.makeNumber(value = "123.456"),
+                        ast_node.makeNumber(value = "123."),
+                        ast_node.makeNumber(value = ".456"),
+                        ast_node.makeNumber(value = "1.23e45"),
+                        ast_node.makeUnaryOp(
+                            op = "-",
+                            operand = ast_node.makeNumber(value = "1"),
+                        ),
+                        ast_node.makeUnaryOp(
+                            op = "+",
+                            operand = ast_node.makeNumber(value = "1"),
+                        ),
+                        ast_node.makeNumber(value = "0.0"),
+                        ast_node.makeUnaryOp(
+                            op = "-",
+                            operand = ast_node.makeNumber(value = "0.0"),
+                        ),
+                        ast_node.makeNumber(value = "1.0"),
+                        ast_node.makeUnaryOp(
+                            op = "-",
+                            operand = ast_node.makeNumber(value = "1.0"),
+                        ),
+                        ast_node.makeUnaryOp(
+                            op = "+",
+                            operand = ast_node.makeNumber(value = "1.0"),
+                        ),
+                        ast_node.makeNumber(value = "1e6"),
+                        ast_node.makeUnaryOp(
+                            op = "-",
+                            operand = ast_node.makeNumber(value = "1e6"),
+                        ),
+                        ast_node.makeUnaryOp(
+                            op = "-",
+                            operand = ast_node.makeNumber(value = "1.23e-45"),
+                        ),
+                        ast_node.makeNumber(value = "3.539537889086625e+24"),
+                        ast_node.makeNumber(value = "3.539537889086625E+24"),
+                        ast_node.makeNumber(value = "3.539537889086625e00024000"),
+                        ast_node.makeNumber(value = "3.539537889086625e+00024000"),
+                        ast_node.makeNumber(value = "3539537889086624823140625"),
+                        ast_node.makeNumber(value = "0x123"),
+                        ast_node.makeNumber(value = "0xE45"),
+                        ast_node.makeNumber(value = "0xe45"),
+                    ],
+                ),
+            ),
+        ],
+    )
+
+    actual_ast = parse(content)
+    asserts.equals(env, expected_ast, actual_ast)
+
+    return unittest.end(env)
+
+def _buildtools_testdata_004_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = """JAVA_FILES = [ "Foo.java", "Bar.java",
+               "Baz.java", "Quux.java"
+             ]"""
+
+    expected_ast = ast_node.makeRoot(
+        statements = [
+            ast_node.makeBinaryOp(
+                left = ast_node.makeIdent(name = "JAVA_FILES"),
+                op = "=",
+                right = ast_node.makeList(
+                    elements = [
+                        ast_node.makeString(value = "Foo.java"),
+                        ast_node.makeString(value = "Bar.java"),
+                        ast_node.makeString(value = "Baz.java"),
+                        ast_node.makeString(value = "Quux.java"),
+                    ],
+                ),
+            ),
+        ],
+    )
+
+    actual_ast = parse(content)
+    asserts.equals(env, expected_ast, actual_ast)
+
+    return unittest.end(env)
+
+def _buildtools_testdata_005_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    content = """JAVA_FILES = [
+    # Comment regarding Foo.java
+    "Foo.java",
+    "Bar.java",
+    "Baz.java",  # Comment regarding Baz.java
+    "Quux.java"
+]"""
+
+    expected_ast = ast_node.makeRoot(
+        statements = [
+            ast_node.makeBinaryOp(
+                left = ast_node.makeIdent(name = "JAVA_FILES"),
+                op = "=",
+                right = ast_node.makeList(
+                    elements = [
+                        ast_node.makeString(value = "Foo.java"),
+                        ast_node.makeString(value = "Bar.java"),
+                        ast_node.makeString(value = "Baz.java"),
+                        ast_node.makeString(value = "Quux.java"),
+                    ],
+                ),
+            ),
+        ],
+    )
+
+    actual_ast = parse(content)
+    asserts.equals(env, expected_ast, actual_ast)
+
+    return unittest.end(env)
+
 simple_call_test = unittest.make(_simple_call_test_impl)
 load_statement_test = unittest.make(_load_statement_test_impl)
 multiple_statements_test = unittest.make(_multiple_statements_test_impl)
@@ -847,6 +1116,11 @@ tuple_test = unittest.make(_tuple_test_impl)
 dict_comprehension_test = unittest.make(_dict_comprehension_test_impl)
 dict_comprehension_filtered_test = unittest.make(_dict_comprehension_filtered_test_impl)
 newline_statement_separator_test = unittest.make(_newline_statement_separator_test_impl)
+buildtools_testdata_001_test = unittest.make(_buildtools_testdata_001_test_impl)
+buildtools_testdata_002_test = unittest.make(_buildtools_testdata_002_test_impl)
+buildtools_testdata_003_test = unittest.make(_buildtools_testdata_003_test_impl)
+buildtools_testdata_004_test = unittest.make(_buildtools_testdata_004_test_impl)
+buildtools_testdata_005_test = unittest.make(_buildtools_testdata_005_test_impl)
 
 def parser_test_suite(name):
     unittest.suite(
@@ -870,4 +1144,11 @@ def parser_test_suite(name):
         dict_comprehension_test,
         dict_comprehension_filtered_test,
         newline_statement_separator_test,
+
+        # Include some examples from https://github.com/bazelbuild/buildtools/tree/main/build/testdata
+        buildtools_testdata_001_test,
+        buildtools_testdata_002_test,
+        buildtools_testdata_003_test,
+        buildtools_testdata_004_test,
+        buildtools_testdata_005_test,
     )

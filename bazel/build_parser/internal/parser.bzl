@@ -148,7 +148,7 @@ def _parse_impl(tokens):
             result_stack.append(ast_node.makeString(value = token.value))
         elif token.tokenType == token_types.LITERAL_NUMBER:
             consume_token()
-            result_stack.append(ast_node.makeNumber(value = int(token.value)))
+            result_stack.append(ast_node.makeNumber(value = token.value))
         elif token.tokenType == token_types.IDENT:
             consume_token()
             result_stack.append(ast_node.makeIdent(name = token.value))
