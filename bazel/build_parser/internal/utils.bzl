@@ -3,7 +3,7 @@ General utility functions, missing both in the native Bazel Starlark and the
 Skylib library.
 """
 
-def _enum_type(*values):
+def _enum(*values):
     """Creates a simple enum type.
 
     Args:
@@ -13,6 +13,20 @@ def _enum_type(*values):
         A struct representing the enum type with keys for each value.
     """
     return struct(**{value: value for value in values})
+
+def _int_enum(*values):
+    """Creates a simple integer enum type.
+
+    Constants are mapped to consecutive integers starting from 0, like in C-style enums.
+
+    Args:
+        *values: The possible enum values as strings.
+
+    Returns:
+        A struct representing the enum type with keys for each value mapped to
+        their integer index.
+    """
+    return struct(**{value: index for index, value in enumerate(values)})
 
 def _infinite_loop(iterations = 1000000):
     """Emulates 'while True' by returning a reasonable long range.
@@ -81,7 +95,8 @@ def _ref_set(ref, value):
     ref._ref[0] = value
 
 utils = struct(
-    enum_type = _enum_type,
+    enum = _enum,
+    int_enum = _int_enum,
     infinite_loop = _infinite_loop,
     ref_make = _ref_make,
     ref_get = _ref_get,

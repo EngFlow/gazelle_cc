@@ -111,7 +111,7 @@ def _parse_impl(tokens):
     def get_operator_precedence(token_type):
         """Get precedence level for an operator token type."""
         if token_type == token_types.OPERATOR_ASSIGN:
-            return op_precedence.LOWEST
+            return op_precedence.ASSIGN
         elif token_type == token_types.LOGICAL_OR:
             return op_precedence.OR
         elif token_type == token_types.LOGICAL_AND:
@@ -139,11 +139,12 @@ def _parse_impl(tokens):
             return op_precedence.ADD
         elif token_type in [token_types.ASTERISK, token_types.SLASH, token_types.DOUBLE_SLASH, token_types.MOD]:
             return op_precedence.MULTIPLY
-        return 0
+        else:
+            return op_precedence.LOWEST
 
     def is_binary_operator(token_type):
         """Check if token type is a binary operator."""
-        return get_operator_precedence(token_type) > 0
+        return get_operator_precedence(token_type) > op_precedence.LOWEST
 
     def parse_atom():
         """Parse atomic expression: string, number, or identifier."""
@@ -175,7 +176,7 @@ def _parse_impl(tokens):
 
         # Parse first element
         call_stack.append(struct(function = parse_list_collect, args = {"elements": elements}))
-        call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+        call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
 
     def parse_list_collect(elements):
         """Collect one list element from result stack."""
@@ -196,7 +197,7 @@ def _parse_impl(tokens):
         else:
             # Parse next element
             call_stack.append(struct(function = parse_list_collect, args = {"elements": elements}))
-            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
 
     def parse_list():
         """Parse list literal [...]."""
@@ -215,7 +216,7 @@ def _parse_impl(tokens):
 
         # Parse first key
         call_stack.append(struct(function = parse_dict_key_collected, args = {"entries": entries}))
-        call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+        call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
 
     def parse_dict_key_collected(entries):
         """Collect dict key, expect colon, then parse value."""
@@ -223,7 +224,7 @@ def _parse_impl(tokens):
         expect_token_type(token_types.COLON)
 
         call_stack.append(struct(function = parse_dict_value_collected, args = {"entries": entries, "key": key}))
-        call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+        call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
 
     def parse_dict_value_collected(entries, key):
         """Collect dict value and create key-value pair."""
@@ -245,7 +246,7 @@ def _parse_impl(tokens):
         else:
             # Parse next key
             call_stack.append(struct(function = parse_dict_key_collected, args = {"entries": entries}))
-            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
 
     def parse_dict():
         """Parse dict literal {...}."""
@@ -364,7 +365,7 @@ def _parse_impl(tokens):
             else:
                 # Parse first element, then check if tuple or parenthesis
                 call_stack.append(struct(function = parse_parenthesis_or_tuple_check, args = {}))
-                call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+                call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
         elif token.tokenType in [token_types.LOGICAL_NOT, token_types.MINUS, token_types.PLUS, token_types.BITWISE_NOT]:
             # Unary operators
             op_token = consume_token()
@@ -480,7 +481,7 @@ def _parse_impl(tokens):
             else:
                 # Multi-element tuple
                 call_stack.append(struct(function = parse_tuple_collect, args = {"elements": elements}))
-                call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+                call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
         elif token and token.tokenType == token_types.PARENTHESIS_RIGHT:
             # Single element without comma - it's a parenthesis
             expect_token_type(token_types.PARENTHESIS_RIGHT)
@@ -504,7 +505,7 @@ def _parse_impl(tokens):
         else:
             # Parse next element
             call_stack.append(struct(function = parse_tuple_collect, args = {"elements": elements}))
-            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
 
     def parse_unary_collected(op):
         """Collect operand for unary operator."""
@@ -540,7 +541,7 @@ def _parse_impl(tokens):
                 "keyword_args": keyword_args,
                 "pending_key": key,
             }))
-            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
         else:
             # Parse positional argument
             call_stack.append(struct(function = parse_call_collect_arg, args = {
@@ -548,7 +549,7 @@ def _parse_impl(tokens):
                 "keyword_args": keyword_args,
                 "pending_key": None,
             }))
-            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
 
     def parse_call_collect_arg(positional_args, keyword_args, pending_key):
         """Collect one function argument."""
@@ -585,14 +586,14 @@ def _parse_impl(tokens):
                     "keyword_args": keyword_args,
                     "pending_key": key,
                 }))
-                call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+                call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
             else:
                 call_stack.append(struct(function = parse_call_collect_arg, args = {
                     "positional_args": positional_args,
                     "keyword_args": keyword_args,
                     "pending_key": None,
                 }))
-                call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+                call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
 
     def parse_postfix(min_precedence):
         """Check for postfix operators (calls, indexing, etc.)."""
@@ -609,7 +610,7 @@ def _parse_impl(tokens):
             consume_token()
             call_stack.append(struct(function = parse_postfix, args = {"min_precedence": min_precedence}))
             call_stack.append(struct(function = parse_index_finalize, args = {}))
-            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+            call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
         elif token and token.tokenType == token_types.DOT and op_precedence.CALL >= min_precedence:
             # Attribute access
             consume_token()
@@ -727,7 +728,7 @@ def _parse_impl(tokens):
 
     def parse_statement():
         """Parse one statement."""
-        call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.LOWEST}))
+        call_stack.append(struct(function = parse_expression, args = {"min_precedence": op_precedence.ASSIGN}))
 
     def parse_root_begin():
         """Begin parsing root node."""

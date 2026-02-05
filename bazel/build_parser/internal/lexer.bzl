@@ -4,7 +4,7 @@ Internal implementation of a simple lexer for BUILD files in Starlark.
 
 load(":utils.bzl", "utils")
 
-token_types = utils.enum_type(
+token_types = utils.enum(
     "ASTERISK",
     "BITWISE_AND",
     "BITWISE_NOT",

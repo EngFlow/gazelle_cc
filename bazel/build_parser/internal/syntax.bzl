@@ -4,7 +4,7 @@ List of supported AST node types and constructors for them.
 
 load(":utils.bzl", "utils")
 
-ast_node_types = utils.enum_type(
+ast_node_types = utils.enum(
     "ATTR",
     "BINARY_OP",
     "CALL",
@@ -168,19 +168,20 @@ ast_node = struct(
 )
 
 # Operator precedence levels (higher = tighter binding)
-op_precedence = struct(
-    LOWEST = 1,
-    TERNARY = 2,  # if/else
-    OR = 3,  # or
-    AND = 4,  # and
-    NOT = 5,  # not
-    COMPARE = 6,  # ==, !=, <, >, <=, >=, in, not in
-    PIPE = 7,  # |
-    XOR = 8,  # ^
-    AMPERSAND = 9,  # &
-    SHIFT = 10,  # <<, >>
-    ADD = 11,  # +, -
-    MULTIPLY = 12,  # *, /, //, %
-    UNARY = 13,  # +x, -x, ~x
-    CALL = 14,  # f(), x[i], x.attr
+op_precedence = utils.int_enum(
+    "LOWEST",
+    "ASSIGN",  # =
+    "TERNARY",  # if/else
+    "OR",  # or
+    "AND",  # and
+    "NOT",  # not
+    "COMPARE",  # ==, !=, <, >, <=, >=, in, not in
+    "PIPE",  # |
+    "XOR",  # ^
+    "AMPERSAND",  # &
+    "SHIFT",  # <<, >>
+    "ADD",  # +, -
+    "MULTIPLY",  # *, /, //, %
+    "UNARY",  # +x, -x, ~x
+    "CALL",  # f(), x[i], x.attr
 )
