@@ -16,19 +16,27 @@ def _parse_impl(tokens):
         An AST representing the parsed BUILD file. The returned root node is always of type ast_node_types.ROOT.
     """
 
-    # Index of the next token to be processed.
-    #
-    # This is always a single-element list to allow mutation inside nested
-    # functions. Starlark closure is not as handy as in e.g. Go, so this is
-    # a workaround.
-    index = [0]
-
     # Explicit stacks to avoid recursion.
     #
     # Recursion is not allowed in Starlark, so we use explicit stacks to manage
     # the parsing process using only ordinary iteration.
     call_stack = []
     result_stack = []
+
+    # Index of the next token to be processed.
+    index_ref = utils.ref_make(0)
+
+    def get_index():
+        """Get the current token index."""
+        return utils.ref_get(index_ref)
+
+    def set_index(new_index):
+        """Set the current token index."""
+        utils.ref_set(index_ref, new_index)
+
+    def inc_index():
+        """Increment the current token index by one."""
+        set_index(get_index() + 1)
 
     def has_token(ignore_newline = True):
         """Check if there are more tokens to process.
@@ -39,9 +47,9 @@ def _parse_impl(tokens):
         Returns:
             True if there are more tokens, False otherwise.
         """
-        if ignore_newline and index[0] < len(tokens) and tokens[index[0]].tokenType == token_types.NEWLINE:
-            index[0] += 1
-        return index[0] < len(tokens)
+        if ignore_newline and get_index() < len(tokens) and tokens[get_index()].tokenType == token_types.NEWLINE:
+            inc_index()
+        return get_index() < len(tokens)
 
     def peek_token(ignore_newline = True):
         """Peek the next token without consuming it.
@@ -52,7 +60,7 @@ def _parse_impl(tokens):
         Returns:
             The next token, or None if at the end of the token list.
         """
-        return tokens[index[0]] if has_token(ignore_newline) else None
+        return tokens[get_index()] if has_token(ignore_newline) else None
 
     def consume_token(ignore_newline = True):
         """Consume and return the next token.
@@ -67,7 +75,7 @@ def _parse_impl(tokens):
         """
         token = peek_token(ignore_newline)
         if token != None:
-            index[0] += 1
+            inc_index()
         return token
 
     def expect_token_type(expected_type, ignore_newline = True):
@@ -95,10 +103,10 @@ def _parse_impl(tokens):
         Args:
             old_index: The previous token index to revert to.
         """
-        if old_index > index[0]:
+        if old_index > get_index():
             fail("cannot revert to a future index")
 
-        index[0] = old_index
+        set_index(old_index)
 
     def get_operator_precedence(token_type):
         """Get precedence level for an operator token type."""
@@ -514,7 +522,7 @@ def _parse_impl(tokens):
             return
 
         # Check if first arg is keyword
-        saved_index = index[0]
+        saved_index = get_index()
         is_keyword = False
         if token and token.tokenType == token_types.IDENT:
             consume_token()
@@ -560,7 +568,7 @@ def _parse_impl(tokens):
             result_stack.append({"positional_args": positional_args, "keyword_args": keyword_args})
         else:
             # Check if next arg is keyword
-            saved_index = index[0]
+            saved_index = get_index()
             is_keyword = False
             if token and token.tokenType == token_types.IDENT:
                 consume_token()

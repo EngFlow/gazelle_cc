@@ -175,7 +175,7 @@ To work around these limitations, the parser uses:
 
 1. **Bounded iteration**: `while True` is emulated through `utils.infinite_loop()`, see `internal/utils.bzl` for details
 2. **Explicit call stack**: Instead of recursive descent parsing, we maintain an explicit `call_stack` list that simulates function calls
-3. **List mutation for state**: Variables that need to be modified in nested functions are wrapped in single-element lists (e.g., `index = [0]`)
+3. **Mutable references**: Variables that need to be modified in nested functions use `utils.ref_make()` which wraps values in single-element lists to enable mutation (e.g., `index_ref = utils.ref_make(0)`, then access via `utils.ref_get(index_ref)`)
 
 ## Limitations
 
