@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
+import argparse
 import ast
 import os
 import shutil
-import argparse
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -69,10 +69,10 @@ def parse_rule_name(node: ast.stmt) -> Optional[str]:
 
 
 def parse_rule_names(content: str) -> Iterable[str]:
-    return (name for node in ast.parse(content).body if (name := parse_rule_name(node)) is not None)
+    return (name for node in ast.parse(content).body if (name := parse_rule_name(node)))
 
 
-def collect_rule_names_from_file(build_file: Path) -> set[str]:
+def parse_rule_names_from_file(build_file: Path) -> set[str]:
     with open(build_file, "r") as f:
         return {name for name in parse_rule_names(f.read())}
 
@@ -152,7 +152,7 @@ def copy_and_transform(
                 # If this is a BUILD.bazel file (after renaming), append a filegroup with the collected rules
                 dest_file = out_root / "BUILD.bazel"
                 shutil.copy2(src_file, dest_file)
-                if rule_names := collect_rule_names_from_file(dest_file):
+                if rule_names := parse_rule_names_from_file(dest_file):
                     append_filegroup(dest_file, package_filegroup_name, rule_names)
                     filegroup_labels.add(filegroup_label)
             else:
