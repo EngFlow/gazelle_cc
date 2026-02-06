@@ -22,11 +22,7 @@ genrule(
         "output/MODULE.bazel",
         "output/sub/package/BUILD.bazel",
     ],
-    cmd = "$(location :prepare_test_workspace) " +
-          "-b BUILD.in " +
-          "$(location testdata/MODULE.bazel) " +
-          "$(@D)/output " +
-          "cc_binary cc_library ",
+    cmd = "$(location :prepare_test_workspace) -b BUILD.in $(location testdata/MODULE.bazel) $(@D)/output",
     tools = [":prepare_test_workspace"],
 )
 
