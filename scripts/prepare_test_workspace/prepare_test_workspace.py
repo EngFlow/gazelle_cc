@@ -3,15 +3,30 @@
 import ast
 import os
 import shutil
-import argparse
+from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(
+@dataclass
+class CmdlineArgs:
+    input_workspace: Path
+    output_workspace: Path
+    rule_kinds: set[str]
+    build_file_name: str
+    package_filegroup_name: str
+    build_test_name: str
+
+
+@dataclass
+class Rule:
+    kind: str
+    name: str
+
+
+def parse_args() -> CmdlineArgs:
+    parser = ArgumentParser(
         description=(
             "Prepare test workspace by copying and transforming BUILD files. The input workspace follows the layout "
             "used by gazelle_generation_test (with BUILD.in/BUILD.out files). The output is a real Bazel workspace "
@@ -52,18 +67,22 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "-t",
-        dest="test_name",
+        dest="build_test_name",
         metavar="NAME",
         default="workspace_build_test",
         help="Name of the public build_test target in the root BUILD.bazel file (default: workspace_build_test)",
     )
-    return parser.parse_args()
+    raw_args = parser.parse_args()
+    input_workspace = raw_args.input_workspace if raw_args.input_workspace.is_dir() else raw_args.input_workspace.parent
 
-
-@dataclass
-class Rule:
-    kind: str
-    name: str
+    return CmdlineArgs(
+        input_workspace=input_workspace,
+        output_workspace=raw_args.output_workspace,
+        rule_kinds=set(raw_args.rule_kinds),
+        build_file_name=raw_args.build_file_name,
+        package_filegroup_name=raw_args.package_filegroup_name,
+        build_test_name=raw_args.build_test_name,
+    )
 
 
 def parse_rule(node: ast.stmt) -> Optional[Rule]:
@@ -87,7 +106,7 @@ def parse_rules(content: str) -> Iterable[Rule]:
             yield rule
 
 
-def collect_rules_from_file(build_file: Path, rule_kinds: set[str]) -> set[str]:
+def collect_rule_names_from_file(build_file: Path, rule_kinds: set[str]) -> set[str]:
     with open(build_file, "r") as f:
         return {rule.name for rule in parse_rules(f.read()) if rule.kind in rule_kinds}
 
@@ -97,18 +116,47 @@ def append_filegroup(build_file: Path, filegroup_name: str, rule_names: set[str]
         f.write("\nfilegroup(\n")
         f.write(f'    name = "{filegroup_name}",\n')
         f.write("    srcs = [\n")
-        for name in sorted(rule_names):
-            f.write(f'        ":{name}",\n')
+        f.writelines(f'        ":{name}",\n' for name in sorted(rule_names))
         f.write("    ],\n")
         f.write("    testonly = True,\n")
         f.write('    visibility = ["//:__pkg__"],\n')
         f.write(")\n")
 
 
+def append_build_test(build_file: Path, build_test_name: str, filegroup_labels: set[str]) -> None:
+    # Read original content first (if file exists)
+    original_content = build_file.read_text() if build_file.exists() else ""
+
+    with open(build_file, "w") as f:
+        # Add load statement at the beginning
+        f.write('load("@bazel_skylib//rules:build_test.bzl", "build_test")\n\n')
+
+        # Preserve the original content
+        f.write(original_content)
+
+        # Append build_test at the end
+        f.write("\nbuild_test(\n")
+        f.write(f'    name = "{build_test_name}",\n')
+        f.write("    targets = [\n")
+        f.writelines(f'        "{label}",\n' for label in sorted(filegroup_labels))
+        f.write("    ],\n")
+        f.write('    visibility = ["//visibility:public"],\n')
+        f.write(")\n")
+
+
 def copy_and_transform(
-    input_dir: Path, output_dir: Path, build_file_name: str, rule_kinds: set[str], package_filegroup_name: str
-) -> set[str]:
-    """Copy directory structure, transform BUILD files, and create filegroups collecting specified rule kinds.
+    input_dir: Path,
+    output_dir: Path,
+    build_file_name: str,
+    rule_kinds: set[str],
+    package_filegroup_name: str,
+    build_test_name: str,
+) -> None:
+    """Copy directory structure, transform BUILD files, create filegroups, and add a public build_test target.
+
+    Copies all files from input directory to output directory. BUILD files matching build_file_name are renamed to
+    BUILD.bazel and appended with filegroups collecting rules of specified kinds. Finally, a public build_test target
+    is added to the root BUILD.bazel that depends on all created filegroups.
 
     Args:
         input_dir: Source directory
@@ -116,19 +164,18 @@ def copy_and_transform(
         build_file_name: Name of BUILD files to rename to BUILD.bazel
         rule_kinds: Rule kinds to collect
         package_filegroup_name: Name for the filegroup to create in each package
-
-    Returns:
-        Set of created filegroup labels
+        build_test_name: Name for the top-level build_test target
     """
-    filegroup_labels = set()
+    filegroup_labels: set[str] = set()
 
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Walk through input directory
-    for root, dirs, files in os.walk(input_dir):
+    for root, _, files in os.walk(input_dir):
         rel_root = Path(root).relative_to(input_dir)
         bazel_package = "//" if rel_root == Path(".") else f"//{rel_root}"
+        filegroup_label = f"{bazel_package}:{package_filegroup_name}"
 
         # Create corresponding directory in output
         out_root = output_dir / rel_root
@@ -136,57 +183,34 @@ def copy_and_transform(
 
         for file in files:
             src_file = Path(root) / file
-            dest_file = out_root / "BUILD.bazel" if file == build_file_name else out_root / file
 
-            shutil.copy2(src_file, dest_file)
-
-            # If this is a .bazel file (after renaming), append a filegroup with the collected rules
-            if dest_file.suffix == ".bazel":
-                rule_names = collect_rules_from_file(dest_file, rule_kinds)
-                if rule_names:
+            if file == build_file_name:
+                # If this is a BUILD.bazel file (after renaming), append a filegroup with the collected rules
+                dest_file = out_root / "BUILD.bazel"
+                shutil.copy2(src_file, dest_file)
+                if rule_names := collect_rule_names_from_file(dest_file, rule_kinds):
                     append_filegroup(dest_file, package_filegroup_name, rule_names)
-                    filegroup_labels.add(f"{bazel_package}:{package_filegroup_name}")
+                    filegroup_labels.add(filegroup_label)
+            else:
+                # Just copy other files as-is
+                dest_file = out_root / file
+                shutil.copy2(src_file, dest_file)
 
-    return filegroup_labels
-
-
-def update_root_build_file(output_dir: Path, filegroup_labels: set[str], test_name: str) -> None:
-    build_file = output_dir / "BUILD.bazel"
-
-    # Check if file exists
-    if build_file.exists():
-        with open(build_file, "r") as f:
-            content = f.read()
-    else:
-        content = ""
-
-    # Add load statement at the beginning
-    load_stmt = 'load("@bazel_skylib//rules:build_test.bzl", "build_test")\n\n'
-    content = load_stmt + content
-
-    # Append build_test at the end
-    with open(build_file, "w") as f:
-        f.write(content)
-        f.write("\nbuild_test(\n")
-        f.write(f'    name = "{test_name}",\n')
-        f.write("    targets = [\n")
-        for label in sorted(filegroup_labels):
-            f.write(f'        "{label}",\n')
-        f.write("    ],\n")
-        f.write('    visibility = ["//visibility:public"],\n')
-        f.write(")\n")
+    # Finally add the public top-level build_test target that depends on all package filegroups
+    append_build_test(output_dir / "BUILD.bazel", build_test_name, filegroup_labels)
 
 
 def main() -> None:
     args = parse_args()
 
-    input_dir = args.input_workspace.parent if args.input_workspace.is_file() else args.input_workspace
-
-    filegroup_labels = copy_and_transform(
-        input_dir, args.output_workspace, args.build_file_name, args.rule_kinds, args.package_filegroup_name
+    copy_and_transform(
+        input_dir=args.input_workspace,
+        output_dir=args.output_workspace,
+        build_file_name=args.build_file_name,
+        rule_kinds=args.rule_kinds,
+        package_filegroup_name=args.package_filegroup_name,
+        build_test_name=args.build_test_name,
     )
-
-    update_root_build_file(args.output_workspace, filegroup_labels, args.test_name)
 
 
 if __name__ == "__main__":
