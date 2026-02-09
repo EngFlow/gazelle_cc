@@ -5,7 +5,7 @@ import ast
 import os
 import shutil
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,28 +53,17 @@ def parse_args() -> argparse.Namespace:
 
 
 def parse_rule_name(node: ast.stmt) -> Optional[str]:
-    if (
-        not isinstance(node, ast.Expr)
-        or not isinstance(node.value, ast.Call)
-        or not isinstance(node.value.func, ast.Name)
-    ):
-        return None
-
-    # Treat all top-level call expressions with a "name" keyword argument as Bazel rules
-    for keyword in node.value.keywords:
-        if keyword.arg == "name" and isinstance(keyword.value, ast.Constant):
-            return str(keyword.value.value)
+    if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name):
+        # Treat all top-level call expressions with a "name" keyword argument as Bazel rules
+        for keyword in node.value.keywords:
+            if keyword.arg == "name" and isinstance(keyword.value, ast.Constant):
+                return str(keyword.value.value)
 
     return None
 
 
-def parse_rule_names(content: str) -> Iterable[str]:
-    return (name for node in ast.parse(content).body if (name := parse_rule_name(node)))
-
-
-def parse_rule_names_from_file(build_file: Path) -> set[str]:
-    with open(build_file, "r") as f:
-        return {name for name in parse_rule_names(f.read())}
+def parse_rule_names(build_file_content: str) -> set[str]:
+    return {name for node in ast.parse(build_file_content).body if (name := parse_rule_name(node))}
 
 
 def append_filegroup(build_file: Path, filegroup_name: str, rule_names: set[str]) -> None:
@@ -90,7 +79,6 @@ def append_filegroup(build_file: Path, filegroup_name: str, rule_names: set[str]
 
 
 def append_build_test(build_file: Path, build_test_name: str, filegroup_labels: set[str]) -> None:
-    # Read original content first (if file exists)
     original_content = build_file.read_text() if build_file.exists() else ""
 
     with open(build_file, "w") as f:
@@ -152,7 +140,7 @@ def copy_and_transform(
                 # If this is a BUILD.bazel file (after renaming), append a filegroup with the collected rules
                 dest_file = out_root / "BUILD.bazel"
                 shutil.copy2(src_file, dest_file)
-                if rule_names := parse_rule_names_from_file(dest_file):
+                if rule_names := parse_rule_names(src_file.read_text()):
                     append_filegroup(dest_file, package_filegroup_name, rule_names)
                     filegroup_labels.add(filegroup_label)
             else:
