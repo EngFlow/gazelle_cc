@@ -16,7 +16,6 @@ package cc
 
 import (
 	"path"
-	"slices"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
@@ -100,20 +99,22 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 	}
 
 	for _, protoLibraryRule := range args.OtherGen {
-		if protoLibraryRule.Kind() == "proto_library" && slices.Contains(protoLibraryRule.PrivateAttrKeys(), proto.PackageKey) {
-			protoPackage := protoLibraryRule.PrivateAttr(proto.PackageKey).(proto.Package)
-			pbHeaders, pbSources, grpcHeaders, grpcSources := getGeneratedFiles(protoPackage)
-			consumedProtoFiles.AddSlice(pbHeaders).AddSlice(pbSources).AddSlice(grpcHeaders).AddSlice(grpcSources)
+		protoPackage, ok := protoLibraryRule.PrivateAttr(proto.PackageKey).(proto.Package)
+		if !ok || protoLibraryRule.Kind() != "proto_library" {
+			continue
+		}
 
-			ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
-			result.Gen = append(result.Gen, ccProtoLibraryRule)
+		pbHeaders, pbSources, grpcHeaders, grpcSources := getGeneratedFiles(protoPackage)
+		consumedProtoFiles.AddSlice(pbHeaders).AddSlice(pbSources).AddSlice(grpcHeaders).AddSlice(grpcSources)
+
+		ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
+		result.Gen = append(result.Gen, ccProtoLibraryRule)
+		result.Imports = append(result.Imports, ccImports{})
+
+		if protoPackage.HasServices {
+			ccGrpcLibraryRule := generateCcGrpcLibraryRule(protoLibraryRule, ccProtoLibraryRule, grpcHeaders, args.File)
+			result.Gen = append(result.Gen, ccGrpcLibraryRule)
 			result.Imports = append(result.Imports, ccImports{})
-
-			if protoPackage.HasServices {
-				ccGrpcLibraryRule := generateCcGrpcLibraryRule(protoLibraryRule, ccProtoLibraryRule, grpcHeaders, args.File)
-				result.Gen = append(result.Gen, ccGrpcLibraryRule)
-				result.Imports = append(result.Imports, ccImports{})
-			}
 		}
 	}
 
