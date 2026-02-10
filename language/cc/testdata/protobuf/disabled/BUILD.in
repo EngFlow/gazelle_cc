@@ -1,1 +1,1 @@
-# gazelle:cc_generate_proto false
+# gazelle:cc_generate_proto disable
