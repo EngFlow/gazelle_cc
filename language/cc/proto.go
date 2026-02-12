@@ -15,12 +15,12 @@
 package cc
 
 import (
+	"log"
 	"path"
 	"slices"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/language/proto"
@@ -214,27 +214,38 @@ func generateComposedGrpcRules(args language.GenerateArgs, result *language.Gene
 	return consumedProtoFiles
 }
 
-func shouldGenerateDefaultProtoLibraryRules(config *config.Config) bool {
-	ccConfig := getCcConfig(config)
-	protoExtensionConfig := proto.GetProtoConfig(config)
-	return protoExtensionConfig != nil && protoExtensionConfig.Mode.ShouldGenerateRules() && ccConfig.generateProto == generateProtoMode_default
+func isProtoExtensionActive(config *proto.ProtoConfig) bool {
+	return config != nil && config.Mode.ShouldGenerateRules()
 }
 
-func shouldGenerateComposedGrpcRules(config *config.Config) bool {
-	return getCcConfig(config).generateProto == generateProtoMode_composedGrpc
+func shouldGenerateDefaultProtoLibraryRules(config *proto.ProtoConfig, mode generateProtoMode) bool {
+	return isProtoExtensionActive(config) && mode == generateProtoMode_default
+}
+
+func shouldGenerateComposedGrpcRules(config *proto.ProtoConfig, mode generateProtoMode) bool {
+	return !isProtoExtensionActive(config) && mode == generateProtoMode_composedGrpc
+}
+
+func hasProtoExtensionConflict(config *proto.ProtoConfig, mode generateProtoMode) bool {
+	return isProtoExtensionActive(config) && mode == generateProtoMode_composedGrpc
 }
 
 func generateProtoLibraryRules(args language.GenerateArgs, result *language.GenerateResult) collections.Set[string] {
+	protoExtensionConfig := proto.GetProtoConfig(args.Config)
+	protoMode := getCcConfig(args.Config).generateProto
+
 	switch {
-	case shouldGenerateDefaultProtoLibraryRules(args.Config):
+	case shouldGenerateDefaultProtoLibraryRules(protoExtensionConfig, protoMode):
 		return generateDefaultProtoLibraryRules(args, result)
-	case shouldGenerateComposedGrpcRules(args.Config):
+	case shouldGenerateComposedGrpcRules(protoExtensionConfig, protoMode):
 		return generateComposedGrpcRules(args, result)
-	default:
-		// Don't create or delete proto rules in this mode. All "*.pb.h",
-		// "*.pb.cc", would be added to cc_library
-		return make(collections.Set[string])
+	case hasProtoExtensionConflict(protoExtensionConfig, protoMode):
+		log.Printf("gazelle_cc: at \"./%s\" : proto=%q conflicts with %s=%q - both generate proto_library rules; disable proto extension for %q mode", args.Rel, protoExtensionConfig.Mode, cc_generate_proto, protoMode, protoMode)
 	}
+
+	// Don't create or delete proto rules in this mode. All "*.pb.h",
+	// "*.pb.cc", would be added to cc_library
+	return make(collections.Set[string])
 }
 
 func generateProtoImportSpecs(protoLibraryRule *rule.Rule, pkg string) []resolve.ImportSpec {
