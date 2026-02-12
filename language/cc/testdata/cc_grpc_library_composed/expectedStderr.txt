@@ -1,1 +1,1 @@
-gazelle: gazelle_cc: at "./extension_conflict" : proto="default" conflicts with cc_generate_proto="composed_grpc" - both generate proto_library rules; disable proto extension for "composed_grpc" mode
+gazelle: gazelle_cc: at "./extension_conflict": proto="default" conflicts with cc_generate_proto="composed_grpc" - both generate proto_library rules; disable proto extension for "composed_grpc" mode
