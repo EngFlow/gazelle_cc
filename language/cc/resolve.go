@@ -360,5 +360,5 @@ func (b *platformDepsBuilder) addResolved(dependency label.Label, config *ccConf
 }
 
 func (b *platformDepsBuilder) build() ccPlatformStringsExprs {
-	return newCcPlatformStringsExprs(b.generic, b.constrained)
+	return newCcPlatformStringsExprs(b.generic, b.constrained, false)
 }
