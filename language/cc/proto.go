@@ -84,13 +84,13 @@ func generateCcGrpcLibraryRule(protoLibraryRule, ccProtoLibraryRule *rule.Rule, 
 	return rule
 }
 
-func generateComposedCcGrpcLibraryRule(protoPackage proto.Package, protoOnly bool, headers []string, buildFile *rule.File) *rule.Rule {
+func generateComposedCcGrpcLibraryRule(protoPackage proto.Package, protoOnly, wellKnownProtos bool, headers []string, buildFile *rule.File) *rule.Rule {
 	rule := rule.NewRule("cc_grpc_library", protoPackage.Name+"_cc_proto")
 	rule.SetAttr("srcs", slices.Collect(maps.Keys(protoPackage.Files)))
 	rule.SetAttr("deps", newCcPlatformStringsExprs(nil, nil, true))
 	rule.SetAttr("grpc_only", false)
 	rule.SetAttr("proto_only", protoOnly)
-	rule.SetAttr("well_known_protos", false)
+	rule.SetAttr("well_known_protos", wellKnownProtos)
 	rule.SetPrivateAttr(ccProtoLibraryHeadersKey, headers)
 	setVisibilityIfNeeded(rule, buildFile)
 	return rule
@@ -175,6 +175,31 @@ func collectProtoPackages(args language.GenerateArgs) []proto.Package {
 	return result
 }
 
+var wellKnownProtos = collections.SetOf(
+	"google/protobuf/any.proto",
+	"google/protobuf/api.proto",
+	"google/protobuf/compiler/plugin.proto",
+	"google/protobuf/descriptor.proto",
+	"google/protobuf/duration.proto",
+	"google/protobuf/empty.proto",
+	"google/protobuf/field_mask.proto",
+	"google/protobuf/go_features.proto",
+	"google/protobuf/source_context.proto",
+	"google/protobuf/struct.proto",
+	"google/protobuf/timestamp.proto",
+	"google/protobuf/type.proto",
+	"google/protobuf/wrappers.proto",
+)
+
+func importsWellKnownProtos(protoPackage proto.Package) bool {
+	for imp := range protoPackage.Imports {
+		if wellKnownProtos.Contains(imp) {
+			return true
+		}
+	}
+	return false
+}
+
 // Generate cc_grpc_library rules in the mode grpc_only=False. In this mode we
 // cannot depend on proto_library rules created by "proto" language extension;
 // in practive it has to be disabled to avoid conflicts. Instead, we collect all
@@ -198,7 +223,8 @@ func generateComposedGrpcRules(args language.GenerateArgs, result *language.Gene
 		consumedProtoFiles.AddSlice(allHeaders)
 
 		protoOnly := !protoPackage.HasServices
-		ccGrpcLibraryRule := generateComposedCcGrpcLibraryRule(protoPackage, protoOnly, allHeaders, args.File)
+		wellKnownProtos := importsWellKnownProtos(protoPackage)
+		ccGrpcLibraryRule := generateComposedCcGrpcLibraryRule(protoPackage, protoOnly, wellKnownProtos, allHeaders, args.File)
 
 		result.Gen = append(result.Gen, ccGrpcLibraryRule)
 		result.Imports = append(result.Imports, ccImports{})
