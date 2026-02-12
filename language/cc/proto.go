@@ -15,8 +15,6 @@
 package cc
 
 import (
-	"log"
-	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -35,18 +33,29 @@ import (
 // generation and used to propagate appropriate resolve.ImportSpec later.
 const ccProtoLibraryHeadersKey = "_proto_headers"
 
-func getGeneratedFiles(protoPackage proto.Package) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
+func getSingleProtoGeneratedFiles(protoFile proto.FileInfo) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
+	baseName := strings.TrimSuffix(protoFile.Name, ".proto")
+	pbHeaders = []string{baseName + ".pb.h"}
+	pbSources = []string{baseName + ".pb.cc"}
+	if protoFile.HasServices {
+		grpcHeaders = []string{baseName + ".grpc.pb.h"}
+		grpcSources = []string{baseName + ".grpc.pb.cc"}
+	}
+	return
+}
+
+func getPackageGeneratedFiles(protoPackage proto.Package) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
 	pbHeaders = make([]string, 0, len(protoPackage.Files))
 	pbSources = make([]string, 0, len(protoPackage.Files))
+	grpcHeaders = make([]string, 0, len(protoPackage.Files))
+	grpcSources = make([]string, 0, len(protoPackage.Files))
 
 	for _, file := range protoPackage.Files {
-		baseName := strings.TrimSuffix(file.Name, ".proto")
-		pbHeaders = append(pbHeaders, baseName+".pb.h")
-		pbSources = append(pbSources, baseName+".pb.cc")
-		if file.HasServices {
-			grpcHeaders = append(grpcHeaders, baseName+".grpc.pb.h")
-			grpcSources = append(grpcSources, baseName+".grpc.pb.cc")
-		}
+		filePbHeaders, filePbSources, fileGrpcHeaders, fileGrpcSources := getSingleProtoGeneratedFiles(file)
+		pbHeaders = append(pbHeaders, filePbHeaders...)
+		pbSources = append(pbSources, filePbSources...)
+		grpcHeaders = append(grpcHeaders, fileGrpcHeaders...)
+		grpcSources = append(grpcSources, fileGrpcSources...)
 	}
 
 	return
@@ -84,9 +93,16 @@ func generateCcGrpcLibraryRule(protoLibraryRule, ccProtoLibraryRule *rule.Rule, 
 	return rule
 }
 
-func generateComposedCcGrpcLibraryRule(protoPackage proto.Package, protoOnly, wellKnownProtos bool, headers []string, buildFile *rule.File) *rule.Rule {
-	rule := rule.NewRule("cc_grpc_library", protoPackage.Name+"_cc_proto")
-	rule.SetAttr("srcs", slices.Collect(maps.Keys(protoPackage.Files)))
+func generateComposedCcGrpcLibraryRule(protoFile proto.FileInfo, protoOnly, wellKnownProtos bool, headers []string, buildFile *rule.File) *rule.Rule {
+	var name string
+	if protoFile.HasServices {
+		name = strings.TrimSuffix(protoFile.PackageName, "_proto") + "_cc_grpc"
+	} else {
+		name = strings.TrimSuffix(protoFile.PackageName, "_proto") + "_cc_proto"
+	}
+
+	rule := rule.NewRule("cc_grpc_library", name)
+	rule.SetAttr("srcs", []string{protoFile.Name})
 	rule.SetAttr("deps", newCcPlatformStringsExprs(nil, nil, true))
 	rule.SetAttr("grpc_only", false)
 	rule.SetAttr("proto_only", protoOnly)
@@ -115,7 +131,7 @@ func generateDefaultProtoLibraryRules(args language.GenerateArgs, result *langua
 			continue
 		}
 
-		pbHeaders, pbSources, grpcHeaders, grpcSources := getGeneratedFiles(protoPackage)
+		pbHeaders, pbSources, grpcHeaders, grpcSources := getPackageGeneratedFiles(protoPackage)
 		consumedProtoFiles.AddSlice(pbHeaders).AddSlice(pbSources).AddSlice(grpcHeaders).AddSlice(grpcSources)
 
 		ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
@@ -138,43 +154,6 @@ func generateDefaultProtoLibraryRules(args language.GenerateArgs, result *langua
 	return consumedProtoFiles
 }
 
-func collectProtoPackages(args language.GenerateArgs) []proto.Package {
-	protoPackages := make(map[string]*proto.Package, len(args.RegularFiles))
-
-	for _, protoFile := range args.RegularFiles {
-		if !strings.HasSuffix(protoFile, ".proto") {
-			continue
-		}
-
-		protoFileInfo := proto.ProtoFileInfo(args.Dir, protoFile)
-		protoPackage, exists := protoPackages[protoFileInfo.PackageName]
-		if !exists {
-			protoPackages[protoFileInfo.PackageName] = &proto.Package{
-				Name:    protoFileInfo.PackageName,
-				Files:   map[string]proto.FileInfo{},
-				Imports: map[string]bool{},
-				Options: map[string]string{},
-			}
-			protoPackage = protoPackages[protoFileInfo.PackageName]
-		}
-
-		protoPackage.Files[protoFileInfo.Name] = protoFileInfo
-		for _, imp := range protoFileInfo.Imports {
-			protoPackage.Imports[imp] = true
-		}
-		for _, opt := range protoFileInfo.Options {
-			protoPackage.Options[opt.Key] = opt.Value
-		}
-		protoPackage.HasServices = protoPackage.HasServices || protoFileInfo.HasServices
-	}
-
-	result := make([]proto.Package, 0, len(protoPackages))
-	for _, pkg := range protoPackages {
-		result = append(result, *pkg)
-	}
-	return result
-}
-
 var wellKnownProtos = collections.SetOf(
 	"google/protobuf/any.proto",
 	"google/protobuf/api.proto",
@@ -191,8 +170,8 @@ var wellKnownProtos = collections.SetOf(
 	"google/protobuf/wrappers.proto",
 )
 
-func importsWellKnownProtos(protoPackage proto.Package) bool {
-	for imp := range protoPackage.Imports {
+func importsWellKnownProtos(protoFile proto.FileInfo) bool {
+	for _, imp := range protoFile.Imports {
 		if wellKnownProtos.Contains(imp) {
 			return true
 		}
@@ -202,7 +181,7 @@ func importsWellKnownProtos(protoPackage proto.Package) bool {
 
 // Generate cc_grpc_library rules in the mode grpc_only=False. In this mode we
 // cannot depend on proto_library rules created by "proto" language extension;
-// in practive it has to be disabled to avoid conflicts. Instead, we collect all
+// in practice it has to be disabled to avoid conflicts. Instead, we collect all
 // proto files manually.
 //
 // Returns "*.pb.h", "*.pb.cc", "*.grpc.pb.cc" sources generated by
@@ -212,19 +191,21 @@ func importsWellKnownProtos(protoPackage proto.Package) bool {
 func generateComposedGrpcRules(args language.GenerateArgs, result *language.GenerateResult) collections.Set[string] {
 	consumedProtoFiles := make(collections.Set[string])
 
-	protoPackages := collectProtoPackages(args)
-	if len(protoPackages) > 1 {
-		// Mirror the "default" mode bahavior of "gazelle:proto" directive
-		log.Printf("gazelle_cc: %s: directory contains multiple proto packages. Gazelle can only generate a cc_grpc_library for one package.", args.Dir)
-	} else if len(protoPackages) == 1 {
-		protoPackage := protoPackages[0]
-		pbHeaders, _, grpcHeaders, _ := getGeneratedFiles(protoPackage)
+	for _, file := range args.RegularFiles {
+		if !strings.HasSuffix(file, ".proto") {
+			continue
+		}
+
+		// Generate one cc_grpc_library rule per proto file. This is similar to
+		// "file" mode behavior of "gazelle:proto". We have no choice,
+		// cc_grpc_library requires exactly one proto file in "srcs".
+		protoFile := proto.ProtoFileInfo(args.Dir, file)
+		pbHeaders, _, grpcHeaders, _ := getSingleProtoGeneratedFiles(protoFile)
 		allHeaders := slices.Concat(pbHeaders, grpcHeaders)
 		consumedProtoFiles.AddSlice(allHeaders)
-
-		protoOnly := !protoPackage.HasServices
-		wellKnownProtos := importsWellKnownProtos(protoPackage)
-		ccGrpcLibraryRule := generateComposedCcGrpcLibraryRule(protoPackage, protoOnly, wellKnownProtos, allHeaders, args.File)
+		protoOnly := !protoFile.HasServices
+		wellKnownProtos := importsWellKnownProtos(protoFile)
+		ccGrpcLibraryRule := generateComposedCcGrpcLibraryRule(protoFile, protoOnly, wellKnownProtos, allHeaders, args.File)
 
 		result.Gen = append(result.Gen, ccGrpcLibraryRule)
 		result.Imports = append(result.Imports, ccImports{})
