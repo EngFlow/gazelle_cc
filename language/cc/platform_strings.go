@@ -42,22 +42,15 @@ const (
 type ccPlatformStringsExprs struct {
 	genericDeps     *bzl.ListExpr // always active dependencies
 	constrainedDeps *bzl.DictExpr // constrained dependencies
-
-	// Explicitly encode an empty list when neither genericDeps nor
-	// constrainedDeps are present. This is important, e.g., for cc_grpc_library
-	// macro, which requires an explicit "deps" argument.
-	explicitlyEmpty bool
 }
 
 func newCcPlatformStringsExprs(
 	generic collections.Set[label.Label],
 	constrainted map[label.Label]collections.Set[label.Label],
-	explicitlyEmpty bool,
 ) ccPlatformStringsExprs {
 	return ccPlatformStringsExprs{
 		genericDeps:     labelsSetToListExpr(generic),
 		constrainedDeps: labelsMapToDictExpr(constrainted),
-		explicitlyEmpty: explicitlyEmpty,
 	}
 }
 
@@ -113,8 +106,6 @@ func (ps ccPlatformStringsExprs) BzlExpr() bzl.Expr {
 		return ps.genericDeps
 	case ps.constrainedDeps != nil:
 		return ps.makeSelectExpr()
-	case ps.explicitlyEmpty:
-		return &bzl.ListExpr{}
 	default:
 		return nil
 	}
