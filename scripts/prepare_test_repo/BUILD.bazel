@@ -13,16 +13,16 @@ genrule(
     name = "prepare_test_repo_test_runner",
     testonly = True,
     srcs = [
-        "testdata/BUILD.in",
+        "testdata/BUILD.out",
         "testdata/MODULE.bazel",
-        "testdata/sub/package/BUILD.in",
+        "testdata/sub/package/BUILD.out",
     ],
     outs = [
         "output/BUILD.bazel",
         "output/MODULE.bazel",
         "output/sub/package/BUILD.bazel",
     ],
-    cmd = "$(location :prepare_test_repo) -b BUILD.in $(location testdata/MODULE.bazel) $(@D)/output",
+    cmd = "$(location :prepare_test_repo) $(location testdata/MODULE.bazel) $(@D)/output",
     tools = [":prepare_test_repo"],
 )
 
@@ -30,7 +30,7 @@ genrule(
 
 diff_test(
     name = "test_root_build_file",
-    file1 = "testdata/BUILD.out",
+    file1 = "testdata/BUILD.out_expected",
     file2 = "output/BUILD.bazel",
 )
 
@@ -42,7 +42,7 @@ diff_test(
 
 diff_test(
     name = "test_sub_package_build_file",
-    file1 = "testdata/sub/package/BUILD.out",
+    file1 = "testdata/sub/package/BUILD.out_expected",
     file2 = "output/sub/package/BUILD.bazel",
 )
 

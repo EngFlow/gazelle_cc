@@ -1,0 +1,13 @@
+cc_library(
+    name = "sub_lib",
+    srcs = ["sub_lib.cc"],
+)
+
+filegroup(
+    name = "package_rules",
+    srcs = [
+        ":sub_lib",
+    ],
+    testonly = True,
+    visibility = ["//:__pkg__"],
+)
