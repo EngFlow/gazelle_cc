@@ -22,7 +22,7 @@ filegroup(
 )
 
 build_test(
-    name = "workspace_build_test",
+    name = "repo_build_test",
     targets = [
         "//:package_rules",
         "//sub/package:package_rules",

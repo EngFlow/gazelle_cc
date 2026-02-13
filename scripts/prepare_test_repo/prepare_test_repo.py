@@ -11,22 +11,22 @@ from typing import Optional
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Prepare test workspace by copying and transforming BUILD files. The input workspace follows the layout "
-            "used by gazelle_generation_test (with BUILD.in/BUILD.out files). The output is a real Bazel workspace "
+            "Prepare test repository by copying and transforming BUILD files. The input repository follows the layout "
+            "used by gazelle_generation_test (with BUILD.in/BUILD.out files). The output is a real Bazel repository "
             "with a build_test target that checks compilation of all collected rules."
         ),
     )
     parser.add_argument(
-        "input_workspace",
-        metavar="INPUT_WORKSPACE",
+        "input_repo",
+        metavar="INPUT_REPO",
         type=Path,
-        help="Input workspace directory, or path to WORKSPACE/MODULE.bazel file (will use parent directory)",
+        help="Input repository directory, or path to WORKSPACE/MODULE.bazel file (will use parent directory)",
     )
     parser.add_argument(
-        "output_workspace",
-        metavar="OUTPUT_WORKSPACE",
+        "output_repo",
+        metavar="OUTPUT_REPO",
         type=Path,
-        help="Output workspace directory",
+        help="Output repository directory",
     )
     parser.add_argument(
         "-b",
@@ -46,8 +46,8 @@ def parse_args() -> argparse.Namespace:
         "-t",
         dest="build_test_name",
         metavar="NAME",
-        default="workspace_build_test",
-        help="Name of the public build_test target in the root BUILD.bazel file (default: workspace_build_test)",
+        default="repo_build_test",
+        help="Name of the public build_test target in the root BUILD.bazel file (default: repo_build_test)",
     )
     return parser.parse_args()
 
@@ -156,8 +156,8 @@ def main() -> None:
     args = parse_args()
 
     copy_and_transform(
-        input_dir=args.input_workspace if args.input_workspace.is_dir() else args.input_workspace.parent,
-        output_dir=args.output_workspace,
+        input_dir=args.input_repo if args.input_repo.is_dir() else args.input_repo.parent,
+        output_dir=args.output_repo,
         build_file_name=args.build_file_name,
         package_filegroup_name=args.package_filegroup_name,
         build_test_name=args.build_test_name,
