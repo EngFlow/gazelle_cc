@@ -51,7 +51,7 @@ def parse_rule_name(node: ast.stmt) -> Optional[str]:
 
 
 def parse_rule_names(build_file_content: str) -> set[str]:
-    return {name for node in ast.parse(build_file_content).body if (name := parse_rule_name(node))}
+    return {name for node in ast.parse(build_file_content).body if (name := parse_rule_name(node)) is not None}
 
 
 def append_filegroup(build_file: Path, rule_names: set[str]) -> None:
