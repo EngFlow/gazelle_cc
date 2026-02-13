@@ -56,34 +56,40 @@ def parse_rule_names(build_file_content: str) -> set[str]:
 
 def append_filegroup(build_file: Path, rule_names: set[str]) -> None:
     with open(build_file, "a") as f:
-        f.write("\nfilegroup(\n")
-        f.write(f'    name = "{PACKAGE_FILEGROUP_NAME}",\n')
-        f.write("    srcs = [\n")
-        f.writelines(f'        ":{name}",\n' for name in sorted(rule_names))
-        f.write("    ],\n")
-        f.write("    testonly = True,\n")
-        f.write('    visibility = ["//:__pkg__"],\n')
-        f.write(")\n")
+        f.writelines(
+            [
+                "\nfilegroup(\n",
+                f'    name = "{PACKAGE_FILEGROUP_NAME}",\n',
+                "    srcs = [\n",
+                *(f'        ":{name}",\n' for name in sorted(rule_names)),
+                "    ],\n",
+                "    testonly = True,\n",
+                '    visibility = ["//:__pkg__"],\n',
+                ")\n",
+            ]
+        )
 
 
 def append_build_test(build_file: Path, filegroup_labels: set[str]) -> None:
     original_content = build_file.read_text() if build_file.exists() else ""
 
     with open(build_file, "w") as f:
-        # Add load statement at the beginning
-        f.write('load("@bazel_skylib//rules:build_test.bzl", "build_test")\n\n')
-
-        # Preserve the original content
-        f.write(original_content)
-
-        # Append build_test at the end
-        f.write("\nbuild_test(\n")
-        f.write(f'    name = "{BUILD_TEST_NAME}",\n')
-        f.write("    targets = [\n")
-        f.writelines(f'        "{label}",\n' for label in sorted(filegroup_labels))
-        f.write("    ],\n")
-        f.write('    visibility = ["//visibility:public"],\n')
-        f.write(")\n")
+        f.writelines(
+            [
+                # Add load statement at the beginning
+                'load("@bazel_skylib//rules:build_test.bzl", "build_test")\n\n',
+                # Preserve the original content
+                original_content,
+                # Append build_test at the end
+                "\nbuild_test(\n",
+                f'    name = "{BUILD_TEST_NAME}",\n',
+                "    targets = [\n",
+                *(f'        "{label}",\n' for label in sorted(filegroup_labels)),
+                "    ],\n",
+                '    visibility = ["//visibility:public"],\n',
+                ")\n",
+            ]
+        )
 
 
 def copy_and_transform(input_dir: Path, output_dir: Path) -> None:
