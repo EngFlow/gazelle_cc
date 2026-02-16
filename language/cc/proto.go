@@ -56,6 +56,8 @@ var (
 // Empty lists are dropped during rule merging, but cc_grpc_library requires
 // explicit "deps" attribute even if it's empty. This type is used to prevent
 // empty list from being dropped during merging.
+//
+// See https://github.com/grpc/grpc/issues/41641
 type alwaysPresentLabelList []label.Label
 
 func (lst alwaysPresentLabelList) Merge(other bzl.Expr) bzl.Expr {
