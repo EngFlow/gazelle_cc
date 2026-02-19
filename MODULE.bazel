@@ -5,7 +5,7 @@ module(name = "gazelle_cc")
 bazel_dep(name = "gazelle", version = "0.46.0")
 bazel_dep(name = "rules_go", version = "0.59.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
-bazel_dep(name = "bazel_skylib", version = "1.8.1")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "package_metadata", version = "0.0.5")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
@@ -23,7 +23,13 @@ use_repo(
     "org_golang_x_sync",
 )
 
+# For testing compilation of test workspaces
 bazel_dep(name = "rules_cc", version = "0.2.16", dev_dependency = True)
+bazel_dep(name = "rules_python", version = "1.8.3", dev_dependency = True)
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python", dev_dependency = True)
+python.defaults(python_version = "3.9")
+python.toolchain(python_version = "3.9")
 
 gazelle_compilation_tests = use_extension("//bazel:gazelle_compilation_tests.bzl", "gazelle_compilation_tests", dev_dependency = True)
 gazelle_compilation_tests.discover(base_directory = "language/cc/generation_and_compilation_tests")
