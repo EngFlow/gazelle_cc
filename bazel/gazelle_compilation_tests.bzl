@@ -1,7 +1,7 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 
 REPO_PREFIX = "compilation_test_"
-MAIN_FILEGROUP_NAME = "all_workspace_rules"
+BUILD_TEST_NAME = "repo_build_test"
 WORKSPACE_FILES = ["WORKSPACE", "WORKSPACE.bazel", "MODULE.bazel"]
 
 def _execute_find_cmd(ctx, base_directory, *filenames):
@@ -17,33 +17,12 @@ def _execute_find_cmd(ctx, base_directory, *filenames):
 
 def _compilation_test_repo_impl(repository_ctx):
     source_dir = repository_ctx.attr.source_dir
-    filegroup_tool = repository_ctx.path(Label("@gazelle_cc//:scripts/generate_filegroups.sh"))
+    filegroup_tool = repository_ctx.path(Label("@gazelle_cc//scripts/prepare_test_repo:prepare_test_repo.py"))
 
     repository_ctx.watch_tree(source_dir)
     repository_ctx.watch(filegroup_tool)
 
-    # List all files in the source directory
-    result = _execute_find_cmd(repository_ctx, source_dir)
-    if result.return_code != 0:
-        fail("Failed to list files in {}: {}".format(source_dir, result.stderr))
-
-    for source_file in result.stdout.strip().split("\n"):
-        dest_path = paths.relativize(source_file, source_dir)
-
-        # Mirror the directory structure in the new repository
-        repository_ctx.execute(["mkdir", "-p", paths.dirname(dest_path)])
-
-        # Copy or symlink files into the new repository
-        if source_file.endswith(repository_ctx.attr.suffix):
-            # Replace .out suffix with .bazel and copy, since these files are to be modified by filegroup_tool
-            dest_path = dest_path.removesuffix(repository_ctx.attr.suffix) + ".bazel"
-            repository_ctx.execute(["cp", source_file, dest_path])
-        else:
-            # Symlink all other files for efficiency, they are read-only
-            repository_ctx.symlink(source_file, dest_path)
-
-    # Generate filegroups
-    result = repository_ctx.execute([filegroup_tool, "-m", MAIN_FILEGROUP_NAME, "."] + repository_ctx.attr.rule_kinds)
+    result = repository_ctx.execute([filegroup_tool, source_dir, "."])
     if result.return_code != 0:
         fail("Failed to generate filegroups in {}: {}".format(repository_ctx.path("."), result.stderr))
 
@@ -53,15 +32,6 @@ _compilation_test_repo = repository_rule(
         "source_dir": attr.string(
             mandatory = True,
             doc = "Source directory to copy files from",
-        ),
-        "rule_kinds": attr.string_list(
-            allow_empty = False,
-            mandatory = True,
-            doc = "List of rule kinds to include in the generated filegroups",
-        ),
-        "suffix": attr.string(
-            mandatory = True,
-            doc = "Files with this suffix will be renamed to .bazel in the repository",
         ),
     },
     local = True,
@@ -103,8 +73,6 @@ def _gazelle_compilation_tests_impl(module_ctx):
                 _compilation_test_repo(
                     name = generated_repo_name,
                     source_dir = str(workspace_path),
-                    rule_kinds = discover_tag.rule_kinds,
-                    suffix = discover_tag.suffix,
                 )
 
                 generated_repos.append(generated_repo_name)
@@ -121,15 +89,6 @@ _discover_tag = tag_class(
             mandatory = True,
             doc = "Base directory to discover test workspaces (subdirectories containing WORKSPACE or MODULE.bazel files)",
         ),
-        "rule_kinds": attr.string_list(
-            allow_empty = False,
-            default = ["cc_library", "cc_binary", "cc_test"],
-            doc = "List of rule kinds to include in the generated filegroups",
-        ),
-        "suffix": attr.string(
-            default = ".out",
-            doc = "Files with this suffix will be renamed to .bazel in the test repositories",
-        ),
     },
 )
 
@@ -139,7 +98,15 @@ gazelle_compilation_tests = module_extension(
 )
 
 def gazelle_compilation_test(*, name, workspace_path):
-    native.alias(
-        name = name,
-        actual = "@{}//:{}".format(_make_repo_name(workspace_path), MAIN_FILEGROUP_NAME),
+    test_label = "@{repo}//:{target}".format(
+        repo = _make_repo_name(workspace_path),
+        target = BUILD_TEST_NAME,
     )
+
+    # We can't use `native.alias` here. As mentioned in the docs:
+    #
+    #   Tests are not run if their alias is mentioned on the command line. To define an alias that runs the referenced
+    #   test, use a test_suite rule with a single target in its tests attribute.
+    #
+    # https://bazel.build/reference/be/general#alias
+    native.test_suite(name = name, tests = [test_label])
