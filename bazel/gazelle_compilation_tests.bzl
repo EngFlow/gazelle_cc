@@ -17,12 +17,12 @@ def _execute_find_cmd(ctx, base_directory, *filenames):
 
 def _compilation_test_repo_impl(repository_ctx):
     source_dir = repository_ctx.attr.source_dir
-    filegroup_tool = repository_ctx.path(Label("@gazelle_cc//scripts/prepare_test_repo:prepare_test_repo.py"))
+    repo_tool = repository_ctx.attr._repo_tool
 
     repository_ctx.watch_tree(source_dir)
-    repository_ctx.watch(filegroup_tool)
+    repository_ctx.watch(repo_tool)
 
-    result = repository_ctx.execute([filegroup_tool, source_dir, "."])
+    result = repository_ctx.execute([repo_tool, source_dir, "."])
     if result.return_code != 0:
         fail("Failed to generate filegroups in {}: {}".format(repository_ctx.path("."), result.stderr))
 
@@ -30,8 +30,15 @@ _compilation_test_repo = repository_rule(
     implementation = _compilation_test_repo_impl,
     attrs = {
         "source_dir": attr.string(
-            mandatory = True,
             doc = "Source directory to copy files from",
+            mandatory = True,
+        ),
+        "_repo_tool": attr.label(
+            doc = "Tool to copy files from the source directory and generate filegroups",
+            default = Label("@gazelle_cc//scripts/prepare_test_repo:prepare_test_repo.py"),
+            allow_single_file = True,
+            cfg = "exec",
+            executable = True,
         ),
     },
     local = True,
@@ -86,8 +93,8 @@ def _gazelle_compilation_tests_impl(module_ctx):
 _discover_tag = tag_class(
     attrs = {
         "base_directory": attr.string(
-            mandatory = True,
             doc = "Base directory to discover test workspaces (subdirectories containing WORKSPACE or MODULE.bazel files)",
+            mandatory = True,
         ),
     },
 )
