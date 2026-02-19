@@ -52,10 +52,10 @@ _compilation_test_repo = repository_rule(
 
 def _get_module_path(module_ctx, module):
     module_file_path = module_ctx.path(Label("@{}//:MODULE.bazel".format(module.name)))
-    if module_file_path.exists:
-        return module_file_path.dirname
+    if not module_file_path.exists:
+        fail("Could not find MODULE.bazel file in the root module")
 
-    fail("Could not find MODULE.bazel file in the root module")
+    return module_file_path.dirname
 
 def _generated_repo_name(test_dir):
     if len(test_dir.split("/")) != 1:
