@@ -17,5 +17,5 @@ ALL_WORKSPACES = [paths.dirname(p) for p in glob(["**/MODULE.bazel"])]
 
 [gazelle_compilation_test(
     name = test_dir + "_compilation",
-    workspace_path = test_dir,
+    test_dir = test_dir,
 ) for test_dir in ALL_WORKSPACES]

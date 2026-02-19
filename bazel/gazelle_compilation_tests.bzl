@@ -1,7 +1,12 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 
-REPO_PREFIX = "compilation_test_"
+# Prefix prepended to each generated repository to avoid name clashes with existing repositories.
+GENERATED_REPO_PREFIX = "compilation_test_"
+
+# Name of the build_test target in the root BUILD.bazel file of each generated repository.
+# See: scripts/prepare_test_repo/prepare_test_repo.py
 BUILD_TEST_NAME = "repo_build_test"
+
 WORKSPACE_FILES = ["WORKSPACE", "WORKSPACE.bazel", "MODULE.bazel"]
 
 def _execute_find_cmd(ctx, base_directory, *filenames):
@@ -58,8 +63,11 @@ def _find_workspace_paths(module_ctx, base_directory):
 
     return [paths.dirname(workspace_file) for workspace_file in result.stdout.strip().split("\n")]
 
-def _make_repo_name(workspace_path):
-    return REPO_PREFIX + workspace_path.replace("/", "_")
+def _generated_repo_name(test_dir):
+    if len(test_dir.split("/")) != 1:
+        fail("gazelle_compilation_tests does not support recursive discovery: {}".format(test_dir))
+
+    return GENERATED_REPO_PREFIX + test_dir.replace("/", "_")
 
 def _gazelle_compilation_tests_impl(module_ctx):
     generated_repos = []
@@ -75,7 +83,7 @@ def _gazelle_compilation_tests_impl(module_ctx):
 
             for workspace_path in _find_workspace_paths(module_ctx, absolute_base_directory):
                 relative_workspace_path = paths.relativize(workspace_path, absolute_base_directory)
-                generated_repo_name = _make_repo_name(relative_workspace_path)
+                generated_repo_name = _generated_repo_name(relative_workspace_path)
 
                 _compilation_test_repo(
                     name = generated_repo_name,
@@ -93,7 +101,8 @@ def _gazelle_compilation_tests_impl(module_ctx):
 _discover_tag = tag_class(
     attrs = {
         "base_directory": attr.string(
-            doc = "Base directory to discover test workspaces (subdirectories containing WORKSPACE or MODULE.bazel files)",
+            doc = "Base directory (relative to the repository root) to discover test repositories (subdirectories " +
+                  "containing WORKSPACE or MODULE.bazel files)",
             mandatory = True,
         ),
     },
@@ -104,9 +113,21 @@ gazelle_compilation_tests = module_extension(
     tag_classes = {"discover": _discover_tag},
 )
 
-def gazelle_compilation_test(*, name, workspace_path):
+def gazelle_compilation_test(*, name, test_dir, **kwargs):
+    """
+    gazelle_compilation_test joins a generated compilation test into the scope of the root module.
+
+    The compilation test becomes visible within `//...` wildcard and is covered by `bazel test //...` command.
+
+    Args:
+        name: Name of the created test_suite target
+        test_dir: Name of the directory containing the test repository, relative to the "base_directory" attribute of
+            the "discover" tag
+        **kwargs: Attributes that are passed directly to the test_suite declaration
+    """
+
     test_label = "@{repo}//:{target}".format(
-        repo = _make_repo_name(workspace_path),
+        repo = _generated_repo_name(test_dir),
         target = BUILD_TEST_NAME,
     )
 
@@ -116,4 +137,8 @@ def gazelle_compilation_test(*, name, workspace_path):
     #   test, use a test_suite rule with a single target in its tests attribute.
     #
     # https://bazel.build/reference/be/general#alias
-    native.test_suite(name = name, tests = [test_label])
+    native.test_suite(
+        name = name,
+        tests = [test_label],
+        **kwargs
+    )
