@@ -67,6 +67,8 @@ def _is_test_dir(path):
     return path.is_dir and (path.get_child("WORKSPACE").exists or path.get_child("MODULE.bazel").exists)
 
 def _gazelle_compilation_tests_impl(module_ctx):
+    generated_repos = []
+
     for module in module_ctx.modules:
         if not module.is_root:
             fail("gazelle_compilation_tests extension should only be used with dev_dependency=True in the root module")
@@ -77,15 +79,22 @@ def _gazelle_compilation_tests_impl(module_ctx):
                 if not _is_test_dir(test_dir):
                     continue
 
+                generated_repo_name = _generated_repo_name(test_dir.basename)
+                generated_repos.append(generated_repo_name)
+
                 _compilation_test_repo(
-                    name = _generated_repo_name(test_dir.basename),
+                    name = generated_repo_name,
                     source_dir = str(test_dir),
                 )
 
-    # Generated repos are deterministic based on the file structure of the test data, thus they are reproducible.
-    # Neither root_module_direct_deps nor root_module_direct_dev_deps are specified, because some of the discovered test
-    # directories might not be compilable by design.
-    return module_ctx.extension_metadata(reproducible = True)
+    return module_ctx.extension_metadata(
+        root_module_direct_deps = [],
+        # Some of the discovered test directories might not be compilable by design, but we include them here anyway for
+        # convenient `bazel mod tidy` updates.
+        root_module_direct_dev_deps = generated_repos,
+        # Generated repos are deterministic based on the file structure of the test data, thus they are reproducible.
+        reproducible = True,
+    )
 
 _discover_tag = tag_class(
     attrs = {
@@ -113,14 +122,9 @@ gazelle_compilation_tests = module_extension(
         files. The compilation test uses `BUILD.out` files as `BUILD.bazel` to verify that the generated rules compile.
 
         Generated repositories are named `compilation_test_<test_dir>` where `<test_dir>` is the basename of the test
-        directory. To make a generated repository available in the root module, import it via `use_repo`:
-
-        ```starlark
-        use_repo(gazelle_compilation_tests, "compilation_test_my_test_case")
-        ```
-
-        However, importing a repository alone does not include its tests in `bazel test //...`. To include a compilation
-        test in the `//...` wildcard, use the `gazelle_compilation_test` macro in a BUILD file:
+        directory. Use `bazel mod tidy` to include all generated repositories in the root `MODULE.bazel` file. However,
+        importing a repository alone does not include its tests in `bazel test //...`. To include a compilation test in
+        the `//...` wildcard, use the `gazelle_compilation_test` macro in a BUILD file:
 
         ```starlark
         load("@gazelle_cc//bazel:gazelle_compilation_tests.bzl", "gazelle_compilation_test")
@@ -130,6 +134,9 @@ gazelle_compilation_tests = module_extension(
             test_dir = "my_test_case",
         )
         ```
+
+        Some of the discovered test directories might not be compilable by design. Just don't call
+        `gazelle_compilation_test` for those test cases.
     """,
     implementation = _gazelle_compilation_tests_impl,
     tag_classes = {"discover": _discover_tag},
