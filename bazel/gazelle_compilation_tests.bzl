@@ -23,6 +23,17 @@ def _compilation_test_repo_impl(repository_ctx):
         fail("Failed to generate filegroups in {}: {}".format(repository_ctx.path("."), result.stderr))
 
 _compilation_test_repo = repository_rule(
+    doc = """
+        Create a generated Bazel repository from test data by invoking the `prepare_test_repo.py` tool.
+
+        This repository rule is intended for internal use by the `gazelle_compilation_tests` module extension. For each
+        discovered test directory (a directory containing `WORKSPACE` or `MODULE.bazel`), the rule runs the tool to copy
+        files and transform `BUILD.out` files into `BUILD.bazel` files. The tool also appends a filegroup in each
+        package and creates a top-level `build_test` target that aggregates package filegroups so the generated
+        repository can be exercised via `bazel test`.
+
+        See: https://github.com/bazelbuild/bazel-skylib/blob/main/docs/build_test_doc.md
+    """,
     implementation = _compilation_test_repo_impl,
     attrs = {
         "source_dir": attr.string(
@@ -79,14 +90,47 @@ def _gazelle_compilation_tests_impl(module_ctx):
 _discover_tag = tag_class(
     attrs = {
         "base_dir": attr.string(
-            doc = "Base directory (relative to the repository root) to discover test repositories (subdirectories " +
-                  "containing WORKSPACE or MODULE.bazel files)",
+            doc = """
+                Base directory (relative to the repository root) to discover test repositories (subdirectories
+                containing WORKSPACE or MODULE.bazel files)
+            """,
             mandatory = True,
         ),
     },
 )
 
 gazelle_compilation_tests = module_extension(
+    doc = """
+        Module extension that discovers test repositories and generates compilable Bazel repositories to verify that
+        generated BUILD files build correctly.
+
+        The `discover` tag is used to specify a base directory containing test case subdirectories. Each subdirectory
+        that contains a `WORKSPACE` or `MODULE.bazel` file is treated as a test case. The extension scans the base
+        directory and creates a generated repository for each discovered test case.
+
+        The expected layout of each test directory is the same as for `gazelle_generation_test` from the Gazelle
+        repository. In particular, source files are accompanied by `BUILD.in` (input) and `BUILD.out` (expected output)
+        files. The compilation test uses `BUILD.out` files as `BUILD.bazel` to verify that the generated rules compile.
+
+        Generated repositories are named `compilation_test_<test_dir>` where `<test_dir>` is the basename of the test
+        directory. To make a generated repository available in the root module, import it via `use_repo`:
+
+        ```starlark
+        use_repo(gazelle_compilation_tests, "compilation_test_my_test_case")
+        ```
+
+        However, importing a repository alone does not include its tests in `bazel test //...`. To include a compilation
+        test in the `//...` wildcard, use the `gazelle_compilation_test` macro in a BUILD file:
+
+        ```starlark
+        load("@gazelle_cc//bazel:gazelle_compilation_tests.bzl", "gazelle_compilation_test")
+
+        gazelle_compilation_test(
+            name = "my_test_case_compilation_test",
+            test_dir = "my_test_case",
+        )
+        ```
+    """,
     implementation = _gazelle_compilation_tests_impl,
     tag_classes = {"discover": _discover_tag},
 )
