@@ -1,37 +1,36 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("@bazel_skylib//lib:sets.bzl", "sets")
 load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("//bazel:gazelle_compilation_tests.bzl", "gazelle_compilation_test")
 
-# Exclude this entire directly from having anything gnerated by Gazelle. That
-# way the test cases won't be fixed by `bazel run //:gazelle` when run in this
-# repository.
-# gazelle:exclude **
-
-# This test Gazelle binary only has the "//language/cc" plugin installed.
 gazelle_binary(
-    name = "gazelle_cc",
+    name = "gazelle_for_testing",
+    testonly = True,
     languages = [
         "@gazelle//language/proto",
         "//language/cc",
     ],
-    visibility = ["//visibility:private"],
 )
 
+ALL_TEST_DIRS = [paths.dirname(p) for p in glob([
+    "**/WORKSPACE",
+    "**/MODULE.bazel",
+])]
+
 [gazelle_generation_test(
-    # Name the test the path to the directory containing the WORKSPACE file.
-    name = test_dir,
-    gazelle_binary = ":gazelle_cc",
-    local = False,
+    name = test_dir + "_generation",
+    gazelle_binary = ":gazelle_for_testing",
     test_data = glob(
         include = [test_dir + "/**"],
     ),
-) for test_dir in sets.to_list(sets.make([
-    paths.dirname(p)
-    # Note that glob matches "this package's directories and non-subpackage
-    # subdirectories," so any directory with a BUILD or BUILD.bazel file
-    # will not match, but those with BUILD.in and BUILD.out will.
-    for p in glob([
-        "**/WORKSPACE",
-        "**/MODULE.bazel",
-    ])
-]))]
+) for test_dir in ALL_TEST_DIRS]
+
+# TODO: include more tests
+COMPILABLE_TEST_DIRS = [
+    "subdirectory_basic",
+    "virtual_include_paths",
+]
+
+[gazelle_compilation_test(
+    name = test_dir + "_compilation",
+    test_dir = test_dir,
+) for test_dir in COMPILABLE_TEST_DIRS]
