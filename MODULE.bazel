@@ -23,7 +23,9 @@ use_repo(
     "org_golang_x_sync",
 )
 
-# For testing compilation of test workspaces
+# For testing compilation of the repositories at language/cc/testdata
+bazel_dep(name = "grpc", version = "1.70.1", dev_dependency = True)
+bazel_dep(name = "protobuf", version = "29.5", dev_dependency = True)
 bazel_dep(name = "rules_cc", version = "0.2.17", dev_dependency = True)
 bazel_dep(name = "rules_python", version = "1.8.3", dev_dependency = True)
 
