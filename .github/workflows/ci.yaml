@@ -28,7 +28,7 @@ jobs:
               "-//language/cc/testdata:cc_grpc_library_compilation",
             ]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
       EXTRA_FLAGS: ${{ join(matrix.extra-flags, ' ') }}
