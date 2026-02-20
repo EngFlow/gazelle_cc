@@ -20,18 +20,26 @@ jobs:
         os: [ubuntu-24.04, macos-26]
         # "" means use the version in .bazelversion. Add 8.x if that changes.
         bazel-version: ["", "7.x", "last_rc"]
+        include:
+          - bazel-version: "last_rc"
+            extra-flags: [
+              "--",
+              # exclude cc_grpc_library_compilation; "grpc" Bazel module is not yet compatible with Bazel 9
+              "-//language/cc/testdata:cc_grpc_library_compilation",
+            ]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
+      EXTRA_FLAGS: ${{ join(matrix.extra-flags, ' ') }}
     steps:
       - uses: actions/checkout@v4
       - name: Build
         run: |
-          bazel build //...
+          bazel build //... $EXTRA_FLAGS
       - name: Test
         run: |
-          bazel test --test_output=errors //...
+          bazel test --test_output=errors //... $EXTRA_FLAGS
 
   # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
   bcr_test_module:
