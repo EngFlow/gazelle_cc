@@ -1,6 +1,6 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 
-# gazelle:cc_generate_proto false
+# gazelle:cc_generate_proto disable
 
 proto_library(
     name = "disabled_proto",

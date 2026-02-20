@@ -1,0 +1,10 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# gazelle:cc_generate_proto composed_grpc
+# gazelle:proto default
+
+proto_library(
+    name = "example_proto",
+    srcs = ["message.proto"],
+    visibility = ["//visibility:public"],
+)

@@ -146,9 +146,21 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 		ResolveAttrs:   map[string]bool{"deps": true},
 	}
 	kinds["cc_grpc_library"] = rule.KindInfo{
-		NonEmptyAttrs:  map[string]bool{"srcs": true, "deps": true},
-		MergeableAttrs: map[string]bool{"srcs": true, "deps": true, "grpc_only": true},
-		ResolveAttrs:   map[string]bool{"srcs": true, "deps": true},
+		NonEmptyAttrs: map[string]bool{
+			"srcs": true,
+			"deps": true,
+		},
+		MergeableAttrs: map[string]bool{
+			"srcs":              true,
+			"deps":              true,
+			"proto_only":        true,
+			"grpc_only":         true,
+			"well_known_protos": true,
+		},
+		ResolveAttrs: map[string]bool{
+			"srcs": true,
+			"deps": true,
+		},
 	}
 
 	return kinds

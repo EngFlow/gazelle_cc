@@ -1,0 +1,19 @@
+load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_grpc_library(
+    name = "example_cc_proto",
+    srcs = ["message.proto"],
+    grpc_only = False,
+    proto_only = True,
+    visibility = ["//visibility:public"],
+    well_known_protos = False,
+    deps = [],
+)
+
+cc_library(
+    name = "proto_only",
+    srcs = ["use.cc"],
+    implementation_deps = [":example_cc_proto"],
+    visibility = ["//visibility:public"],
+)
