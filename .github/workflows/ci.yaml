@@ -21,6 +21,7 @@ jobs:
         # "" means use the version in .bazelversion. Add 8.x if that changes.
         bazel-version: ["", "7.x", "last_rc"]
         include:
+          # TODO #197: Turn on compilation tests again
           - bazel-version: "last_rc"
             custom-bazelrc: ".bazelrc-9"
     runs-on: ${{ matrix.os }}
