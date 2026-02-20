@@ -24,7 +24,8 @@ jobs:
           - bazel-version: "last_rc"
             extra-flags: [
               "--",
-              # exclude cc_grpc_library_compilation; "grpc" Bazel module is not yet compatible with Bazel 9
+              # Exclude cc_grpc_library_compilation; "grpc" Bazel module is not
+              # yet compatible with Bazel 9.
               "-//language/cc/testdata:cc_grpc_library_compilation",
             ]
     runs-on: ${{ matrix.os }}
