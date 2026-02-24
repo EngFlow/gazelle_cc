@@ -36,29 +36,18 @@ func shouldGenerateProtoLibraryRules(c *config.Config) bool {
 	return getCcConfig(c).generateProto && proto.GetProtoConfig(c) != nil && proto.GetProtoConfig(c).Mode.ShouldGenerateRules()
 }
 
-func getSingleProtoGeneratedFiles(protoFile proto.FileInfo) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
-	baseName := strings.TrimSuffix(protoFile.Name, ".proto")
-	pbHeaders = []string{baseName + ".pb.h"}
-	pbSources = []string{baseName + ".pb.cc"}
-	if protoFile.HasServices {
-		grpcHeaders = []string{baseName + ".grpc.pb.h"}
-		grpcSources = []string{baseName + ".grpc.pb.cc"}
-	}
-	return
-}
-
-func getPackageGeneratedFiles(protoPackage proto.Package) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
+func getGeneratedFiles(protoPackage proto.Package) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
 	pbHeaders = make([]string, 0, len(protoPackage.Files))
 	pbSources = make([]string, 0, len(protoPackage.Files))
-	grpcHeaders = make([]string, 0, len(protoPackage.Files))
-	grpcSources = make([]string, 0, len(protoPackage.Files))
 
 	for _, file := range protoPackage.Files {
-		filePbHeaders, filePbSources, fileGrpcHeaders, fileGrpcSources := getSingleProtoGeneratedFiles(file)
-		pbHeaders = append(pbHeaders, filePbHeaders...)
-		pbSources = append(pbSources, filePbSources...)
-		grpcHeaders = append(grpcHeaders, fileGrpcHeaders...)
-		grpcSources = append(grpcSources, fileGrpcSources...)
+		baseName := strings.TrimSuffix(file.Name, ".proto")
+		pbHeaders = append(pbHeaders, baseName+".pb.h")
+		pbSources = append(pbSources, baseName+".pb.cc")
+		if file.HasServices {
+			grpcHeaders = append(grpcHeaders, baseName+".grpc.pb.h")
+			grpcSources = append(grpcSources, baseName+".grpc.pb.cc")
+		}
 	}
 
 	return
@@ -120,7 +109,7 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 			continue
 		}
 
-		pbHeaders, pbSources, grpcHeaders, grpcSources := getPackageGeneratedFiles(protoPackage)
+		pbHeaders, pbSources, grpcHeaders, grpcSources := getGeneratedFiles(protoPackage)
 		consumedProtoFiles.AddSlice(pbHeaders).AddSlice(pbSources).AddSlice(grpcHeaders).AddSlice(grpcSources)
 
 		ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
