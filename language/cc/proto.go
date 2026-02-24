@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
+	"github.com/EngFlow/gazelle_cc/internal/rule_ext"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
@@ -132,10 +133,38 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 	return consumedProtoFiles
 }
 
+func generateProtoImportSpecsManually(grpcLibraryRule *rule.Rule, pkg string) []resolve.ImportSpec {
+	if grpcLibraryRule.Kind() != "cc_grpc_library" {
+		return nil
+	}
+
+	srcs := grpcLibraryRule.AttrStrings("srcs")
+	if len(srcs) != 1 {
+		return nil
+	}
+
+	baseName := strings.TrimSuffix(srcs[0], ".proto")
+	grpcOnly := rule_ext.AttrBool(grpcLibraryRule, "grpc_only", false)
+	protoOnly := rule_ext.AttrBool(grpcLibraryRule, "proto_only", false)
+	imports := make([]resolve.ImportSpec, 0, 2)
+
+	if !grpcOnly {
+		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(pkg, baseName+".pb.h")})
+	}
+	if !protoOnly {
+		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(pkg, baseName+".grpc.pb.h")})
+	}
+
+	return imports
+}
+
 func generateProtoImportSpecs(protoLibraryRule *rule.Rule, pkg string) []resolve.ImportSpec {
 	headers, ok := protoLibraryRule.PrivateAttr(ccProtoLibraryHeadersKey).([]string)
 	if !ok {
-		return nil
+		// The absence of a private attribute means that the rule was not
+		// generated from an existing proto_library rule. Fallback to manual
+		// indexing.
+		return generateProtoImportSpecsManually(protoLibraryRule, pkg)
 	}
 	return collections.MapSlice(headers, func(header string) resolve.ImportSpec {
 		return resolve.ImportSpec{Lang: languageName, Imp: path.Join(pkg, header)}
