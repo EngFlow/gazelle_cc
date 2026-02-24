@@ -1,2 +1,13 @@
-# gazelle:cc_generate_proto composed_grpc
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
 # gazelle:proto disable
+
+cc_library(
+    name = "cc_grpc_library_composed",
+    srcs = ["use.cc"],
+    implementation_deps = [
+        "//proto_and_grpc:example_cc_grpc",
+        "//proto_only:example_cc_proto",
+    ],
+    visibility = ["//visibility:public"],
+)

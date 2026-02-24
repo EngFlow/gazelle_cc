@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package example;
-
-message Message {
-    string content = 1;
-}

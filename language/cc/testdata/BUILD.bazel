@@ -27,6 +27,7 @@ ALL_TEST_DIRS = [paths.dirname(p) for p in glob([
 # TODO: include more tests
 COMPILABLE_TEST_DIRS = [
     "cc_grpc_library",
+    "cc_grpc_library_composed",
     "subdirectory_basic",
     "virtual_include_paths",
 ]

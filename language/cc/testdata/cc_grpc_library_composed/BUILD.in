@@ -1,2 +1,1 @@
-# gazelle:cc_generate_proto composed_grpc
 # gazelle:proto disable

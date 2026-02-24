@@ -1,2 +1,2 @@
 bazel_dep(name = "grpc", version = "")
-bazel_dep(name = "protobuf", version = "")
+bazel_dep(name = "protobuf", version = "", repo_name = "com_google_protobuf")
