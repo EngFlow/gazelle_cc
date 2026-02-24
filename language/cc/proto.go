@@ -19,13 +19,13 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/EngFlow/gazelle_cc/internal/rule_ext"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/language/proto"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/bazelbuild/buildtools/build"
 )
 
 // Key of the private attribute used to store the []string list of proto header
@@ -142,6 +142,30 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 	return consumedProtoFiles
 }
 
+// ruleAttrBool returns the value of the rule attribute key as a bool. If the
+// attribute is absent or not a boolean literal (True/False), it returns
+// defaultValue.
+//
+// # TODO: Move to bazel-gazelle/rule/rule.go
+func ruleAttrBool(r *rule.Rule, key string, defaultValue bool) bool {
+	expr := r.Attr(key)
+	if expr == nil {
+		return defaultValue
+	}
+	ident, ok := expr.(*build.Ident)
+	if !ok {
+		return defaultValue
+	}
+	switch ident.Name {
+	case "True":
+		return true
+	case "False":
+		return false
+	default:
+		return defaultValue
+	}
+}
+
 func findRule(buildFile *rule.File, ruleName string) *rule.Rule {
 	for _, rule := range buildFile.Rules {
 		if rule.Name() == ruleName {
@@ -162,7 +186,7 @@ func generateProtoImportSpecsManually(grpcLibraryRule *rule.Rule, buildFile *rul
 	}
 
 	var imports []resolve.ImportSpec
-	if rule_ext.AttrBool(grpcLibraryRule, "grpc_only", false) {
+	if ruleAttrBool(grpcLibraryRule, "grpc_only", false) {
 		// In this mode "srcs" contains a single proto_library. We support a
 		// relative label to the proto_library in the same build file.
 		protoLibraryLabel, err := label.Parse(srcs[0])
@@ -182,7 +206,7 @@ func generateProtoImportSpecsManually(grpcLibraryRule *rule.Rule, buildFile *rul
 		protoFileName := srcs[0]
 		pbHeader, _, grpcHeader, _ := getGeneratedFilesFromProtoFile(protoFileName)
 		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, pbHeader)})
-		if !rule_ext.AttrBool(grpcLibraryRule, "proto_only", false) {
+		if !ruleAttrBool(grpcLibraryRule, "proto_only", false) {
 			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, grpcHeader)})
 		}
 	}

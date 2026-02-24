@@ -21,7 +21,6 @@ go_library(
     deps = [
         "//internal/collections",
         "//internal/index",
-        "//internal/rule_ext",
         "//language/internal/cc/parser",
         "//language/internal/cc/platform",
         "@com_github_bazelbuild_buildtools//build",
