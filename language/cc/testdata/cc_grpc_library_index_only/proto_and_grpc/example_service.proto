@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package example;
+package proto_and_grpc;
 
 import "google/protobuf/empty.proto";
 

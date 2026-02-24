@@ -3,9 +3,10 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 # gazelle:proto disable
 
 cc_library(
-    name = "cc_grpc_library_composed",
+    name = "cc_grpc_library_index_only",
     srcs = ["use.cc"],
     implementation_deps = [
+        "//grpc_only:example_cc_grpc",
         "//proto_and_grpc:example_cc_grpc",
         "//proto_only:example_cc_proto",
     ],

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package example;
+package proto_only;
 
 message Message {
     string content = 1;
