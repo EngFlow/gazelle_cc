@@ -1,0 +1,2 @@
+bazel_dep(name = "grpc", version = "")
+bazel_dep(name = "protobuf", version = "")

@@ -1,0 +1,6 @@
+# Dependencies for compilation tests are not yet compatible with Bazel 9. E.g.,
+# even the newest "grpc" module uses an unsupported `native.cc_library` rule.
+
+build --ignore_dev_dependency
+build --deleted_packages=language/cc/testdata
+build --deleted_packages=scripts/prepare_test_repo

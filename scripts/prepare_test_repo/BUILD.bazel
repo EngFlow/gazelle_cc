@@ -1,0 +1,56 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_python//python:defs.bzl", "py_binary")
+
+py_binary(
+    name = "prepare_test_repo",
+    testonly = True,
+    srcs = ["prepare_test_repo.py"],
+)
+
+# Test the script against "testdata" directory
+
+genrule(
+    name = "prepare_test_repo_test_runner",
+    testonly = True,
+    srcs = [
+        "testdata/BUILD.out",
+        "testdata/MODULE.bazel",
+        "testdata/sub/package/BUILD.out",
+    ],
+    outs = [
+        "output/BUILD.bazel",
+        "output/MODULE.bazel",
+        "output/sub/package/BUILD.bazel",
+    ],
+    cmd = "$(location :prepare_test_repo) $(location testdata/MODULE.bazel) $(@D)/output",
+    tools = [":prepare_test_repo"],
+)
+
+# Create a separate diff_test for each output file
+
+diff_test(
+    name = "test_root_build_file",
+    file1 = "testdata/BUILD.out_expected",
+    file2 = "output/BUILD.bazel",
+)
+
+diff_test(
+    name = "test_module_file",
+    file1 = "testdata/MODULE.bazel",
+    file2 = "output/MODULE.bazel",
+)
+
+diff_test(
+    name = "test_sub_package_build_file",
+    file1 = "testdata/sub/package/BUILD.out_expected",
+    file2 = "output/sub/package/BUILD.bazel",
+)
+
+test_suite(
+    name = "prepare_test_repo_tests",
+    tests = [
+        ":test_module_file",
+        ":test_root_build_file",
+        ":test_sub_package_build_file",
+    ],
+)

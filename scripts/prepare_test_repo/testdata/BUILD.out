@@ -1,0 +1,10 @@
+cc_library(
+    name = "lib",
+    srcs = ["lib.cc"],
+)
+
+cc_binary(
+    name = "app",
+    srcs = ["app.cc"],
+    deps = [":lib"],
+)

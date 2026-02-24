@@ -1,0 +1,31 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+
+cc_library(
+    name = "lib",
+    srcs = ["lib.cc"],
+)
+
+cc_binary(
+    name = "app",
+    srcs = ["app.cc"],
+    deps = [":lib"],
+)
+
+filegroup(
+    name = "package_rules",
+    srcs = [
+        ":app",
+        ":lib",
+    ],
+    testonly = True,
+    visibility = ["//:__pkg__"],
+)
+
+build_test(
+    name = "repo_build_test",
+    targets = [
+        "//:package_rules",
+        "//sub/package:package_rules",
+    ],
+    visibility = ["//visibility:public"],
+)

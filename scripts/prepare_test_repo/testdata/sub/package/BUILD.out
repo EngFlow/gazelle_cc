@@ -1,0 +1,4 @@
+cc_library(
+    name = "sub_lib",
+    srcs = ["sub_lib.cc"],
+)
