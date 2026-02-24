@@ -133,7 +133,16 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 	return consumedProtoFiles
 }
 
-func generateProtoImportSpecsManually(grpcLibraryRule *rule.Rule, pkg string) []resolve.ImportSpec {
+func findRule(buildFile *rule.File, ruleName string) *rule.Rule {
+	for _, rule := range buildFile.Rules {
+		if rule.Name() == ruleName {
+			return rule
+		}
+	}
+	return nil
+}
+
+func generateProtoImportSpecsManually(grpcLibraryRule *rule.Rule, buildFile *rule.File) []resolve.ImportSpec {
 	if grpcLibraryRule.Kind() != "cc_grpc_library" {
 		return nil
 	}
@@ -143,30 +152,44 @@ func generateProtoImportSpecsManually(grpcLibraryRule *rule.Rule, pkg string) []
 		return nil
 	}
 
-	baseName := strings.TrimSuffix(srcs[0], ".proto")
-	grpcOnly := rule_ext.AttrBool(grpcLibraryRule, "grpc_only", false)
-	protoOnly := rule_ext.AttrBool(grpcLibraryRule, "proto_only", false)
-	imports := make([]resolve.ImportSpec, 0, 2)
-
-	if !grpcOnly {
-		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(pkg, baseName+".pb.h")})
-	}
-	if !protoOnly {
-		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(pkg, baseName+".grpc.pb.h")})
+	var imports []resolve.ImportSpec
+	if rule_ext.AttrBool(grpcLibraryRule, "grpc_only", false) {
+		// In this mode "srcs" contains a single proto_library. We support a
+		// relative label to the proto_library in the same build file.
+		protoLibraryLabel, err := label.Parse(srcs[0])
+		if err != nil || !protoLibraryLabel.Relative {
+			return nil
+		}
+		protoLibraryRule := findRule(buildFile, protoLibraryLabel.Name)
+		if protoLibraryRule == nil {
+			return nil
+		}
+		for _, protoFileName := range protoLibraryRule.AttrStrings("srcs") {
+			baseName := strings.TrimSuffix(protoFileName, ".proto")
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, baseName+".grpc.pb.h")})
+		}
+	} else {
+		// In this mode "srcs" contains a single proto file.
+		protoFileName := srcs[0]
+		baseName := strings.TrimSuffix(protoFileName, ".proto")
+		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, baseName+".pb.h")})
+		if !rule_ext.AttrBool(grpcLibraryRule, "proto_only", false) {
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, baseName+".grpc.pb.h")})
+		}
 	}
 
 	return imports
 }
 
-func generateProtoImportSpecs(protoLibraryRule *rule.Rule, pkg string) []resolve.ImportSpec {
+func generateProtoImportSpecs(protoLibraryRule *rule.Rule, buildFile *rule.File) []resolve.ImportSpec {
 	headers, ok := protoLibraryRule.PrivateAttr(ccProtoLibraryHeadersKey).([]string)
 	if !ok {
 		// The absence of a private attribute means that the rule was not
 		// generated from an existing proto_library rule. Fallback to manual
 		// indexing.
-		return generateProtoImportSpecsManually(protoLibraryRule, pkg)
+		return generateProtoImportSpecsManually(protoLibraryRule, buildFile)
 	}
 	return collections.MapSlice(headers, func(header string) resolve.ImportSpec {
-		return resolve.ImportSpec{Lang: languageName, Imp: path.Join(pkg, header)}
+		return resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, header)}
 	})
 }

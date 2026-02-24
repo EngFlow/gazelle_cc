@@ -36,7 +36,7 @@ import (
 func (*ccLanguage) Imports(config *config.Config, rule *rule.Rule, buildFile *rule.File) []resolve.ImportSpec {
 	switch rule.Kind() {
 	case "cc_proto_library", "cc_grpc_library":
-		return generateProtoImportSpecs(rule, buildFile.Pkg)
+		return generateProtoImportSpecs(rule, buildFile)
 	case "cc_import", "cc_library", "cc_shared_library", "cc_static_library":
 		return generateLibraryImportSpecs(config, rule, buildFile.Pkg)
 	default:
