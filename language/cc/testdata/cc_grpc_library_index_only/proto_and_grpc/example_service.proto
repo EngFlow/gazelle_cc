@@ -4,6 +4,10 @@ package proto_and_grpc;
 
 import "google/protobuf/empty.proto";
 
+message Message {
+    string content = 1;
+}
+
 service ExampleService {
-    rpc Call(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Call(Message) returns (google.protobuf.Empty);
 }

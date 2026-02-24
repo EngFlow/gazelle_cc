@@ -3,6 +3,7 @@
 #include "proto_and_grpc/example_service.pb.h"
 #include "proto_only/message.pb.h"
 
-using Service1 = grpc_only::ExampleService;
-using Service2 = proto_and_grpc::ExampleService;
-using Service3 = proto_only::Message;
+using Alias1 = grpc_only::ExampleService;
+using Alias2 = proto_and_grpc::ExampleService;
+using Alias3 = proto_and_grpc::Message;
+using Alias4 = proto_only::Message;
