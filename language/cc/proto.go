@@ -37,17 +37,26 @@ func shouldGenerateProtoLibraryRules(c *config.Config) bool {
 	return getCcConfig(c).generateProto && proto.GetProtoConfig(c) != nil && proto.GetProtoConfig(c).Mode.ShouldGenerateRules()
 }
 
-func getGeneratedFiles(protoPackage proto.Package) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
+func getGeneratedFilesFromProtoFile(protoFileName string) (pbHeader, pbSource, grpcHeader, grpcSource string) {
+	baseName := strings.TrimSuffix(protoFileName, ".proto")
+	pbHeader = baseName + ".pb.h"
+	pbSource = baseName + ".pb.cc"
+	grpcHeader = baseName + ".grpc.pb.h"
+	grpcSource = baseName + ".grpc.pb.cc"
+	return
+}
+
+func getGeneratedFilesFromProtoPackage(protoPackage proto.Package) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
 	pbHeaders = make([]string, 0, len(protoPackage.Files))
 	pbSources = make([]string, 0, len(protoPackage.Files))
 
 	for _, file := range protoPackage.Files {
-		baseName := strings.TrimSuffix(file.Name, ".proto")
-		pbHeaders = append(pbHeaders, baseName+".pb.h")
-		pbSources = append(pbSources, baseName+".pb.cc")
+		pbHeader, pbSource, grpcHeader, grpcSource := getGeneratedFilesFromProtoFile(file.Name)
+		pbHeaders = append(pbHeaders, pbHeader)
+		pbSources = append(pbSources, pbSource)
 		if file.HasServices {
-			grpcHeaders = append(grpcHeaders, baseName+".grpc.pb.h")
-			grpcSources = append(grpcSources, baseName+".grpc.pb.cc")
+			grpcHeaders = append(grpcHeaders, grpcHeader)
+			grpcSources = append(grpcSources, grpcSource)
 		}
 	}
 
@@ -110,7 +119,7 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 			continue
 		}
 
-		pbHeaders, pbSources, grpcHeaders, grpcSources := getGeneratedFiles(protoPackage)
+		pbHeaders, pbSources, grpcHeaders, grpcSources := getGeneratedFilesFromProtoPackage(protoPackage)
 		consumedProtoFiles.AddSlice(pbHeaders).AddSlice(pbSources).AddSlice(grpcHeaders).AddSlice(grpcSources)
 
 		ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
@@ -165,16 +174,16 @@ func generateProtoImportSpecsManually(grpcLibraryRule *rule.Rule, buildFile *rul
 			return nil
 		}
 		for _, protoFileName := range protoLibraryRule.AttrStrings("srcs") {
-			baseName := strings.TrimSuffix(protoFileName, ".proto")
-			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, baseName+".grpc.pb.h")})
+			_, _, grpcHeader, _ := getGeneratedFilesFromProtoFile(protoFileName)
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, grpcHeader)})
 		}
 	} else {
 		// In this mode "srcs" contains a single proto file.
 		protoFileName := srcs[0]
-		baseName := strings.TrimSuffix(protoFileName, ".proto")
-		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, baseName+".pb.h")})
+		pbHeader, _, grpcHeader, _ := getGeneratedFilesFromProtoFile(protoFileName)
+		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, pbHeader)})
 		if !rule_ext.AttrBool(grpcLibraryRule, "proto_only", false) {
-			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, baseName+".grpc.pb.h")})
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, grpcHeader)})
 		}
 	}
 
