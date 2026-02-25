@@ -24,13 +24,47 @@ ALL_TEST_DIRS = [paths.dirname(p) for p in glob([
     ),
 ) for test_dir in ALL_TEST_DIRS]
 
-# TODO: include more tests
-COMPILABLE_TEST_DIRS = [
-    "cc_grpc_library",
-    "cc_grpc_library_index_only",
-    "subdirectory_basic",
-    "virtual_include_paths",
-]
+COMPILABLE_TEST_DIRS = [paths.dirname(p) for p in glob(
+    include = [
+        "**/MODULE.bazel",
+        "**/WORKSPACE",
+    ],
+    exclude = [
+        # Expected unresolved include paths, won't compile.
+        "absolute_include/**",
+        "cc_ambiguous_deps_*/**",
+        "cc_generate/**",
+        "cc_unresolved_deps_*/**",
+        "cycle-in-existing-units_no_merge/**",
+        "deps_external/**",
+        "deps_index/**",
+        "index_globs/**",
+        "kind_name_collisions/**",
+
+        # Sources with syntax errors won't compile.
+        "cc_parsing_errors_*/**",
+
+        # Expected no targets to be generated.
+        "subdirectory_invalid_glob/**",
+        "subdirectory_match_conflict/**",
+
+        # Expected invalid layout of test runners, won't compile.
+        "tests_directory/**",
+
+        # TODO: Contains gazelle:map_kind pointing to non-existing custom_cc.bzl file.
+        "map_kind/**",
+        "non_locale_file_deps/**",
+
+        # TODO: a_test.c and d_test.c both contain main function, but they're packed into the same "a_test" cc_test.
+        "package_by_directory/**",
+
+        # TODO: undefined //platforms package.
+        "platforms/**",
+
+        # TODO: No such target //:root_proto.
+        "protobuf/**",
+    ],
+)]
 
 [gazelle_compilation_test(
     name = test_dir + "_compilation",

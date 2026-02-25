@@ -1,0 +1,20 @@
+---
+description: Code style and structure guidelines for this project
+alwaysApply: true
+---
+# Code style guidelines
+
+## Directory structure
+
+- Logic specific to `language.Language` interface is put under the `language/cc/` directory.
+- Utilities still related to `language.Language` interface but big enough to deserve their own Go packages are put under the `language/internal/cc/` directory.
+- Generic utilities unrelated to `language.Language` interface are put under the `internal/` directory.
+
+## Code style for Go files
+
+- Always include a copyright header at the beginning of the file.
+- Wrap comments at the column 80.
+- Prefer using `internal/collections/set.go` to raw `map[T]bool` or `map[T]struct{}`.
+- Prefer using sequential operations from `internal/collections/collections.go` unless the outcome code structure is too complicated.
+- Always name symbols beginning with a lowercase letter unless they need to be exported to another package.
+- Attach docs to a function when its name and arguments don't clearly indicate its purpose. You don't have to describe arguments and a return value if their meaning can be deduced from names and types.
