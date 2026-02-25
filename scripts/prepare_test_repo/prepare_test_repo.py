@@ -133,8 +133,9 @@ def copy_and_transform(input_dir: Path, output_dir: Path) -> None:
                 dest_file = out_root / file
                 shutil.copy2(src_file, dest_file)
 
-    # Finally add the public top-level build_test target that depends on all package filegroups
-    append_build_test(output_dir / "BUILD.bazel", filegroup_labels)
+    # Finally add the public top-level build_test target that depends on all package filegroups (if any)
+    if filegroup_labels:
+        append_build_test(output_dir / "BUILD.bazel", filegroup_labels)
 
 
 def main() -> None:
