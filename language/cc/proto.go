@@ -16,15 +16,16 @@ package cc
 
 import (
 	"path"
-	"slices"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/language/proto"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/bazelbuild/buildtools/build"
 )
 
 // Key of the private attribute used to store the []string list of proto header
@@ -32,17 +33,30 @@ import (
 // generation and used to propagate appropriate resolve.ImportSpec later.
 const ccProtoLibraryHeadersKey = "_proto_headers"
 
-func getGeneratedFiles(protoPackage proto.Package) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
+func shouldGenerateProtoLibraryRules(c *config.Config) bool {
+	return getCcConfig(c).generateProto && proto.GetProtoConfig(c) != nil && proto.GetProtoConfig(c).Mode.ShouldGenerateRules()
+}
+
+func getGeneratedFilesFromProtoFile(protoFileName string) (pbHeader, pbSource, grpcHeader, grpcSource string) {
+	baseName := strings.TrimSuffix(protoFileName, ".proto")
+	pbHeader = baseName + ".pb.h"
+	pbSource = baseName + ".pb.cc"
+	grpcHeader = baseName + ".grpc.pb.h"
+	grpcSource = baseName + ".grpc.pb.cc"
+	return
+}
+
+func getGeneratedFilesFromProtoPackage(protoPackage proto.Package) (pbHeaders, pbSources, grpcHeaders, grpcSources []string) {
 	pbHeaders = make([]string, 0, len(protoPackage.Files))
 	pbSources = make([]string, 0, len(protoPackage.Files))
 
 	for _, file := range protoPackage.Files {
-		baseName := strings.TrimSuffix(file.Name, ".proto")
-		pbHeaders = append(pbHeaders, baseName+".pb.h")
-		pbSources = append(pbSources, baseName+".pb.cc")
+		pbHeader, pbSource, grpcHeader, grpcSource := getGeneratedFilesFromProtoFile(file.Name)
+		pbHeaders = append(pbHeaders, pbHeader)
+		pbSources = append(pbSources, pbSource)
 		if file.HasServices {
-			grpcHeaders = append(grpcHeaders, baseName+".grpc.pb.h")
-			grpcSources = append(grpcSources, baseName+".grpc.pb.cc")
+			grpcHeaders = append(grpcHeaders, grpcHeader)
+			grpcSources = append(grpcSources, grpcSource)
 		}
 	}
 
@@ -93,27 +107,29 @@ func generateCcGrpcLibraryRule(protoLibraryRule, ccProtoLibraryRule *rule.Rule, 
 // See language/cc/testdata/protobuf_filter_generated test for an example.
 func generateProtoLibraryRules(args language.GenerateArgs, result *language.GenerateResult) collections.Set[string] {
 	consumedProtoFiles := make(collections.Set[string])
-	if !getProtoMode(args.Config).ShouldGenerateRules() {
+	if !shouldGenerateProtoLibraryRules(args.Config) {
 		// Don't create or delete proto rules in this mode. All "*.pb.h",
 		// "*.pb.cc", would be added to cc_library
 		return consumedProtoFiles
 	}
 
 	for _, protoLibraryRule := range args.OtherGen {
-		if protoLibraryRule.Kind() == "proto_library" && slices.Contains(protoLibraryRule.PrivateAttrKeys(), proto.PackageKey) {
-			protoPackage := protoLibraryRule.PrivateAttr(proto.PackageKey).(proto.Package)
-			pbHeaders, pbSources, grpcHeaders, grpcSources := getGeneratedFiles(protoPackage)
-			consumedProtoFiles.AddSlice(pbHeaders).AddSlice(pbSources).AddSlice(grpcHeaders).AddSlice(grpcSources)
+		protoPackage, ok := protoLibraryRule.PrivateAttr(proto.PackageKey).(proto.Package)
+		if !ok || protoLibraryRule.Kind() != "proto_library" {
+			continue
+		}
 
-			ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
-			result.Gen = append(result.Gen, ccProtoLibraryRule)
+		pbHeaders, pbSources, grpcHeaders, grpcSources := getGeneratedFilesFromProtoPackage(protoPackage)
+		consumedProtoFiles.AddSlice(pbHeaders).AddSlice(pbSources).AddSlice(grpcHeaders).AddSlice(grpcSources)
+
+		ccProtoLibraryRule := generateCcProtoLibraryRule(protoLibraryRule, pbHeaders, args.File)
+		result.Gen = append(result.Gen, ccProtoLibraryRule)
+		result.Imports = append(result.Imports, ccImports{})
+
+		if protoPackage.HasServices {
+			ccGrpcLibraryRule := generateCcGrpcLibraryRule(protoLibraryRule, ccProtoLibraryRule, grpcHeaders, args.File)
+			result.Gen = append(result.Gen, ccGrpcLibraryRule)
 			result.Imports = append(result.Imports, ccImports{})
-
-			if protoPackage.HasServices {
-				ccGrpcLibraryRule := generateCcGrpcLibraryRule(protoLibraryRule, ccProtoLibraryRule, grpcHeaders, args.File)
-				result.Gen = append(result.Gen, ccGrpcLibraryRule)
-				result.Imports = append(result.Imports, ccImports{})
-			}
 		}
 	}
 
@@ -126,12 +142,87 @@ func generateProtoLibraryRules(args language.GenerateArgs, result *language.Gene
 	return consumedProtoFiles
 }
 
-func generateProtoImportSpecs(protoLibraryRule *rule.Rule, pkg string) []resolve.ImportSpec {
-	headers, ok := protoLibraryRule.PrivateAttr(ccProtoLibraryHeadersKey).([]string)
+// ruleAttrBool returns the value of the rule attribute key as a bool. If the
+// attribute is absent or not a boolean literal (True/False), it returns
+// defaultValue.
+//
+// # TODO: Move to bazel-gazelle/rule/rule.go
+func ruleAttrBool(r *rule.Rule, key string, defaultValue bool) bool {
+	expr := r.Attr(key)
+	if expr == nil {
+		return defaultValue
+	}
+	ident, ok := expr.(*build.Ident)
 	if !ok {
+		return defaultValue
+	}
+	switch ident.Name {
+	case "True":
+		return true
+	case "False":
+		return false
+	default:
+		return defaultValue
+	}
+}
+
+func findRule(buildFile *rule.File, ruleName string) *rule.Rule {
+	for _, rule := range buildFile.Rules {
+		if rule.Name() == ruleName {
+			return rule
+		}
+	}
+	return nil
+}
+
+func generateProtoImportSpecsManually(grpcLibraryRule *rule.Rule, buildFile *rule.File) []resolve.ImportSpec {
+	if grpcLibraryRule.Kind() != "cc_grpc_library" {
 		return nil
 	}
+
+	srcs := grpcLibraryRule.AttrStrings("srcs")
+	if len(srcs) != 1 {
+		return nil
+	}
+
+	var imports []resolve.ImportSpec
+	if ruleAttrBool(grpcLibraryRule, "grpc_only", false) {
+		// In this mode "srcs" contains a single proto_library. We support a
+		// relative label to the proto_library in the same build file.
+		protoLibraryLabel, err := label.Parse(srcs[0])
+		if err != nil || !protoLibraryLabel.Relative {
+			return nil
+		}
+		protoLibraryRule := findRule(buildFile, protoLibraryLabel.Name)
+		if protoLibraryRule == nil {
+			return nil
+		}
+		for _, protoFileName := range protoLibraryRule.AttrStrings("srcs") {
+			_, _, grpcHeader, _ := getGeneratedFilesFromProtoFile(protoFileName)
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, grpcHeader)})
+		}
+	} else {
+		// In this mode "srcs" contains a single proto file.
+		protoFileName := srcs[0]
+		pbHeader, _, grpcHeader, _ := getGeneratedFilesFromProtoFile(protoFileName)
+		imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, pbHeader)})
+		if !ruleAttrBool(grpcLibraryRule, "proto_only", false) {
+			imports = append(imports, resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, grpcHeader)})
+		}
+	}
+
+	return imports
+}
+
+func generateProtoImportSpecs(protoLibraryRule *rule.Rule, buildFile *rule.File) []resolve.ImportSpec {
+	headers, ok := protoLibraryRule.PrivateAttr(ccProtoLibraryHeadersKey).([]string)
+	if !ok {
+		// The absence of a private attribute means that the rule was not
+		// generated from an existing proto_library rule. Fallback to manual
+		// indexing.
+		return generateProtoImportSpecsManually(protoLibraryRule, buildFile)
+	}
 	return collections.MapSlice(headers, func(header string) resolve.ImportSpec {
-		return resolve.ImportSpec{Lang: languageName, Imp: path.Join(pkg, header)}
+		return resolve.ImportSpec{Lang: languageName, Imp: path.Join(buildFile.Pkg, header)}
 	})
 }

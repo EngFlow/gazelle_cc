@@ -30,7 +30,6 @@ import (
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/label"
-	"github.com/bazelbuild/bazel-gazelle/language/proto"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 	"github.com/bmatcuk/doublestar/v4"
 )
@@ -219,16 +218,6 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 	}
 }
 
-func getProtoMode(c *config.Config) proto.Mode {
-	if gc := getCcConfig(c); !gc.generateProto {
-		return proto.DisableMode
-	} else if pc := proto.GetProtoConfig(c); pc != nil {
-		return pc.Mode
-	} else {
-		return proto.DisableGlobalMode
-	}
-}
-
 // Compares the directive value with list of expected choices. If there is a match it updates the target with matching value
 // If there is no match is emits warning on stderr
 func selectDirectiveChoice[T ~string](target *T, options []T, d rule.Directive) {
@@ -288,7 +277,7 @@ type ccConfig struct {
 	ccSearch []ccSearch
 	// Should `cc_library`, `cc_binary` and `cc_test` rules be generated
 	generateCC bool
-	// Should `cc_proto_library` rules be generated
+	// Should `cc_proto_library` and `cc_grpc_library` rules be generated
 	generateProto bool
 	// Platforms for which os/arch specific selects should be generated
 	platforms map[platform.Platform]platformConfig

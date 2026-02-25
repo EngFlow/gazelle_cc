@@ -1,0 +1,11 @@
+load("@grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+
+cc_grpc_library(
+    name = "example_cc_proto",
+    srcs = ["message.proto"],
+    grpc_only = False,
+    proto_only = True,
+    visibility = ["//visibility:public"],
+    well_known_protos = False,
+    deps = [],
+)

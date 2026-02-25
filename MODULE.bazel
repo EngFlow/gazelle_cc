@@ -45,6 +45,7 @@ use_repo(
     "compilation_test_cc_ambiguous_deps_warn",
     "compilation_test_cc_generate",
     "compilation_test_cc_grpc_library",
+    "compilation_test_cc_grpc_library_index_only",
     "compilation_test_cc_include_prefix",
     "compilation_test_cc_parsing_errors_error",
     "compilation_test_cc_parsing_errors_ignore",
