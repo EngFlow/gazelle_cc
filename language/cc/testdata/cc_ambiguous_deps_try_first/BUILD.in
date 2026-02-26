@@ -9,6 +9,12 @@ cc_binary(
 )
 
 cc_binary(
+    name = "explicit_use_bcr",
+    srcs = ["explicit_use_bcr.cc"],
+    deps = ["@grpc//:grpc++_unsecure"],
+)
+
+cc_binary(
     name = "explicit_use_indexfile",
     srcs = ["explicit_use_indexfile.cc"],
     deps = [

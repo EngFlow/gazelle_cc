@@ -1,3 +1,4 @@
 gazelle: //:use: multiple libraries provide the same header - '#include "ambiguous/header.h"' at use.cc:1 resolved to [//ambiguous:rule1 //ambiguous:rule2]; don't know which one to use
+gazelle: //:use_bcr: multiple libraries provide the same header - '#include <grpcpp/grpcpp.h>' at use_bcr.cc:1 resolved to [@grpc//:grpc++ @grpc//:grpc++_unsecure]; don't know which one to use
 gazelle: //:use_indexfile: multiple libraries provide the same header - '#include <boost/thread/thread.hpp>' at use_indexfile.cc:1 resolved to [@boost.thread//:thread_mac @boost.thread//:thread_posix @boost.thread//:thread_windows]; don't know which one to use
 gazelle: //:use_indexfile: multiple libraries provide the same header - '#include <version.h>' at use_indexfile.cc:2 resolved to [@git//:libgit_core @git//:version @openvdb//:openvdb]; don't know which one to use

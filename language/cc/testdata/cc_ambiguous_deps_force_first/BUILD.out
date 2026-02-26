@@ -10,6 +10,12 @@ cc_binary(
 )
 
 cc_binary(
+    name = "explicit_use_bcr",
+    srcs = ["explicit_use_bcr.cc"],
+    deps = ["@grpc//:grpc++_unsecure"],
+)
+
+cc_binary(
     name = "explicit_use_indexfile",
     srcs = ["explicit_use_indexfile.cc"],
     deps = [
@@ -22,6 +28,12 @@ cc_binary(
     name = "use",
     srcs = ["use.cc"],
     deps = ["//ambiguous:rule1"],
+)
+
+cc_binary(
+    name = "use_bcr",
+    srcs = ["use_bcr.cc"],
+    deps = ["@grpc//:grpc++"],
 )
 
 cc_binary(

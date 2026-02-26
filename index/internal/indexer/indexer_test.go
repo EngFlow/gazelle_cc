@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
+	"github.com/EngFlow/gazelle_cc/internal/index"
 	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/stretchr/testify/assert"
 )
@@ -220,7 +221,7 @@ func TestCreateHeaderIndex(t *testing.T) {
 	tests := []struct {
 		name     string
 		modules  []Module
-		expected IndexingResult
+		expected index.DependencyIndex
 	}{
 		{
 			name: "single module single target",
@@ -235,11 +236,10 @@ func TestCreateHeaderIndex(t *testing.T) {
 					},
 				},
 			},
-			expected: IndexingResult{
-				HeaderToRule: map[string]label.Label{
-					"pkg/header.h": {Pkg: "pkg", Name: "lib"},
+			expected: index.DependencyIndex{
+				"pkg/header.h": {
+					{Pkg: "pkg", Name: "lib"},
 				},
-				Ambiguous: map[string][]label.Label{},
 			},
 		},
 		{
@@ -261,16 +261,16 @@ func TestCreateHeaderIndex(t *testing.T) {
 					},
 				},
 			},
-			expected: IndexingResult{
-				HeaderToRule: map[string]label.Label{
-					"pkg1/common.h": {Pkg: "pkg1", Name: "lib1"},
-					"pkg2/common.h": {Pkg: "pkg2", Name: "lib2"},
+			expected: index.DependencyIndex{
+				"pkg1/common.h": {
+					{Pkg: "pkg1", Name: "lib1"},
 				},
-				Ambiguous: map[string][]label.Label{
-					"common.h": {
-						label.Label{Pkg: "pkg1", Name: "lib1"},
-						label.Label{Pkg: "pkg2", Name: "lib2"},
-					},
+				"pkg2/common.h": {
+					{Pkg: "pkg2", Name: "lib2"},
+				},
+				"common.h": {
+					{Pkg: "pkg1", Name: "lib1"},
+					{Pkg: "pkg2", Name: "lib2"},
 				},
 			},
 		},
