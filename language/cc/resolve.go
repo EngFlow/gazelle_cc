@@ -362,22 +362,15 @@ func (b *platformDepsBuilder) addResolved(dependency label.Label, config *ccConf
 func (b *platformDepsBuilder) build() ccPlatformStringsExprs {
 	// Do not emit select when it would only have "//conditions:default";
 	// merge default's deps into generic and emit a single list.
-	if len(b.constrained) == 1 {
-		if defaultDeps, hasDefault := b.constrained[defaultCondition]; hasDefault {
-			for dep := range defaultDeps {
-				b.generic.Add(dep)
-			}
-			clear(b.constrained)
-		}
+	if defaultDeps, hasDefault := b.constrained[defaultCondition]; hasDefault && len(b.constrained) == 1 {
+		b.generic.Join(defaultDeps)
+		clear(b.constrained)
 	}
-	
+
 	// Do not repeat in select values what is already in generic.
-	constrainedToPass := b.constrained
-	if len(b.constrained) > 0 {
-		constrainedToPass = make(map[label.Label]collections.Set[label.Label], len(b.constrained))
-		for cond, deps := range b.constrained {
-			constrainedToPass[cond] = deps.Diff(b.generic)
-		}
+	for cond, deps := range b.constrained {
+		b.constrained[cond] = deps.Diff(b.generic)
 	}
-	return newCcPlatformStringsExprs(b.generic, constrainedToPass)
+
+	return newCcPlatformStringsExprs(b.generic, b.constrained)
 }
