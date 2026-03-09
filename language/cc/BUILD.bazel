@@ -43,6 +43,7 @@ go_test(
     srcs = [
         "config_test.go",
         "imports_test.go",
+        "resolve_test.go",
         "source_groups_test.go",
     ],
     embed = [":cc"],
