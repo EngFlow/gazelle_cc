@@ -1,0 +1,12 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# gazelle:cc_group directory
+
+cc_library(
+    name = "lib",
+    hdrs = [
+        "header1.h",
+        "header2.h",
+    ],
+    visibility = ["//visibility:public"],
+)

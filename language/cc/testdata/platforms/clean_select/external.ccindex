@@ -1,4 +1,0 @@
-{
-  "external.h": ["@external//:external"],
-  "external2.h": ["@external//:external"]
-}
