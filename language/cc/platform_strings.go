@@ -46,11 +46,11 @@ type ccPlatformStringsExprs struct {
 
 func newCcPlatformStringsExprs(
 	generic collections.Set[label.Label],
-	constrainted map[label.Label]collections.Set[label.Label],
+	constrained map[label.Label]collections.Set[label.Label],
 ) ccPlatformStringsExprs {
 	return ccPlatformStringsExprs{
 		genericDeps:     labelsSetToListExpr(generic),
-		constrainedDeps: labelsMapToDictExpr(constrainted),
+		constrainedDeps: labelsMapToDictExpr(constrained),
 	}
 }
 
