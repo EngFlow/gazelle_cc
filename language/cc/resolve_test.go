@@ -23,46 +23,36 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPlatformDepsBuilderBuild(t *testing.T) {
+func TestPlatformDepsBuilder(t *testing.T) {
 	lib_a := label.New("", "pkg", "lib_a")
 	lib_b := label.New("", "pkg", "lib_b")
-	linuxConstraint := label.New("", "platforms", "linux")
+	platform := label.New("", "platforms", "linux")
+	type constrained struct{ cond, dep label.Label }
 
 	testCases := []struct {
-		description  string
-		builder      func() platformDepsBuilder
-		expectedExpr string
+		description     string
+		genericDeps     []label.Label
+		constrainedDeps []constrained
+		expectedExpr    string
 	}{
 		{
-			description: "only_default",
-			builder: func() platformDepsBuilder {
-				builder := newPlatformDepsBuilder()
-				builder.addConstrained(defaultCondition, lib_a)
-				return builder
-			},
+			description:     "only_default",
+			constrainedDeps: []constrained{{cond: defaultCondition, dep: lib_a}},
 			expectedExpr: `
 ["//pkg:lib_a"]
 			`,
 		},
 		{
-			description: "generic_only",
-			builder: func() platformDepsBuilder {
-				builder := newPlatformDepsBuilder()
-				builder.addGeneric(lib_a)
-				return builder
-			},
+			description:     "generic_only",
+			genericDeps:     []label.Label{lib_a},
 			expectedExpr: `
 ["//pkg:lib_a"]
 			`,
 		},
 		{
-			description: "generic_and_default",
-			builder: func() platformDepsBuilder {
-				builder := newPlatformDepsBuilder()
-				builder.addGeneric(lib_a)
-				builder.addConstrained(defaultCondition, lib_b)
-				return builder
-			},
+			description:     "generic_and_default",
+			genericDeps:     []label.Label{lib_a},
+			constrainedDeps: []constrained{{cond: defaultCondition, dep: lib_b}},
 			expectedExpr: `
 [
     "//pkg:lib_a",
@@ -71,25 +61,17 @@ func TestPlatformDepsBuilderBuild(t *testing.T) {
 			`,
 		},
 		{
-			description: "generic_and_constrained_dedup",
-			builder: func() platformDepsBuilder {
-				builder := newPlatformDepsBuilder()
-				builder.addGeneric(lib_a)
-				builder.addConstrained(linuxConstraint, lib_a)
-				return builder
-			},
+			description:     "generic_and_constrained_dedup",
+			genericDeps:     []label.Label{lib_a},
+			constrainedDeps: []constrained{{cond: platform, dep: lib_a}},
 			expectedExpr: `
 ["//pkg:lib_a"]
 			`,
 		},
 		{
-			description: "generic_and_constrained_no_overlap",
-			builder: func() platformDepsBuilder {
-				builder := newPlatformDepsBuilder()
-				builder.addGeneric(lib_a)
-				builder.addConstrained(linuxConstraint, lib_b)
-				return builder
-			},
+			description:     "generic_and_constrained_no_overlap",
+			genericDeps:     []label.Label{lib_a},
+			constrainedDeps: []constrained{{cond: platform, dep: lib_b}},
 			expectedExpr: `
 [
     "//pkg:lib_a",
@@ -102,12 +84,8 @@ func TestPlatformDepsBuilderBuild(t *testing.T) {
 			`,
 		},
 		{
-			description: "constrained_only",
-			builder: func() platformDepsBuilder {
-				builder := newPlatformDepsBuilder()
-				builder.addConstrained(linuxConstraint, lib_a)
-				return builder
-			},
+			description:     "constrained_only",
+			constrainedDeps: []constrained{{cond: platform, dep: lib_a}},
 			expectedExpr: `
 select({
     "//platforms:linux": [
@@ -121,7 +99,13 @@ select({
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			builder := tc.builder()
+			builder := newPlatformDepsBuilder()
+			for _, dep := range tc.genericDeps {
+				builder.addGeneric(dep)
+			}
+			for _, c := range tc.constrainedDeps {
+				builder.addConstrained(c.cond, c.dep)
+			}
 			expr := builder.build().BzlExpr()
 			actual := build.FormatString(expr)
 
