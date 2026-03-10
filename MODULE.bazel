@@ -76,6 +76,7 @@ use_repo(
     "compilation_test_relative_inlcude_paths",
     "compilation_test_rules_cleanup",
     "compilation_test_rules_with_no_sources",
+    "compilation_test_select_expr",
     "compilation_test_subdirectory_basic",
     "compilation_test_subdirectory_invalid_glob",
     "compilation_test_subdirectory_match",

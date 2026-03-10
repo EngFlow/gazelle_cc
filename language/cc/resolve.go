@@ -360,5 +360,20 @@ func (b *platformDepsBuilder) addResolved(dependency label.Label, config *ccConf
 }
 
 func (b *platformDepsBuilder) build() ccPlatformStringsExprs {
+	// Do not emit select when it would only have "//conditions:default";
+	// merge default's deps into generic and emit a single list.
+	if defaultDeps, hasDefault := b.constrained[defaultCondition]; hasDefault && len(b.constrained) == 1 {
+		b.generic.Join(defaultDeps)
+		clear(b.constrained)
+	}
+
+	// Do not repeat in select values what is already in generic.
+	for cond, deps := range b.constrained {
+		b.constrained[cond] = deps.Diff(b.generic)
+		if len(b.constrained[cond]) == 0 {
+			delete(b.constrained, cond)
+		}
+	}
+
 	return newCcPlatformStringsExprs(b.generic, b.constrained)
 }
