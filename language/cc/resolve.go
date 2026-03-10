@@ -328,14 +328,16 @@ func (b *platformDepsBuilder) addGeneric(dependency label.Label) {
 	b.generic.Add(dependency)
 }
 
+func (b *platformDepsBuilder) addEmptyConstrained(condition label.Label) collections.Set[label.Label] {
+	if _, exists := b.constrained[condition]; !exists {
+		b.constrained[condition] = make(collections.Set[label.Label])
+	}
+	return b.constrained[condition]
+}
+
 func (b *platformDepsBuilder) addConstrained(condition label.Label, dependency label.Label) {
 	b.all.Add(dependency)
-	deps, exists := b.constrained[condition]
-	if !exists {
-		deps = make(collections.Set[label.Label])
-		b.constrained[condition] = deps
-	}
-	deps.Add(dependency)
+	b.addEmptyConstrained(condition).Add(dependency)
 }
 
 // Pseudo-label for Bazel select() function, considered to match if no other
@@ -349,6 +351,9 @@ func (b *platformDepsBuilder) addResolved(dependency label.Label, config *ccConf
 	case !include.isPlatformSpecific:
 		b.addGeneric(dependency)
 	case len(include.platforms) == 0:
+		for _, pc := range config.platforms {
+			b.addEmptyConstrained(pc.constraint)
+		}
 		b.addConstrained(defaultCondition, dependency)
 	default:
 		for platform := range include.platforms.All() {
@@ -369,9 +374,13 @@ func (b *platformDepsBuilder) build() ccPlatformStringsExprs {
 
 	// Do not repeat in select values what is already in generic.
 	for cond, deps := range b.constrained {
-		b.constrained[cond] = deps.Diff(b.generic)
-		if len(b.constrained[cond]) == 0 {
-			delete(b.constrained, cond)
+		// Check len(deps) > 0 to preserve explicit empty lists from being
+		// deleted with delete() in the next step.
+		if len(deps) > 0 {
+			b.constrained[cond] = deps.Diff(b.generic)
+			if len(b.constrained[cond]) == 0 {
+				delete(b.constrained, cond)
+			}
 		}
 	}
 
