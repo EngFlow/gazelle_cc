@@ -4,6 +4,13 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 # gazelle:cc_platform linux x86_64 @platforms//os:linux
 
 cc_library(
+    name = "always_active",
+    srcs = ["always_active.cc"],
+    implementation_deps = ["//lib"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "constrained",
     srcs = ["constrained.cc"],
     implementation_deps = select({
