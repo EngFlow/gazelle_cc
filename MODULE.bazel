@@ -78,6 +78,7 @@ use_repo(
     "compilation_test_package_by_directory",
     "compilation_test_package_by_unit",
     "compilation_test_platforms",
+    "compilation_test_platforms_single",
     "compilation_test_protobuf",
     "compilation_test_protobuf_empty",
     "compilation_test_protobuf_filter_generated",
