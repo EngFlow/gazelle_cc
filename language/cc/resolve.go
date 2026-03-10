@@ -351,7 +351,7 @@ func (b *platformDepsBuilder) addResolved(dependency label.Label, config *ccConf
 	case len(include.platforms) == 0:
 		b.addConstrained(defaultCondition, dependency)
 	default:
-		for _, platform := range include.platforms {
+		for platform := range include.platforms.All() {
 			if platformConfig, exists := config.platforms[platform]; exists {
 				b.addConstrained(platformConfig.constraint, dependency)
 			}

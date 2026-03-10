@@ -93,11 +93,14 @@ func (c *ccLanguage) getFileInfo(
 
 	// Evaluate the directives and search for platform specific include paths
 	// We do it for each enabled platform using it's unique set of macros
-	platformIncludes := map[string][]platform.Platform{}
-	for platform, macros := range platformEnvs {
+	platformIncludes := map[string]collections.Set[platform.Platform]{}
+	for p, macros := range platformEnvs {
 		reachable := sourceInfo.CollectReachableIncludes(macros)
 		for _, include := range reachable {
-			platformIncludes[include.Path] = append(platformIncludes[include.Path], platform)
+			if platformIncludes[include.Path] == nil {
+				platformIncludes[include.Path] = make(collections.Set[platform.Platform])
+			}
+			platformIncludes[include.Path].Add(p)
 		}
 	}
 
