@@ -91,6 +91,8 @@ func (c *ccLanguage) getFileInfo(
 		c.handleReportedError(conf.parsingErrorsMode, fmt.Errorf("%s:%w", filePath, parseErr))
 	}
 
+	// Includes reachable without any platform-specific macros in the
+	// environment
 	defaultIncludes := collections.ToSet(
 		collections.MapSlice(
 			sourceInfo.CollectReachableIncludes(parser.Environment{}),
@@ -113,18 +115,23 @@ func (c *ccLanguage) getFileInfo(
 
 	// Assign all includes found in the directives
 	includeDirectives := sourceInfo.CollectIncludes()
-	includes := make([]ccInclude, len(includeDirectives))
-	for i, include := range sourceInfo.CollectIncludes() {
+	includes := make([]ccInclude, 0, len(includeDirectives))
+	for _, include := range includeDirectives {
 		usedByPlatforms := platformIncludes[include.Path]
+		if len(usedByPlatforms) == 0 && !defaultIncludes.Contains(include.Path) {
+			// Unreachable include, skip it
+			continue
+		}
+
 		isPlatformSpecific := len(usedByPlatforms) < len(platformEnvs) || !defaultIncludes.Contains(include.Path)
-		includes[i] = ccInclude{
+		includes = append(includes, ccInclude{
 			sourceFile:         path.Join(args.Rel, name),
 			lineNumber:         include.LineNumber,
 			path:               path.Clean(include.Path),
 			isSystemInclude:    include.IsSystem,
 			isPlatformSpecific: isPlatformSpecific,
 			platforms:          usedByPlatforms,
-		}
+		})
 	}
 
 	base := path.Base(name)
