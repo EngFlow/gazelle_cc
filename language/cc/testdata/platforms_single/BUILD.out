@@ -27,9 +27,7 @@ cc_library(
     srcs = ["default.cc"],
     implementation_deps = select({
         "@platforms//os:linux": [],
-        "//conditions:default": [
-            "//lib",
-        ],
+        "//conditions:default": ["//lib"],
     }),
     visibility = ["//visibility:public"],
 )

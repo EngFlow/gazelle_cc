@@ -21,6 +21,10 @@ cc_library(
 cc_library(
     name = "only_default",
     srcs = ["only_default.cc"],
-    implementation_deps = ["//lib"],
+    implementation_deps = select({
+        "@platforms//os:linux": [],
+        "@platforms//os:windows": [],
+        "//conditions:default": ["//lib"],
+    }),
     visibility = ["//visibility:public"],
 )
