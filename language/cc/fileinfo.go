@@ -91,31 +91,48 @@ func (c *ccLanguage) getFileInfo(
 		c.handleReportedError(conf.parsingErrorsMode, fmt.Errorf("%s:%w", filePath, parseErr))
 	}
 
+	// Directives reachable without any platform-specific macros
+	defaultIncludes := collections.ToSet(
+		collections.MapSlice(
+			sourceInfo.CollectReachableIncludes(parser.EmptyEnvironment),
+			func(include parser.IncludeDirective) string { return include.Path },
+		),
+	)
+
 	// Evaluate the directives and search for platform specific include paths
 	// We do it for each enabled platform using it's unique set of macros
-	platformIncludes := map[string][]platform.Platform{}
-	for platform, macros := range platformEnvs {
-		reachable := sourceInfo.CollectReachableIncludes(macros)
-		for _, include := range reachable {
-			platformIncludes[include.Path] = append(platformIncludes[include.Path], platform)
+	platformIncludes := map[string]collections.Set[platform.Platform]{}
+	for p, macros := range platformEnvs {
+		for _, include := range sourceInfo.CollectReachableIncludes(macros) {
+			if platforms, ok := platformIncludes[include.Path]; ok {
+				platforms.Add(p)
+			} else {
+				platformIncludes[include.Path] = collections.SetOf(p)
+			}
 		}
 	}
 
 	// Assign all includes found in the directives
-	includeDirectives := sourceInfo.CollectIncludes()
-	includes := make([]ccInclude, len(includeDirectives))
-	for i, include := range sourceInfo.CollectIncludes() {
+	allIncludes := sourceInfo.CollectIncludes()
+	includes := collections.FilterMapSlice(allIncludes, func(include parser.IncludeDirective) (ccInclude, bool) {
+		isUsedByDefault := defaultIncludes.Contains(include.Path)
 		usedByPlatforms := platformIncludes[include.Path]
-		isPlatformSpecific := len(usedByPlatforms) != len(platformEnvs)
-		includes[i] = ccInclude{
+		isNeverUsed := len(usedByPlatforms) == 0 && !isUsedByDefault
+		isAlwaysUsed := len(usedByPlatforms) == len(platformEnvs) && isUsedByDefault
+
+		if isNeverUsed {
+			// Unreachable include, skip it
+			return ccInclude{}, false
+		}
+		return ccInclude{
 			sourceFile:         path.Join(args.Rel, name),
 			lineNumber:         include.LineNumber,
 			path:               path.Clean(include.Path),
 			isSystemInclude:    include.IsSystem,
-			isPlatformSpecific: isPlatformSpecific,
+			isPlatformSpecific: !isAlwaysUsed,
 			platforms:          usedByPlatforms,
-		}
-	}
+		}, true
+	})
 
 	base := path.Base(name)
 	stem := base[:len(base)-len(path.Ext(base))]

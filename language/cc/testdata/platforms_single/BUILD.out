@@ -2,28 +2,31 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 # gazelle:cc_group unit
 # gazelle:cc_platform linux x86_64 @platforms//os:linux
-# gazelle:cc_platform windows x86_64 @platforms//os:windows
 
 cc_library(
-    name = "generic_and_constrained",
-    srcs = ["generic_and_constrained.cc"],
+    name = "always_active",
+    srcs = ["always_active.cc"],
     implementation_deps = ["//lib"],
     visibility = ["//visibility:public"],
 )
 
 cc_library(
-    name = "generic_and_default",
-    srcs = ["generic_and_default.cc"],
-    implementation_deps = ["//lib"],
+    name = "constrained",
+    srcs = ["constrained.cc"],
+    implementation_deps = select({
+        "@platforms//os:linux": [
+            "//lib",
+        ],
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:public"],
 )
 
 cc_library(
-    name = "only_default",
-    srcs = ["only_default.cc"],
+    name = "default",
+    srcs = ["default.cc"],
     implementation_deps = select({
         "@platforms//os:linux": [],
-        "@platforms//os:windows": [],
         "//conditions:default": ["//lib"],
     }),
     visibility = ["//visibility:public"],

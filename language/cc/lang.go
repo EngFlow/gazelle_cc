@@ -67,8 +67,8 @@ type (
 		isSystemInclude bool
 		// Indicates whether include is shared by all platforms or is restricted to specific ones
 		isPlatformSpecific bool
-		// List of platforms that matched the include #if condition. Empty when shared by all platforms or unreachable by any configured platform
-		platforms []platform.Platform
+		// Set of platforms that matched the include #if condition or matched unconditionally
+		platforms collections.Set[platform.Platform]
 	}
 	ccImports struct {
 		// #include directives found in header files, including those listed in "srcs" directories

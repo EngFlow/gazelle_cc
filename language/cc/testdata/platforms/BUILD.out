@@ -101,10 +101,6 @@ cc_library(
         "//platforms/macos_arm": [
             "//select:macos",
         ],
-        "//conditions:default": [
-            "//select:unix",
-            "//select:win",
-            "//shared:api",
-        ],
+        "//conditions:default": [],
     }),
 )
