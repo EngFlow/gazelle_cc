@@ -26,6 +26,8 @@ import (
 // We don't support string/float macro definitions and using them in comparsion expressions
 type Environment map[string]int
 
+var EmptyEnvironment Environment = make(Environment)
+
 func (e Environment) Clone() Environment {
 	return maps.Clone(e)
 }

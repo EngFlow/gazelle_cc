@@ -91,11 +91,10 @@ func (c *ccLanguage) getFileInfo(
 		c.handleReportedError(conf.parsingErrorsMode, fmt.Errorf("%s:%w", filePath, parseErr))
 	}
 
-	// Includes reachable without any platform-specific macros in the
-	// environment
+	// Directives reachable without any platform-specific macros
 	defaultIncludes := collections.ToSet(
 		collections.MapSlice(
-			sourceInfo.CollectReachableIncludes(parser.Environment{}),
+			sourceInfo.CollectReachableIncludes(parser.EmptyEnvironment),
 			func(include parser.IncludeDirective) string { return include.Path },
 		),
 	)
@@ -104,35 +103,36 @@ func (c *ccLanguage) getFileInfo(
 	// We do it for each enabled platform using it's unique set of macros
 	platformIncludes := map[string]collections.Set[platform.Platform]{}
 	for p, macros := range platformEnvs {
-		reachable := sourceInfo.CollectReachableIncludes(macros)
-		for _, include := range reachable {
-			if platformIncludes[include.Path] == nil {
-				platformIncludes[include.Path] = make(collections.Set[platform.Platform])
+		for _, include := range sourceInfo.CollectReachableIncludes(macros) {
+			if platforms, ok := platformIncludes[include.Path]; ok {
+				platforms.Add(p)
+			} else {
+				platformIncludes[include.Path] = collections.SetOf(p)
 			}
-			platformIncludes[include.Path].Add(p)
 		}
 	}
 
 	// Assign all includes found in the directives
-	includeDirectives := sourceInfo.CollectIncludes()
-	includes := make([]ccInclude, 0, len(includeDirectives))
-	for _, include := range includeDirectives {
+	allIncludes := sourceInfo.CollectIncludes()
+	includes := collections.FilterMapSlice(allIncludes, func(include parser.IncludeDirective) (ccInclude, bool) {
+		isUsedByDefault := defaultIncludes.Contains(include.Path)
 		usedByPlatforms := platformIncludes[include.Path]
-		if len(usedByPlatforms) == 0 && !defaultIncludes.Contains(include.Path) {
-			// Unreachable include, skip it
-			continue
-		}
+		isNeverUsed := len(usedByPlatforms) == 0 && !isUsedByDefault
+		isAlwaysUsed := len(usedByPlatforms) == len(platformEnvs) && isUsedByDefault
 
-		isPlatformSpecific := len(usedByPlatforms) < len(platformEnvs) || !defaultIncludes.Contains(include.Path)
-		includes = append(includes, ccInclude{
+		if isNeverUsed {
+			// Unreachable include, skip it
+			return ccInclude{}, false
+		}
+		return ccInclude{
 			sourceFile:         path.Join(args.Rel, name),
 			lineNumber:         include.LineNumber,
 			path:               path.Clean(include.Path),
 			isSystemInclude:    include.IsSystem,
-			isPlatformSpecific: isPlatformSpecific,
+			isPlatformSpecific: !isAlwaysUsed,
 			platforms:          usedByPlatforms,
-		})
-	}
+		}, true
+	})
 
 	base := path.Base(name)
 	stem := base[:len(base)-len(path.Ext(base))]
