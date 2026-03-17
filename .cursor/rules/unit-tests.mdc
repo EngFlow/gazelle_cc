@@ -1,0 +1,26 @@
+---
+description: How to run and write unit tests in this project
+globs: **/*_test.go
+---
+# Unit tests
+
+## Running tests
+
+- Use the command `bazel test //...` to run all tests.
+- `example/` directory contains slow end-to-end tests that can only be run manually by the `.github/workflows/test_e2e.sh` script.
+
+## Adding unit tests
+
+- For testing generic logic add/update `*_test.go` file.
+- Test files must be wrapped with `go_test` Bazel rule. Use the same Go package as the tested Go library. Place the tested `go_library` dependency under the `"embed"` attribute of `go_test`.
+- Prefer using [assert](https://pkg.go.dev/github.com/stretchr/testify/assert) and [require](https://pkg.go.dev/github.com/stretchr/testify/require) packages to raw [`testing.T.Fail`](https://pkg.go.dev/testing#T.Fail) calls.
+- Use [`testing.T.Run`](https://pkg.go.dev/testing#T.Run) to associate test cases with their descriptions.
+- Organize test cases within a `Test*` function into a slice of structs:
+```go
+testCases := []struct {
+    description string
+    // test case args ...
+} {
+    // ...
+}
+```

@@ -1,6 +1,6 @@
 ---
 description: Code style and structure guidelines for this project
-alwaysApply: true
+globs: **/*.go
 ---
 # Code style guidelines
 
