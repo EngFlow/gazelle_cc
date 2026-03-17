@@ -220,44 +220,42 @@ func expandGlob(config *config.Config, pkg string, glob rule.GlobValue) ([]strin
 	excludePatterns := validatedPatterns(glob.Excludes)
 
 	// Traverse the file tree using walk.GetDirInfo and collect all matching files
-	var matched_files []string
+	var matched []string
 	var traverse func(string)
 	traverse = func(current_subdir string) {
 		di, err := walk.GetDirInfo(current_subdir)
 		if err != nil {
 			return // swallow errors
 		}
+
+		// When walking the subdirectories, we need to exclude dirs containing BUILD files
 		if current_subdir != pkg && slices.ContainsFunc(di.RegularFiles, config.IsValidBuildFileName) {
-			// When walking the subdirectories, we need to exclude dirs containg BUILD files
 			return // BUILD file found, stop walking
 		}
-		for _, file := range di.RegularFiles {
-			pkg_relative_subdir, err := filepath.Rel(pkg, current_subdir)
-			if err != nil {
-				log.Panicf("gazelle_cc: failed to get relative path of %s to %s: %v", current_subdir, pkg, err)
-			}
-			matched_file := filepath.Join(pkg_relative_subdir, file)
-			// Check matches include pattern
-			if !slices.ContainsFunc(
-				includePatterns,
-				func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, matched_file) },
-			) {
-				continue // not included
-			}
-			// Check matched exclude pattern
-			if slices.ContainsFunc(
-				excludePatterns,
-				func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, matched_file) },
-			) {
-				continue // excluded
-			}
-			matched_files = append(matched_files, matched_file)
+
+		pkg_relative_subdir, err := filepath.Rel(pkg, current_subdir)
+		if err != nil {
+			log.Panicf("gazelle_cc: failed to get relative path of %s to %s: %v", current_subdir, pkg, err)
 		}
+
+		matched = slices.Grow(matched, len(di.RegularFiles))
+		for _, file := range di.RegularFiles {
+			pkg_relative_file := filepath.Join(pkg_relative_subdir, file)
+			matcher := func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, pkg_relative_file) }
+			if slices.ContainsFunc(includePatterns, matcher) && !slices.ContainsFunc(excludePatterns, matcher) {
+				matched = append(matched, pkg_relative_file)
+			}
+		}
+
+		// Traverse the subdirectories
 		for _, subdir := range di.Subdirs {
 			traverse(filepath.Join(current_subdir, subdir))
 		}
 	}
+
+	// Start traversal from the package directory
 	traverse(pkg)
-	sort.Strings(matched_files)
-	return matched_files, nil
+
+	sort.Strings(matched)
+	return matched, nil
 }
