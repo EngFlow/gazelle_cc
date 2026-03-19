@@ -19,7 +19,7 @@ runs:
   using: 'composite'
   steps:
     - name: Bazel server cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ runner.os == 'Linux' && '/home/runner/.cache/bazel' || '/Users/runner/Library/Caches/Bazel' }}
         # Richer hash than disk cache: server cache has no history, so it
@@ -36,7 +36,7 @@ runs:
         restore-keys: |
           bazel-${{ runner.os }}-${{ inputs.bazel-version }}-${{ inputs.bazelrc }}-
     - name: Bazel disk cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ runner.os == 'Linux' && '/home/runner/.bazel-disk-cache' || '/Users/runner/.bazel-disk-cache' }}
         key: >-
