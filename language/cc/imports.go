@@ -233,19 +233,20 @@ func expandGlob(config *config.Config, pkg string, glob rule.GlobValue) ([]strin
 			return // BUILD file found, stop walking
 		}
 
-		pkg_relative_subdir, err := filepath.Rel(pkg, current_subdir)
+		pkgRelativeSubdir, err := filepath.Rel(pkg, current_subdir)
 		if err != nil {
 			log.Panicf("gazelle_cc: failed to get relative path of %s to %s: %v", current_subdir, pkg, err)
 		}
 
-		matched = slices.Grow(matched, len(di.RegularFiles))
-		for _, file := range di.RegularFiles {
-			pkg_relative_file := filepath.Join(pkg_relative_subdir, file)
-			matcher := func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, pkg_relative_file) }
-			if slices.ContainsFunc(includePatterns, matcher) && !slices.ContainsFunc(excludePatterns, matcher) {
-				matched = append(matched, pkg_relative_file)
-			}
+		fileMatcher := func(file string) (pkgRelativeFile string, ok bool) {
+			pkgRelativeFile = filepath.Join(pkgRelativeSubdir, file)
+			globMatcher := func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, pkgRelativeFile) }
+			ok = slices.ContainsFunc(includePatterns, globMatcher) && !slices.ContainsFunc(excludePatterns, globMatcher)
+			return
 		}
+
+		matched = slices.Grow(matched, len(di.RegularFiles))
+		matched = slices.AppendSeq(matched, collections.FilterMapSeq(slices.Values(di.RegularFiles), fileMatcher))
 
 		// Traverse the subdirectories
 		for _, subdir := range di.Subdirs {
