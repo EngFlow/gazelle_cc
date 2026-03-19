@@ -2,6 +2,8 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
   name = "library_with_build",
-  hdrs = glob(["*.h"]),
+  hdrs = glob(["**/*.h"]),
+  include_prefix = "include/with_build",
+  strip_include_prefix = "subdir",
   visibility = ["//visibility:public"],
 )
