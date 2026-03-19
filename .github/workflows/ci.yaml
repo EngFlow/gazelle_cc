@@ -30,6 +30,7 @@ jobs:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
       BAZELRC: ${{ matrix.custom-bazelrc }}
     steps:
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bazel-cache
         id: bazel-cache
         with:
@@ -56,6 +57,7 @@ jobs:
       run:
         working-directory: "example/bzlmod"
     steps:
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bazel-cache
         id: bazel-cache
         with:
@@ -94,4 +96,4 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - run: ./scripts/license_check.sh 
+      - run: ./scripts/license_check.sh
