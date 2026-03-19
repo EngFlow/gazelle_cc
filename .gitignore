@@ -1,6 +1,8 @@
 # Build / tooling
-bazel-*
-sandbox/*
+/bazel-*
+/example/bzlmod/bazel-*
+/example/workspace/bazel-*
+/sandbox/*
 .cache
 .scala-build
 .metals

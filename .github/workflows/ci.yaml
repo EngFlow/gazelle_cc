@@ -30,16 +30,21 @@ jobs:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
       BAZELRC: ${{ matrix.custom-bazelrc }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/bazel-cache
+        id: bazel-cache
+        with:
+          bazel-version: ${{ matrix.bazel-version }}
+          bazelrc: ${{ matrix.custom-bazelrc }}
       - name: Build
         run: |
-          bazel build //...
+          bazel build ${{ steps.bazel-cache.outputs.disk-cache-flags }} //...
       - name: Test
         run: |
-          bazel test --test_output=errors //...
+          bazel test --test_output=errors ${{ steps.bazel-cache.outputs.disk-cache-flags }} //...
 
   # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
-  bcr_test_module:
+  bcr-test-module:
     strategy:
       matrix:
         os: [ubuntu-24.04, macos-26]
@@ -52,37 +57,43 @@ jobs:
       run:
         working-directory: "example/bzlmod"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/bazel-cache
+        id: bazel-cache
+        with:
+          bazel-version: ${{ matrix.bazel-version || '.bazelversion' }}
       - name: Run Gazelle
-        run: "bazel run //:gazelle"
+        run: "bazel run ${{ steps.bazel-cache.outputs.disk-cache-flags }} //:gazelle"
       - name: Build
-        run: "bazel build //..."
+        run: "bazel build ${{ steps.bazel-cache.outputs.disk-cache-flags }} //..."
       - name: Test
-        run: "bazel test //..."
+        run: "bazel test ${{ steps.bazel-cache.outputs.disk-cache-flags }} //..."
 
   test-indexers:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4
-    - name: Install Conan
-      run: |
-        python3 -m pip install --upgrade pip
-        pip install conan
-    - name: Execute manual integration tests
-      run: bazel test --test_output=errors //index:integration_tests
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/bazel-cache
+        id: bazel-cache
+      - name: Install Conan
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install conan
+      - name: Execute manual integration tests
+        run: bazel test --test_output=errors ${{ steps.bazel-cache.outputs.disk-cache-flags }} //index:integration_tests
           
   test-e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4  
-    - name: Execute end to end tests
-      run: bash .github/workflows/test_e2e.sh
+      - uses: actions/checkout@v6
+      - name: Execute end to end tests
+        run: bash .github/workflows/test_e2e.sh
           
   license-headers:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - run: ./scripts/license_check.sh 
+      - uses: actions/checkout@v6
+      - run: ./scripts/license_check.sh
