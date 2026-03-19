@@ -176,7 +176,7 @@ func transformIncludePath(libRel, stripIncludePrefix, includePrefix, hdrRel stri
 // If the attribute is a list of strings, it returns the list. If the attribute
 // is a glob, it expands the glob patterns relative to dir and returns the
 // resulting paths.
-func readListOrGlob(config *config.Config, r *rule.Rule, dir, attrName string) ([]string, error) {
+func readListOrGlob(config *config.Config, r *rule.Rule, pkg, attrName string) ([]string, error) {
 	// Fast path: plain list of strings in the BUILD file.
 	if ss := r.AttrStrings(attrName); ss != nil {
 		return ss, nil
@@ -187,7 +187,7 @@ func readListOrGlob(config *config.Config, r *rule.Rule, dir, attrName string) (
 		return nil, nil
 	}
 	if globValue, ok := rule.ParseGlobExpr(expr); ok {
-		return expandGlob(config, dir, globValue)
+		return expandGlob(config, pkg, globValue)
 	}
 	return nil, nil
 }
@@ -198,7 +198,7 @@ func readListOrGlob(config *config.Config, r *rule.Rule, dir, attrName string) (
 // are sorted in lexicographical order. It does not use I/O, it uses cached
 // directory info obtained from walk.GetDirInfo so it might panic if the
 // directory was not walked before.
-func expandGlob(config *config.Config, dir string, glob rule.GlobValue) ([]string, error) {
+func expandGlob(config *config.Config, pkg string, glob rule.GlobValue) ([]string, error) {
 	if len(glob.Patterns) == 0 {
 		return nil, nil
 	}
@@ -220,42 +220,43 @@ func expandGlob(config *config.Config, dir string, glob rule.GlobValue) ([]strin
 	excludePatterns := validatedPatterns(glob.Excludes)
 
 	// Traverse the file tree using walk.GetDirInfo and collect all matching files
-	matched := []string{}
+	var matched []string
 	var traverse func(string)
-	traverse = func(relativePath string) {
-		di, err := walk.GetDirInfo(relativePath)
+	traverse = func(current_subdir string) {
+		di, err := walk.GetDirInfo(current_subdir)
 		if err != nil {
 			return // swallow errors
 		}
-		if relativePath != "" {
-			// When walking the subdirectories, we need to exclude dirs containg BUILD files
-			if slices.ContainsFunc(di.RegularFiles, config.IsValidBuildFileName) {
-				return // BUILD file found, stop walking
-			}
+
+		// When walking the subdirectories, we need to exclude dirs containing BUILD files
+		if current_subdir != pkg && slices.ContainsFunc(di.RegularFiles, config.IsValidBuildFileName) {
+			return // BUILD file found, stop walking
 		}
-		for _, file := range di.RegularFiles {
-			path := filepath.Join(relativePath, file)
-			// Check matches include pattern
-			if !slices.ContainsFunc(
-				includePatterns,
-				func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, path) },
-			) {
-				continue // not included
-			}
-			// Check matched exclude pattern
-			if slices.ContainsFunc(
-				excludePatterns,
-				func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, path) },
-			) {
-				continue // excluded
-			}
-			matched = append(matched, path)
+
+		pkgRelativeSubdir, err := filepath.Rel(pkg, current_subdir)
+		if err != nil {
+			log.Panicf("gazelle_cc: failed to get relative path of %s to %s: %v", current_subdir, pkg, err)
 		}
-		for _, dir := range di.Subdirs {
-			traverse(filepath.Join(relativePath, dir))
+
+		fileMatcher := func(file string) (pkgRelativeFile string, ok bool) {
+			pkgRelativeFile = filepath.Join(pkgRelativeSubdir, file)
+			globMatcher := func(pattern string) bool { return doublestar.MatchUnvalidated(pattern, pkgRelativeFile) }
+			ok = slices.ContainsFunc(includePatterns, globMatcher) && !slices.ContainsFunc(excludePatterns, globMatcher)
+			return
+		}
+
+		matched = slices.Grow(matched, len(di.RegularFiles))
+		matched = slices.AppendSeq(matched, collections.FilterMapSeq(slices.Values(di.RegularFiles), fileMatcher))
+
+		// Traverse the subdirectories
+		for _, subdir := range di.Subdirs {
+			traverse(filepath.Join(current_subdir, subdir))
 		}
 	}
-	traverse(dir)
+
+	// Start traversal from the package directory
+	traverse(pkg)
+
 	sort.Strings(matched)
 	return matched, nil
 }
