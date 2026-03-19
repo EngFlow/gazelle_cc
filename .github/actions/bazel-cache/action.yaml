@@ -1,13 +1,11 @@
 name: Checkout Bazel server and disk caches
 inputs:
   bazel-version:
-    description: Used custom bazel version or .bazelversion file
+    description: Used custom bazel version (or .bazelversion if empty)
     required: false
-    default: '.bazelversion'
   bazelrc:
-    description: Used custom rc file or .bazelrc file
+    description: Used custom rc file (or .bazelrc if empty)
     required: false
-    default: '.bazelrc'
   disk-cache-max-size:
     description: Max size for disk cache GC (e.g. 5G)
     required: false
@@ -18,6 +16,9 @@ outputs:
     value: ${{ steps.set-flags.outputs.disk-cache-flags }}
 runs:
   using: 'composite'
+  env:
+    BAZEL_VERSION: ${{ inputs.bazel-version || '.bazelversion' }}
+    BAZELRC: ${{ inputs.bazelrc || '.bazelrc' }}
   steps:
     - name: Bazel server cache
       uses: actions/cache@v5
@@ -30,12 +31,17 @@ runs:
           ${{format(
             'bazel-{0}-{1}-{2}-{3}',
             runner.os,
-            inputs.bazel-version,
-            inputs.bazelrc,
+            env.BAZEL_VERSION,
+            env.BAZELRC,
             hashFiles('**/BUILD', '**/BUILD.bazel', '**/*.bzl', 'MODULE.bazel', '.bazelversion', '.bazelrc*')
           )}}
         restore-keys: |
-          bazel-${{ runner.os }}-${{ inputs.bazel-version }}-${{ inputs.bazelrc }}-
+          ${{format(
+            'bazel-{0}-{1}-{2}-',
+            runner.os,
+            env.BAZEL_VERSION,
+            env.BAZELRC
+          )}}
     - name: Bazel disk cache
       uses: actions/cache@v5
       with:
@@ -44,11 +50,11 @@ runs:
           ${{format(
             'bazel-disk-{0}-{1}-{2}',
             runner.os,
-            inputs.bazel-version,
-            inputs.bazelrc
+            env.BAZEL_VERSION,
+            env.BAZELRC
           )}}
     - name: Set disk cache flags output
       id: set-flags
       run: |
-        echo -n "disk-cache-flags=--disk_cache=$HOME/.bazel-disk-cache --experimental_disk_cache_gc_max_size=${{ inputs.disk-cache-max-size }}" >> "$GITHUB_OUTPUT"
+        echo "disk-cache-flags=--disk_cache=$HOME/.bazel-disk-cache --experimental_disk_cache_gc_max_size=${{ inputs.disk-cache-max-size }}" >> "$GITHUB_OUTPUT"
       shell: bash
