@@ -1,6 +1,6 @@
 ---
 description: What's the build structure of the project and how to traverse through the code
-alwaysApply: true
+globs: **/*.bzl,**/*.bazel,**/BUILD,**/WORKSPACE
 ---
 # Build structure
 
