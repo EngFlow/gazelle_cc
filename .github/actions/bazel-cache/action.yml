@@ -29,12 +29,12 @@ runs:
           ${{format(
             'bazel-{0}-{1}-{2}-{3}',
             runner.os,
-            inputs.bazel-version,
+            inputs['bazel-version'],
             inputs.bazelrc,
             hashFiles('**/BUILD', '**/BUILD.bazel', '**/*.bzl', 'MODULE.bazel', '.bazelversion', '.bazelrc*')
           )}}
         restore-keys: |
-          bazel-${{ runner.os }}-${{ inputs.bazel-version }}-${{ inputs.bazelrc }}-
+          bazel-${{ runner.os }}-${{ inputs['bazel-version'] }}-${{ inputs.bazelrc }}-
     - name: Bazel disk cache
       uses: actions/cache@v5
       with:
@@ -43,10 +43,10 @@ runs:
           ${{format(
             'bazel-disk-{0}-{1}-{2}',
             runner.os,
-            inputs.bazel-version,
+            inputs['bazel-version'],
             inputs.bazelrc
           )}}
     - name: Set disk cache flags output
       run: |
-        echo -n "disk-cache-flags=--disk_cache=$HOME/.bazel-disk-cache --experimental_disk_cache_gc_max_size=${{ inputs.disk-cache-max-size }}" >> "$GITHUB_OUTPUT"
+        echo -n "disk-cache-flags=--disk_cache=$HOME/.bazel-disk-cache --experimental_disk_cache_gc_max_size=${{ inputs['disk-cache-max-size'] }}" >> "$GITHUB_OUTPUT"
       shell: bash
