@@ -1,6 +1,19 @@
+# Build / tooling
 bazel-*
 sandbox/*
 .cache
 .scala-build
 .metals
 .bsp
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Editor backup / swap
+*~
+*.swp
+*.swo
