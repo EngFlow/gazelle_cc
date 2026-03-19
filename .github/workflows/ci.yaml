@@ -29,19 +29,28 @@ jobs:
     env:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
       BAZELRC: ${{ matrix.custom-bazelrc }}
+      BAZEL_DISK_CACHE_MAX_SIZE: 5G
+      BAZEL_DISK_CACHE_FLAGS: --disk_cache=$HOME/.bazel-disk-cache --experimental_disk_cache_gc_max_size=$BAZEL_DISK_CACHE_MAX_SIZE
     steps:
       - uses: actions/checkout@v4
-      - name: Cache Bazel
+      - name: Bazel server cache
         uses: actions/cache@v4
         with:
           path: ${{ runner.os == 'Linux' && '/home/runner/.cache/bazel' || '/Users/runner/Library/Caches/Bazel' }}
-          key: bazel-${{ runner.os }}-${{ matrix.bazel-version }}-${{ matrix.custom-bazelrc || 'default' }}
+          key: bazel-${{ runner.os }}-${{ matrix.bazel-version }}-${{ matrix.custom-bazelrc || 'default' }}-${{ hashFiles('**/BUILD', '**/BUILD.bazel', '**/*.bzl', 'MODULE.bazel', '.bazelversion', '.bazelrc*') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-${{ matrix.bazel-version }}-${{ matrix.custom-bazelrc || 'default' }}-
+      - name: Bazel disk cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.os == 'Linux' && '/home/runner/.bazel-disk-cache' || '/Users/runner/.bazel-disk-cache' }}
+          key: bazel-disk-${{ runner.os }}-${{ matrix.bazel-version }}-${{ matrix.custom-bazelrc || 'default' }}
       - name: Build
         run: |
-          bazel build //...
+          bazel build ${{ env.BAZEL_DISK_CACHE_FLAGS }} //...
       - name: Test
         run: |
-          bazel test --test_output=errors //...
+          bazel test --test_output=errors ${{ env.BAZEL_DISK_CACHE_FLAGS }} //...
 
   # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
   bcr_test_module:
@@ -69,21 +78,21 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4
-    - name: Install Conan
-      run: |
-        python3 -m pip install --upgrade pip
-        pip install conan
-    - name: Execute manual integration tests
-      run: bazel test --test_output=errors //index:integration_tests
+      - uses: actions/checkout@v4
+      - name: Install Conan
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install conan
+      - name: Execute manual integration tests
+        run: bazel test --test_output=errors //index:integration_tests
           
   test-e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4  
-    - name: Execute end to end tests
-      run: bash .github/workflows/test_e2e.sh
+      - uses: actions/checkout@v4
+      - name: Execute end to end tests
+        run: bash .github/workflows/test_e2e.sh
           
   license-headers:
     runs-on: ubuntu-24.04
