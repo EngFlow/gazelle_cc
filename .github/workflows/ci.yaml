@@ -29,28 +29,18 @@ jobs:
     env:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
       BAZELRC: ${{ matrix.custom-bazelrc }}
-      BAZEL_DISK_CACHE_MAX_SIZE: 5G
-      BAZEL_DISK_CACHE_FLAGS: --disk_cache=$HOME/.bazel-disk-cache --experimental_disk_cache_gc_max_size=$BAZEL_DISK_CACHE_MAX_SIZE
     steps:
-      - uses: actions/checkout@v4
-      - name: Bazel server cache
-        uses: actions/cache@v4
+      - uses: ./.github/actions/bazel-cache
+        id: bazel-cache
         with:
-          path: ${{ runner.os == 'Linux' && '/home/runner/.cache/bazel' || '/Users/runner/Library/Caches/Bazel' }}
-          key: bazel-${{ runner.os }}-${{ matrix.bazel-version }}-${{ matrix.custom-bazelrc || 'default' }}-${{ hashFiles('**/BUILD', '**/BUILD.bazel', '**/*.bzl', 'MODULE.bazel', '.bazelversion', '.bazelrc*') }}
-          restore-keys: |
-            bazel-${{ runner.os }}-${{ matrix.bazel-version }}-${{ matrix.custom-bazelrc || 'default' }}-
-      - name: Bazel disk cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.os == 'Linux' && '/home/runner/.bazel-disk-cache' || '/Users/runner/.bazel-disk-cache' }}
-          key: bazel-disk-${{ runner.os }}-${{ matrix.bazel-version }}-${{ matrix.custom-bazelrc || 'default' }}
+          bazel-version: ${{ matrix.bazel-version }}
+          bazelrc: ${{ matrix.custom-bazelrc }}
       - name: Build
         run: |
-          bazel build ${{ env.BAZEL_DISK_CACHE_FLAGS }} //...
+          bazel build ${{ steps.bazel-cache.outputs.disk-cache-flags }} //...
       - name: Test
         run: |
-          bazel test --test_output=errors ${{ env.BAZEL_DISK_CACHE_FLAGS }} //...
+          bazel test --test_output=errors ${{ steps.bazel-cache.outputs.disk-cache-flags }} //...
 
   # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
   bcr_test_module:
@@ -66,25 +56,29 @@ jobs:
       run:
         working-directory: "example/bzlmod"
     steps:
-      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bazel-cache
+        id: bazel-cache
+        with:
+          bazel-version: ${{ matrix.bazel-version || '.bazelversion' }}
       - name: Run Gazelle
-        run: "bazel run //:gazelle"
+        run: "bazel run ${{ steps.bazel-cache.outputs.disk-cache-flags }} //:gazelle"
       - name: Build
-        run: "bazel build //..."
+        run: "bazel build ${{ steps.bazel-cache.outputs.disk-cache-flags }} //..."
       - name: Test
-        run: "bazel test //..."
+        run: "bazel test ${{ steps.bazel-cache.outputs.disk-cache-flags }} //..."
 
   test-indexers:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bazel-cache
+        id: bazel-cache
       - name: Install Conan
         run: |
           python3 -m pip install --upgrade pip
           pip install conan
       - name: Execute manual integration tests
-        run: bazel test --test_output=errors //index:integration_tests
+        run: bazel test --test_output=errors ${{ steps.bazel-cache.outputs.disk-cache-flags }} //index:integration_tests
           
   test-e2e:
     runs-on: ubuntu-24.04
