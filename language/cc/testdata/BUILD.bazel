@@ -38,7 +38,7 @@ COMPILABLE_TEST_DIRS = [paths.dirname(p) for p in glob(
         "cycle-in-existing-units_no_merge/**",
         "deps_external/**",
         "deps_index/**",
-        "index_globs/**",
+        "index_globs_excluded/**",
         "kind_name_collisions/**",
 
         # Sources with syntax errors won't compile.

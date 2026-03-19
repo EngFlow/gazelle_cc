@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
 # gazelle:cc_group unit
 
 cc_library(
@@ -5,6 +7,7 @@ cc_library(
   hdrs = glob(
     ["include/**/*.h"],
     ["include/private/*.h"]),
+  visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -13,4 +16,5 @@ cc_library(
       include = ["include/private/*.h"],
       exclude = ["include/**/excluded_*.h"]
     ),
+    visibility = ["//visibility:public"],
 )

@@ -1,12 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
-    name = "usage_excluded",
-    srcs = ["usage_excluded.cc"],
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
     name = "usage_lib",
     srcs = ["usage_lib.cc"],
     implementation_deps = ["//:library"],

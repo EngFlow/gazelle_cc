@@ -62,7 +62,7 @@ use_repo(
     "compilation_test_include_prefix_unit_group",
     "compilation_test_includes",
     "compilation_test_index_globs",
-    "compilation_test_index_globs_compilable",
+    "compilation_test_index_globs_excluded",
     "compilation_test_keep-assigned-groups",
     "compilation_test_keep_deps",
     "compilation_test_kind_name_collisions",
