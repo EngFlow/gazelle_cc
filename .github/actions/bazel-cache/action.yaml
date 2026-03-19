@@ -13,7 +13,7 @@ inputs:
     required: false
     default: '5G'
 outputs:
-  disk-cache-flags:
+  disk_cache_flags:
     description: Bazel flags for disk cache (use in bazel build/test)
 runs:
   using: 'composite'
@@ -48,5 +48,5 @@ runs:
           )}}
     - name: Set disk cache flags output
       run: |
-        echo -n "disk-cache-flags=--disk_cache=$HOME/.bazel-disk-cache --experimental_disk_cache_gc_max_size=${{ inputs['disk-cache-max-size'] }}" >> "$GITHUB_OUTPUT"
+        echo -n "disk_cache_flags=--disk_cache=$HOME/.bazel-disk-cache --experimental_disk_cache_gc_max_size=${{ inputs['disk-cache-max-size'] }}" >> "$GITHUB_OUTPUT"
       shell: bash

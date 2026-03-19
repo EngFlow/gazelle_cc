@@ -38,10 +38,10 @@ jobs:
           bazelrc: ${{ matrix['custom-bazelrc'] }}
       - name: Build
         run: |
-          bazel build ${{ steps['bazel-cache'].outputs['disk-cache-flags'] }} //...
+          bazel build ${{ steps['bazel-cache'].outputs.disk_cache_flags }} //...
       - name: Test
         run: |
-          bazel test --test_output=errors ${{ steps['bazel-cache'].outputs['disk-cache-flags'] }} //...
+          bazel test --test_output=errors ${{ steps['bazel-cache'].outputs.disk_cache_flags }} //...
 
   # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
   bcr_test_module:
@@ -63,11 +63,11 @@ jobs:
         with:
           bazel-version: ${{ matrix['bazel-version'] || '.bazelversion' }}
       - name: Run Gazelle
-        run: "bazel run ${{ steps['bazel-cache'].outputs['disk-cache-flags'] }} //:gazelle"
+        run: "bazel run ${{ steps['bazel-cache'].outputs.disk_cache_flags }} //:gazelle"
       - name: Build
-        run: "bazel build ${{ steps['bazel-cache'].outputs['disk-cache-flags'] }} //..."
+        run: "bazel build ${{ steps['bazel-cache'].outputs.disk_cache_flags }} //..."
       - name: Test
-        run: "bazel test ${{ steps['bazel-cache'].outputs['disk-cache-flags'] }} //..."
+        run: "bazel test ${{ steps['bazel-cache'].outputs.disk_cache_flags }} //..."
 
   test-indexers:
     runs-on: ubuntu-24.04
@@ -81,7 +81,7 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install conan
       - name: Execute manual integration tests
-        run: bazel test --test_output=errors ${{ steps['bazel-cache'].outputs['disk-cache-flags'] }} //index:integration_tests
+        run: bazel test --test_output=errors ${{ steps['bazel-cache'].outputs.disk_cache_flags }} //index:integration_tests
           
   test-e2e:
     runs-on: ubuntu-24.04
