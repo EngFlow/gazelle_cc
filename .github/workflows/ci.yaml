@@ -27,6 +27,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Set up authentication
+        shell: bash
+        run: "cp .bazelrc.ci .bazelrc.user"
       - name: Test
         run: |
           bazel test --test_output=errors --config=engflow --config=remote_macos_arm64 //...
@@ -53,6 +56,9 @@ jobs:
       BAZELRC: ${{ matrix.custom-bazelrc }}
     steps:
       - uses: actions/checkout@v4
+      - name: Set up authentication
+        shell: bash
+        run: "cp .bazelrc.ci .bazelrc.user"
       - name: Test
         run: |
           bazel test --test_output=errors --config=engflow --config=remote_macos_arm64 //...
@@ -81,6 +87,9 @@ jobs:
         working-directory: "example/bzlmod"
     steps:
       - uses: actions/checkout@v4
+      - name: Set up authentication
+        shell: bash
+        run: "cp .bazelrc.ci .bazelrc.user"
       - name: Run Gazelle
         run: "bazel run --config=engflow --config=remote_macos_arm64 //:gazelle"
       - name: Build
@@ -109,6 +118,9 @@ jobs:
         working-directory: "example/bzlmod"
     steps:
       - uses: actions/checkout@v4
+      - name: Set up authentication
+        shell: bash
+        run: "cp .bazelrc.ci .bazelrc.user"
       - name: Run Gazelle
         run: "bazel run --config=engflow --config=remote_linux_x64 //:gazelle"
       - name: Build
@@ -128,6 +140,9 @@ jobs:
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v4
+    - name: Set up authentication
+      shell: bash
+      run: "cp .bazelrc.ci .bazelrc.user"
     - name: Install Conan
       run: |
         python3 -m pip install --upgrade pip
@@ -147,6 +162,9 @@ jobs:
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v4  
+    - name: Set up authentication
+      shell: bash
+      run: "cp .bazelrc.ci .bazelrc.user"
     - name: Execute end to end tests
       run: bash .github/workflows/test_e2e.sh
           
