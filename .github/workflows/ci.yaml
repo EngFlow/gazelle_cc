@@ -10,42 +10,96 @@ concurrency:
   group: ci-${{ github.head_ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
+# Recommended here: https://github.com/bazelbuild/bazelisk/issues/88#issuecomment-625178467
+env:
+  BAZELISK_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  OPAL_RPC_CREDENTIALS: ${{ secrets.OPAL_RPC_CREDENTIALS }}  
+
 jobs:
-  build:
+  build_macos:
+    runs-on:
+      - "self-hosted"
+      - "os=macos"
+      - "arch=arm64"
+      - "os_distribution=sonoma"
+      - "os_version=14"
+      - "revision=c12cc4655257fcf7da86fe06e87542b7e6814a1f"
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: |
+          bazel test --test_output=errors --config=engflow --config=remote_macos_arm64 //...
+
+  build_linux:
+    runs-on:
+      - "self-hosted"
+      - "os=linux"
+      - "arch=x64"
+      - "engflow-container-image=docker://645088952840.dkr.ecr.eu-west-1.amazonaws.com/engflow-ci/debian11-dind-x64@sha256:a0f386162b6498b9220a33f33f158fd175d2873ddd6ed30ca67aa33915850e1e"
+      - "engflow-pool=ci_sysbox_x64"
+      - "engflow-runtime=sysbox-runc"
+      - "engflow-runner-id=${{ github.repository_id }}_ci-runners-test-matrix_${{ github.run_id }}_${{ github.run_number }}_${{ github.run_attempt }}"
+    timeout-minutes: 10
     strategy:
-      # Keep in sync with configurations in .bcr/presubmit.yml. We cannot run
-      # those tests in CI: they are post-release only. So we need to cover the
-      # same configurations here.
+      fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-26]
-        # "" means use the version in .bazelversion. Add 8.x if that changes.
         bazel-version: ["", "7.x", "last_rc"]
         include:
-          # TODO #197: Turn on compilation tests again
           - bazel-version: "last_rc"
             custom-bazelrc: ".bazelrc-9"
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
     env:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
       BAZELRC: ${{ matrix.custom-bazelrc }}
     steps:
       - uses: actions/checkout@v4
-      - name: Build
-        run: |
-          bazel build //...
       - name: Test
         run: |
-          bazel test --test_output=errors //...
+          bazel test --test_output=errors --config=engflow --config=remote_macos_arm64 //...
 
-  # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
-  bcr_test_module:
+  # Imitate the BCR test in .bcr/presubmit.yml.
+  # Keep in sync with configurations in .bcr/presubmit.yml. We cannot run
+  # those tests in CI: they are post-release only. So we need to cover the
+  # same configurations here.
+  bcr_test_module_macos:
+    runs-on:
+      - "self-hosted"
+      - "os=macos"
+      - "arch=arm64"
+      - "os_distribution=sonoma"
+      - "os_version=14"
+      - "revision=c12cc4655257fcf7da86fe06e87542b7e6814a1f"
+    timeout-minutes: 10
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-26]
         bazel-version: ["7.*", "8.*", "9.*"]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    env:
+      USE_BAZEL_VERSION: "${{ matrix.bazel-version }}"
+    defaults:
+      run:
+        working-directory: "example/bzlmod"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Gazelle
+        run: "bazel run --config=engflow --config=remote_macos_arm64 //:gazelle"
+      - name: Build
+        run: "bazel build --config=engflow --config=remote_macos_arm64 //..."
+      - name: Test
+        run: "bazel test --config=engflow --config=remote_macos_arm64 //..."
+
+  bcr_test_module_linux:
+    runs-on:
+      - "self-hosted"
+      - "os=linux"
+      - "arch=x64"
+      - "engflow-container-image=docker://645088952840.dkr.ecr.eu-west-1.amazonaws.com/engflow-ci/debian11-dind-x64@sha256:a0f386162b6498b9220a33f33f158fd175d2873ddd6ed30ca67aa33915850e1e"
+      - "engflow-pool=ci_sysbox_x64"
+      - "engflow-runtime=sysbox-runc"
+      - "engflow-runner-id=${{ github.repository_id }}_ci-runners-test-matrix_${{ github.run_id }}_${{ github.run_number }}_${{ github.run_attempt }}"
+    strategy:
+      matrix:
+        bazel-version: ["7.*", "8.*", "9.*"]
+    timeout-minutes: 10
     env:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
     defaults:
@@ -54,14 +108,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Gazelle
-        run: "bazel run //:gazelle"
+        run: "bazel run --config=engflow --config=remote_linux_x64 //:gazelle"
       - name: Build
-        run: "bazel build //..."
+        run: "bazel build --config=engflow --config=remote_linux_x64 //..."
       - name: Test
-        run: "bazel test //..."
+        run: "bazel test --config=engflow --config=remote_linux_x64 //..."
 
   test-indexers:
-    runs-on: ubuntu-24.04
+    runs-on:
+      - "self-hosted"
+      - "os=linux"
+      - "arch=x64"
+      - "engflow-container-image=docker://645088952840.dkr.ecr.eu-west-1.amazonaws.com/engflow-ci/debian11-dind-x64@sha256:a0f386162b6498b9220a33f33f158fd175d2873ddd6ed30ca67aa33915850e1e"
+      - "engflow-pool=ci_sysbox_x64"
+      - "engflow-runtime=sysbox-runc"
+      - "engflow-runner-id=${{ github.repository_id }}_ci-runners-test-matrix_${{ github.run_id }}_${{ github.run_number }}_${{ github.run_attempt }}"
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v4
@@ -70,10 +131,17 @@ jobs:
         python3 -m pip install --upgrade pip
         pip install conan
     - name: Execute manual integration tests
-      run: bazel test --test_output=errors //index:integration_tests
-          
+      run: bazel test --test_output=errors --config=engflow --config=remote_linux_x64 //index:integration_tests
+
   test-e2e:
-    runs-on: ubuntu-24.04
+    runs-on:
+      - "self-hosted"
+      - "os=linux"
+      - "arch=x64"
+      - "engflow-container-image=docker://645088952840.dkr.ecr.eu-west-1.amazonaws.com/engflow-ci/debian11-dind-x64@sha256:a0f386162b6498b9220a33f33f158fd175d2873ddd6ed30ca67aa33915850e1e"
+      - "engflow-pool=ci_sysbox_x64"
+      - "engflow-runtime=sysbox-runc"
+      - "engflow-runner-id=${{ github.repository_id }}_ci-runners-test-matrix_${{ github.run_id }}_${{ github.run_number }}_${{ github.run_attempt }}"
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v4  
@@ -81,7 +149,14 @@ jobs:
       run: bash .github/workflows/test_e2e.sh
           
   license-headers:
-    runs-on: ubuntu-24.04
+    runs-on:
+      - "self-hosted"
+      - "os=linux"
+      - "arch=x64"
+      - "engflow-container-image=docker://645088952840.dkr.ecr.eu-west-1.amazonaws.com/engflow-ci/debian11-dind-x64@sha256:a0f386162b6498b9220a33f33f158fd175d2873ddd6ed30ca67aa33915850e1e"
+      - "engflow-pool=ci_sysbox_x64"
+      - "engflow-runtime=sysbox-runc"
+      - "engflow-runner-id=${{ github.repository_id }}_ci-runners-test-matrix_${{ github.run_id }}_${{ github.run_number }}_${{ github.run_attempt }}"
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
