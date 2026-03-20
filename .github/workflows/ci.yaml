@@ -71,6 +71,7 @@ jobs:
       - "revision=c12cc4655257fcf7da86fe06e87542b7e6814a1f"
     timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
         bazel-version: ["7.*", "8.*", "9.*"]
     env:
@@ -97,6 +98,7 @@ jobs:
       - "engflow-runtime=sysbox-runc"
       - "engflow-runner-id=${{ github.repository_id }}_ci-runners-test-matrix_${{ github.run_id }}_${{ github.run_number }}_${{ github.run_attempt }}"
     strategy:
+      fail-fast: false
       matrix:
         bazel-version: ["7.*", "8.*", "9.*"]
     timeout-minutes: 10
