@@ -5,6 +5,11 @@ set -o errexit -o nounset -o pipefail
 scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 rootDir=$(realpath "$scriptDir/../..")
 
+BAZEL_CONFIG_FLAGS=(
+  --config=engflow
+  --config=remote_linux_x64
+)
+
 function runBazelCommandTreatingWarningsAsErrors() {
   local OUTPUT_BASE_DIR=$(bazel info output_base)
   local BAZEL_COMMAND_LOG_FILE="$OUTPUT_BASE_DIR/command.log"
@@ -12,7 +17,7 @@ function runBazelCommandTreatingWarningsAsErrors() {
   shift
 
   # Disable colors and control characters to make grep work properly
-  command bazel "$BAZEL_CMD" --color=no --curses=no "$@"
+  command bazel "$BAZEL_CMD" "${BAZEL_CONFIG_FLAGS[@]}" "$@"
 
   # Expect no warnings in the command output
   local COLLECTED_WARNINGS=$(grep "^WARNING" "$BAZEL_COMMAND_LOG_FILE" || true)

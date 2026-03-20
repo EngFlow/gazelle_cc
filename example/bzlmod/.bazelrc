@@ -26,14 +26,14 @@ build:clang --cxxopt="-fvisibility=hidden"
 build:clang --host_cxxopt="-fvisibility=hidden"
 
 # Platform-specific options for each supported platform.
-build:remote_linux_x64 --extra_execution_platforms=//platform/linux_x64
-build:remote_linux_x64 --host_platform=//platform/linux_x64
-build:remote_linux_x64 --platforms=//platform/linux_x64
-build:remote_linux_x64 --extra_toolchains=//platform/linux_x64:cc-toolchain
+build:remote_linux_x64 --extra_execution_platforms=@gazelle_cc//linux_x64
+build:remote_linux_x64 --host_platform=@gazelle_cc//linux_x64
+build:remote_linux_x64 --platforms=@gazelle_cc//linux_x64
+build:remote_linux_x64 --extra_toolchains=@gazelle_cc//linux_x64:cc-toolchain
 
 build:remote_macos_arm64 --config=clang
-build:remote_macos_arm64 --host_platform=//platform/macos_arm64
-build:remote_macos_arm64 --platforms=//platform/macos_arm64
+build:remote_macos_arm64 --host_platform=@gazelle_cc//macos_arm64
+build:remote_macos_arm64 --platforms=@gazelle_cc//macos_arm64
 build:remote_macos_arm64 --macos_minimum_os=14
 build:remote_macos_arm64 --action_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
 build:remote_macos_arm64 --host_action_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
