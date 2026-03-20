@@ -1,0 +1,49 @@
+common --enable_platform_specific_config
+
+# Needed for "@grpc//:grpc++" used by language/cc/testdata/cc_grpc_library.
+# Fixes "aligned allocation/deallocation function of type '...' is only available on macOS 10.13 or newer" errors.
+build:macos --cxxopt=-mmacosx-version-min=10.13
+
+# EngFlow common flags from https://docs.engflow.com/re/client/bazel-first-time.html#4-set-up-bazelrc
+build:engflow --define=EXECUTOR=remote
+build:engflow --disk_cache=
+build:engflow --experimental_inmemory_dotd_files
+build:engflow --experimental_inmemory_jdeps_files
+build:engflow --incompatible_strict_action_env=true
+build:engflow --remote_timeout=600
+build:engflow --nolegacy_important_outputs
+build:engflow --grpc_keepalive_time=30s
+build:engflow --experimental_remote_cache_compression=true
+build:engflow --execution_log_compact_file=execution_log.binpb.zst
+build:engflow --experimental_build_event_upload_strategy=remote
+
+# Additional clang toolchain options for automatically configured toolchains.
+build --cxxopt="-std=c++17"
+build --host_cxxopt="-std=c++17"
+build:clang --cxxopt="-fno-exceptions"
+build:clang --host_cxxopt="-fno-exceptions"
+build:clang --cxxopt="-fvisibility=hidden"
+build:clang --host_cxxopt="-fvisibility=hidden"
+
+# Platform-specific options for each supported platform.
+build:remote_linux_x64 --extra_execution_platforms=@gazelle_cc//linux_x64
+build:remote_linux_x64 --host_platform=@gazelle_cc//linux_x64
+build:remote_linux_x64 --platforms=@gazelle_cc//linux_x64
+build:remote_linux_x64 --extra_toolchains=@gazelle_cc//linux_x64:cc-toolchain
+
+build:remote_macos_arm64 --config=clang
+build:remote_macos_arm64 --host_platform=@gazelle_cc//macos_arm64
+build:remote_macos_arm64 --platforms=@gazelle_cc//macos_arm64
+build:remote_macos_arm64 --macos_minimum_os=14
+build:remote_macos_arm64 --action_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+build:remote_macos_arm64 --host_action_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+
+# EngFlow remote cluster configuration
+build:engflow --remote_instance_name=gazelle_cc
+build:engflow --remote_executor=grpcs://opal.cluster.engflow.com
+build:engflow --bes_instance_name=gazelle_cc
+build:engflow --bes_backend=grpcs://opal.cluster.engflow.com
+build:engflow --bes_results_url=https://opal.cluster.engflow.com/invocations/gazelle_cc/
+
+# Add authentication flags to this file, not checked in.
+try-import .bazelrc.user
