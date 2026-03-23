@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - main 
+      - main
 
 concurrency:
   group: ci-${{ github.head_ref }}-${{ github.event_name }}
@@ -64,25 +64,25 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v6
-    - name: Install Conan
-      run: |
-        python3 -m pip install --upgrade pip
-        pip install conan
-    - name: Execute manual integration tests
-      run: bazel test --test_output=errors //index:integration_tests
-          
+      - uses: actions/checkout@v6
+      - name: Install Conan
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install conan
+      - name: Execute manual integration tests
+        run: bazel test --test_output=errors //index:integration_tests
+
   test-e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v6
-    - name: Execute end to end tests
-      run: bash .github/workflows/test_e2e.sh
-          
+      - uses: actions/checkout@v6
+      - name: Execute end to end tests
+        run: bash .github/workflows/test_e2e.sh
+
   license-headers:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - run: ./scripts/license_check.sh 
+      - run: ./scripts/license_check.sh
