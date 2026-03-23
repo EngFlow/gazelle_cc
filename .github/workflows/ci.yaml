@@ -30,7 +30,7 @@ jobs:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
       BAZELRC: ${{ matrix.custom-bazelrc }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build
         run: |
           bazel build //...
@@ -52,7 +52,7 @@ jobs:
       run:
         working-directory: "example/bzlmod"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run Gazelle
         run: "bazel run //:gazelle"
       - name: Build
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Install Conan
       run: |
         python3 -m pip install --upgrade pip
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4  
+    - uses: actions/checkout@v6
     - name: Execute end to end tests
       run: bash .github/workflows/test_e2e.sh
           
@@ -84,5 +84,5 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: ./scripts/license_check.sh 
