@@ -13,14 +13,14 @@ jobs:
   build-plan:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: coursier/cache-action@v6     
-      - uses: coursier/setup-action@v1
+      - uses: actions/checkout@v6
+      - uses: coursier/cache-action@v8
+      - uses: coursier/setup-action@v3
         with:
           apps: scala
-          
+
       # Reuse already resolved info if available
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: .cache/
           key: gen-mappings-indexer-cache
@@ -31,7 +31,7 @@ jobs:
           --recompute-unresolved \
           --cache-dir=$PWD/.cache \
           -v
-        
+
       - name: Create PR
         env:
           GH_TOKEN: ${{ github.token }}
@@ -42,18 +42,17 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git checkout -b $branchName
           git add ./language/cc/bzldep-index.json
-          
+
           if git diff --cached --quiet; then
             echo "No changes to the index file, skipping PR creation"
             exit 0
           fi
-          
+
           git commit -m "Automated update of headers index based on bazel-central-registry"
           git push origin $branchName
-          
+
           gh pr create \
             --base=main \
             --head=$branchName \
             --title='[Bot] Update bazel-central-registry headers index' \
             --fill
-        
