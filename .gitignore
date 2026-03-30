@@ -5,6 +5,7 @@ sandbox/*
 .scala-build
 .metals
 .bsp
+.bazelrc.user
 
 # macOS
 .DS_Store

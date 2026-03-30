@@ -1,9 +1,3 @@
-common --enable_platform_specific_config
-
-# Needed for "@grpc//:grpc++" used by language/cc/testdata/cc_grpc_library.
-# Fixes "aligned allocation/deallocation function of type '...' is only available on macOS 10.13 or newer" errors.
-build:macos --cxxopt=-mmacosx-version-min=10.13
-
 # EngFlow remote cluster configuration
 build:engflow --remote_instance_name=gazelle_cc
 build:engflow --remote_cache=grpcs://opal.cluster.engflow.com

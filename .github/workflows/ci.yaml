@@ -33,10 +33,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Build
         run: |
-          bazel build //...
+          bazel build --config=engflow //...
       - name: Test
         run: |
-          bazel test --test_output=errors //...
+          bazel test --config=engflow --test_output=errors //...
 
   # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
   bcr_test_module:
@@ -54,11 +54,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run Gazelle
-        run: "bazel run //:gazelle"
+        run: "bazel run --confi=engflow //:gazelle"
       - name: Build
-        run: "bazel build //..."
+        run: "bazel build --config=engflow //..."
       - name: Test
-        run: "bazel test //..."
+        run: "bazel test --config=engflow //..."
 
   test-indexers:
     runs-on: ubuntu-24.04
@@ -70,7 +70,7 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install conan
       - name: Execute manual integration tests
-        run: bazel test --test_output=errors //index:integration_tests
+        run: bazel test --config=engflow --test_output=errors //index:integration_tests
 
   test-e2e:
     runs-on: ubuntu-24.04

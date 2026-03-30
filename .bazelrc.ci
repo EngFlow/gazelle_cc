@@ -1,0 +1,1 @@
+build:engflow --credential_helper=opal.cluster.engflow.com=%workspace%/scripts/bazel_credential_helper.sh
