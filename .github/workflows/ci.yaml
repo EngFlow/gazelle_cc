@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run Gazelle
-        run: "bazel run --confi=engflow //:gazelle"
+        run: "bazel run --config=engflow //:gazelle"
       - name: Build
         run: "bazel build --config=engflow //..."
       - name: Test
