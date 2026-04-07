@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.head_ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
+env:
+  OPAL_RPC_CREDENTIALS: ${{ secrets.OPAL_RPC_CREDENTIALS }}
+
 jobs:
   build:
     strategy:
