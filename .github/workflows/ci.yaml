@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: "Set up authentication"
         shell: bash
-        run: "cp ../../.bazelrc.ci .bazelrc.user"
+        run: "cp .bazelrc.ci .bazelrc.user"
       - name: Run Gazelle
         run: "bazel run --config=engflow //:gazelle"
       - name: Build
