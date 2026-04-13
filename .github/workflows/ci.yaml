@@ -10,12 +10,16 @@ concurrency:
   group: ci-${{ github.head_ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
+env:
+  OPAL_RPC_CREDENTIALS: ${{ secrets.OPAL_RPC_CREDENTIALS }}
+
 jobs:
   build:
     strategy:
       # Keep in sync with configurations in .bcr/presubmit.yml. We cannot run
       # those tests in CI: they are post-release only. So we need to cover the
       # same configurations here.
+      fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-26]
         # "" means use the version in .bazelversion. Add 8.x if that changes.
@@ -31,16 +35,20 @@ jobs:
       BAZELRC: ${{ matrix.custom-bazelrc }}
     steps:
       - uses: actions/checkout@v6
+      - name: "Set up authentication"
+        shell: bash
+        run: "cp .bazelrc.ci .bazelrc.user"
       - name: Build
         run: |
-          bazel build //...
+          bazel build --config=engflow //...
       - name: Test
         run: |
-          bazel test --test_output=errors //...
+          bazel test --config=engflow --test_output=errors //...
 
   # Imitate the BCR test in .bcr/presubmit.yml. Keep in sync.
   bcr_test_module:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-26]
         bazel-version: ["7.*", "8.*", "9.*"]
@@ -53,30 +61,39 @@ jobs:
         working-directory: "example/bzlmod"
     steps:
       - uses: actions/checkout@v6
+      - name: "Set up authentication"
+        shell: bash
+        run: "cp .bazelrc.ci .bazelrc.user && cp ../../scripts/bazel_credential_helper.sh ."
       - name: Run Gazelle
-        run: "bazel run //:gazelle"
+        run: "bazel run --config=engflow //:gazelle"
       - name: Build
-        run: "bazel build //..."
+        run: "bazel build --config=engflow //..."
       - name: Test
-        run: "bazel test //..."
+        run: "bazel test --config=engflow //..."
 
   test-indexers:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+      - name: "Set up authentication"
+        shell: bash
+        run: "cp .bazelrc.ci .bazelrc.user"
       - name: Install Conan
         run: |
           python3 -m pip install --upgrade pip
           pip install conan
       - name: Execute manual integration tests
-        run: bazel test --test_output=errors //index:integration_tests
+        run: bazel test --config=engflow --test_output=errors //index:integration_tests
 
   test-e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+      - name: "Set up authentication"
+        shell: bash
+        run: "cp .bazelrc.ci .bazelrc.user"
       - name: Execute end to end tests
         run: bash .github/workflows/test_e2e.sh
 
