@@ -45,6 +45,9 @@ function testExampleBzlMod() {
   test -f mylib/BUILD.bazel
   test -f proto/BUILD.bazel
 
+  # Verify that the "alone" target still exists
+  grep -q 'name = "alone"' generated/BUILD.bazel
+
   bazel build //...
   bazel test --test_output=errors //...
   bazel run //proto:example
