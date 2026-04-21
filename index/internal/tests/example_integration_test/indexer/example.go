@@ -17,19 +17,17 @@ package main
 import (
 	"flag"
 
-	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer/cli"
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/EngFlow/gazelle_cc/internal/index"
 )
 
 // Dummy indexer for the sake of testing indexing framework
 func main() {
 	flag.Parse()
 	outputFile := cli.ResolveOutputFile()
-
-	indexer.IndexingResult{
-		HeaderToRule: map[string]label.Label{
-			"example.h": {Repo: "example", Pkg: "some/lib", Name: "target"},
+	index.DependencyIndex{
+		"example.h": {
+			{Repo: "example", Pkg: "some/lib", Name: "target"},
 		},
-	}.WriteToFile(outputFile)
+	}.WriteJSONFile(outputFile)
 }

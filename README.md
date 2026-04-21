@@ -104,17 +104,24 @@ Specifies wheter Gazelle should use built-in index to resolve external dependenc
 
 ### `# gazelle:cc_indexfile <path>`
 
-Loads an index file, containing a map from header include paths to Bazel labels.
-An index lets Gazelle resolve dependencies on targets outside the current project,
-for example, those provided by a Bazel module or separate package manager.
-Equivalently, you can use `# gazelle:resolve` directives, but you can more easily
-generate these mappings in bulk with an index file.
-See [external dependenices section](#external-dependencies) for instructions on
-generating index files.
+Loads an index file, containing a map from header include paths to Bazel labels. An index lets Gazelle resolve dependencies on targets outside the current project, for example, those provided by a Bazel module or separate package manager. Equivalently, you can use `# gazelle:resolve` directives, but you can more easily generate these mappings in bulk with an index file. See [external dependenices section](#external-dependencies) for instructions on generating index files.
 
-Multiple `cc_indexfile` directives can be used, and their values are inherited by subprojects.
-To clear inherited cc_indexfile values, provide an empty argument, e.g. `# gazelle:cc_indexfile`.
-When resolving dependencies, indexes are visited in the same order as the corresponding `cc_indexfile` definitions.
+Example `indexfile.json` looks like this:
+```json
+{
+    "lib/utils.hpp": ["@external//:lib"],
+    "boost/thread/thread.hpp": [
+        "@boost.thread//:thread_mac",
+        "@boost.thread//:thread_posix",
+        "@boost.thread//:thread_windows"
+    ]
+}
+```
+
+> [!NOTE]
+> Dict values are arrays. For simple cases, such as a manually created index, they typically contain exactly one Bazel label. However, for a generated index, they may contain more Bazel labels to indicate that the same header points out ambiguous targets. Handling ambiguities like this is configured by the `cc_ambiguous_deps` directive.
+
+Multiple `cc_indexfile` directives can be used, and their values are inherited by subprojects. To clear inherited `cc_indexfile` values, provide an empty argument, e.g. `# gazelle:cc_indexfile`. When resolving dependencies, indexes are visited in the same order as the corresponding `cc_indexfile` definitions.
 
 The argument must be a repository-root relative path.
 

@@ -20,6 +20,12 @@ package index
 import (
 	"encoding"
 	"encoding/json"
+	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/label"
@@ -66,4 +72,55 @@ func (index *DependencyIndex) UnmarshalJSON(data []byte) error {
 		(*index)[header] = collections.MapSlice(labels, func(lbl labelUnmarshaler) label.Label { return label.Label(lbl) })
 	}
 	return nil
+}
+
+func (index DependencyIndex) splitByAmbiguity() (unique, ambiguous []string) {
+	unique = make([]string, 0, len(index))
+	ambiguous = make([]string, 0, len(index))
+	for _, hdr := range slices.Sorted(maps.Keys(index)) {
+		switch len(index[hdr]) {
+		case 0:
+			continue
+		case 1:
+			unique = append(unique, hdr)
+		default:
+			ambiguous = append(ambiguous, hdr)
+		}
+	}
+	return
+}
+
+func (index DependencyIndex) Summary() string {
+	var sb strings.Builder
+	fmt.Fprintln(&sb, "Indexing result:")
+	unique, ambiguous := index.splitByAmbiguity()
+
+	fmt.Fprintf(&sb, "  Unique mappings (%d):\n", len(unique))
+	for _, hdr := range unique {
+		fmt.Fprintf(&sb, "    %-80q: %s\n", hdr, index[hdr][0])
+	}
+
+	fmt.Fprintf(&sb, "  Ambiguous mappings (%d):\n", len(ambiguous))
+	for _, hdr := range ambiguous {
+		fmt.Fprintf(&sb, "    %-80q: %v\n", hdr, index[hdr])
+	}
+
+	return sb.String()
+}
+
+func (index DependencyIndex) WriteJSONFile(path string) error {
+	var data []byte
+	var err error
+
+	data, err = json.MarshalIndent(index, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	err = os.MkdirAll(filepath.Dir(path), 0777)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0666)
 }
