@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.15
+#!/usr/bin/env python3
 
 import argparse
 import ast
