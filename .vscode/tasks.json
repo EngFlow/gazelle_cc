@@ -11,7 +11,21 @@
         ":gazelle_cc"
       ],
       "options": {
-        "cwd": "${workspaceFolder}/example/bzlmod",
+        "cwd": "${workspaceFolder}/example/bzlmod"
+      },
+      "group": "build"
+    },
+    {
+      "label": "bazel: build debuggable gazelle_for_testing",
+      "type": "process",
+      "command": "bazel",
+      "args": [
+        "build",
+        "--compilation_mode=dbg",
+        "//language/cc/testdata:gazelle_for_testing"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
       },
       "group": "build"
     },
@@ -25,6 +39,48 @@
         "//index/internal/bcr/indexer"
       ],
       "group": "build"
+    },
+    // MARK: language/cc/testdata
+    {
+      "label": "prepare debugging language/cc/testdata test cases",
+      "type": "process",
+      "command": "true",
+      "dependsOn": [
+        "bazel: build debuggable gazelle_for_testing",
+        "copy BUILD.in to BUILD.bazel in language/cc/testdata"
+      ]
+    },
+    {
+      "label": "copy BUILD.in to BUILD.bazel in language/cc/testdata",
+      "type": "process",
+      "command": "sh",
+      "args": [
+        "-c",
+        "for f in language/cc/testdata/**/BUILD.in; do cp \"$f\" \"${f%.in}.bazel\"; done"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "never",
+        "close": true
+      }
+    },
+    {
+      "label": "clean up after debugging language/cc/testdata test cases",
+      "type": "process",
+      "command": "sh",
+      "args": [
+        "-c",
+        "rm language/cc/testdata/**/BUILD.bazel"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "never",
+        "close": true
+      }
     }
   ]
 }

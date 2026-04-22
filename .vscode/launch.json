@@ -30,6 +30,26 @@
       ]
     },
     {
+      "name": "gazelle_cc in language/cc/testdata",
+      "type": "go",
+      "request": "launch",
+      "mode": "exec",
+      "program": "${workspaceFolder}/bazel-bin/language/cc/testdata/gazelle_for_testing_/gazelle_for_testing",
+      "preLaunchTask": "prepare debugging language/cc/testdata test cases",
+      "postDebugTask": "clean up after debugging language/cc/testdata test cases",
+      "cwd": "${workspaceFolder}/language/cc/testdata/${input:testCase}",
+      "substitutePath": [
+        {
+          "from": "${workspaceFolder}/bazel-gazelle_cc/external/gazelle+",
+          "to": "external/gazelle+"
+        },
+        {
+          "from": "${workspaceFolder}",
+          "to": ""
+        }
+      ]
+    },
+    {
       "name": "BCR indexer",
       "type": "go",
       "request": "launch",
@@ -47,6 +67,14 @@
           "to": ""
         }
       ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "testCase",
+      "description": "Test case in language/cc/testdata",
+      "type": "promptString",
+      "default": "generated_files",
     }
   ]
 }
