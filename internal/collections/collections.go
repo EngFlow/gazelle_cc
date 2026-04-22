@@ -123,13 +123,3 @@ func ConcatSeq[T any](seqs ...iter.Seq[T]) iter.Seq[T] {
 		}
 	}
 }
-
-// ContainsFuncSeq returns true if any element of the elements in `seq` satisfies `predicate`
-func ContainsFuncSeq[T any](seq iter.Seq[T], predicate func(T) bool) bool {
-	for elem := range seq {
-		if predicate(elem) {
-			return true
-		}
-	}
-	return false
-}

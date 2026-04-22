@@ -1,1 +1,0 @@
-#define SHARED_WITH_GENERATED 42
