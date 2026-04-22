@@ -577,10 +577,7 @@ func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, fileInfos []file
 		if existingFileIndex >= 0 {
 			continue
 		}
-		if collections.ContainsFuncSeq(rulesInfo.genFiles.All(), func(name string) bool {
-			_, ok := ruleFiles[name]
-			return ok
-		}) {
+		if rulesInfo.genFiles.Intersects(ruleFiles) {
 			continue
 		}
 		// Create a copy of the rule, using the original one might prevent it from deletion
@@ -704,7 +701,7 @@ func (info *rulesInfo) matchExistingRule(kind, name string, srcGroups sourceGrou
 func (info *rulesInfo) genFilesInRule(rule *rule.Rule) (genSrcs, genHdrs []string) {
 	existingRule, ok := info.definedRules[rule.Name()]
 	if !ok || existingRule.Kind() != rule.Kind() {
-		return
+		return genSrcs, genHdrs
 	}
 	for _, f := range existingRule.AttrStrings("hdrs") {
 		if info.genFiles.Contains(f) {
@@ -716,7 +713,7 @@ func (info *rulesInfo) genFilesInRule(rule *rule.Rule) (genSrcs, genHdrs []strin
 			genSrcs = append(genSrcs, f)
 		}
 	}
-	return
+	return genSrcs, genHdrs
 }
 
 func hasRuleWithName(name string, rules []*rule.Rule) bool {
