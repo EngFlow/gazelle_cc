@@ -1,0 +1,31 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+cc_test(
+    name = "test",
+    srcs = ["test.cc"],
+)
+
+genrule(
+    name = "alone_h",
+    outs = ["alone.h"],
+    cmd = "echo '#define ALONE 42' > $@",
+)
+
+genrule(
+    name = "shared_with_source_h",
+    outs = ["shared_with_source.h"],
+    cmd = "echo '#define SHARED_WITH_SOURCE 42' > $@",
+)
+
+cc_library(
+    name = "alone",
+    hdrs = ["alone.h"],
+)
+
+cc_library(
+    name = "shared",
+    hdrs = [
+        "shared_with_generated.h",
+        "shared_with_source.h",
+    ],
+)
