@@ -1,0 +1,30 @@
+load("@com_google_protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# gazelle:proto file
+# gazelle:proto_strip_import_prefix /stripped_abs_prefix
+
+proto_library(
+    name = "c_proto",
+    srcs = ["c.proto"],
+    strip_import_prefix = "/stripped_abs_prefix",
+    visibility = ["//visibility:public"],
+)
+
+cc_proto_library(
+    name = "c_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":c_proto"],
+)
+
+cc_binary(
+    name = "main",
+    srcs = ["main.cc"],
+    deps = [
+        ":c_cc_proto",
+        "//dir:a_cc_proto",
+        "//dir/with_import_prefix:b_cc_proto",
+        "//stripped_abs_prefix/subpackage/with_import_prefix:d_cc_proto",
+    ],
+)

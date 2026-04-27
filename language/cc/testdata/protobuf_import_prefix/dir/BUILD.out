@@ -1,0 +1,28 @@
+load("@com_google_protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# gazelle:proto file
+
+proto_library(
+    name = "a_proto",
+    srcs = ["a.proto"],
+    visibility = ["//visibility:public"],
+)
+
+cc_proto_library(
+    name = "a_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":a_proto"],
+)
+
+cc_binary(
+    name = "main",
+    srcs = ["main.cc"],
+    deps = [
+        ":a_cc_proto",
+        "//dir/with_import_prefix:b_cc_proto",
+        "//stripped_abs_prefix/subpackage:c_cc_proto",
+        "//stripped_abs_prefix/subpackage/with_import_prefix:d_cc_proto",
+    ],
+)

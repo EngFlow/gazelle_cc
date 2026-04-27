@@ -1,0 +1,17 @@
+load("@com_google_protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# gazelle:proto_import_prefix proto
+
+proto_library(
+    name = "b_proto",
+    srcs = ["b.proto"],
+    import_prefix = "proto",
+    visibility = ["//visibility:public"],
+)
+
+cc_proto_library(
+    name = "b_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":b_proto"],
+)
