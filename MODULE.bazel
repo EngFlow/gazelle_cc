@@ -74,6 +74,7 @@ use_repo(
     "compilation_test_protobuf",
     "compilation_test_protobuf_empty",
     "compilation_test_protobuf_filter_generated",
+    "compilation_test_protobuf_import_prefix",
     "compilation_test_relative_inlcude_paths",
     "compilation_test_rules_cleanup",
     "compilation_test_rules_with_no_sources",
