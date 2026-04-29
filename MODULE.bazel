@@ -58,6 +58,7 @@ use_repo(
     "compilation_test_cycle-in-existing-units_no_merge",
     "compilation_test_deps_external",
     "compilation_test_deps_index",
+    "compilation_test_generated_files",
     "compilation_test_implementation_deps",
     "compilation_test_include_prefix_unit_group",
     "compilation_test_includes",

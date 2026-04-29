@@ -215,8 +215,12 @@ func (c *ccLanguage) generateLibraryRules(args language.GenerateArgs, fileInfos 
 			}
 		}
 
+		// Preserve generated files from existing rules. We otherwise do not assign generated files
+		// to groups as we cannot read them, so we have less information available to us to process
+		// them.
+		srcs, hdrs := rulesInfo.genFilesInRule(newRule)
+
 		// Assign sources to groups
-		var srcs, hdrs []string
 		for _, fi := range group.sources {
 			switch fi.kind {
 			case libSrcKind:
@@ -251,7 +255,8 @@ func (c *ccLanguage) generateBinaryRules(args language.GenerateArgs, fileInfos [
 		group := srcGroups[groupId]
 		ruleName := groupId.toRuleName()
 		newRule := newOrExistingRule("cc_binary", ruleName, srcGroups, rulesInfo, args)
-		newRule.SetAttr("srcs", toRelativePaths(group.sources))
+		genSrcs, _ := rulesInfo.genFilesInRule(newRule)
+		newRule.SetAttr("srcs", append(genSrcs, toRelativePaths(group.sources)...))
 		result.Gen = append(result.Gen, newRule)
 		result.Imports = append(result.Imports, extractImports(args.Rel, group.sources))
 	}
@@ -335,7 +340,7 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, fileInfos []f
 			testRunnerRuleName = label.Label{Name: newRule.Name(), Relative: true}
 		}
 
-		var srcs, hdrs []string
+		srcs, hdrs := rulesInfo.genFilesInRule(newRule)
 		for _, fi := range group.sources {
 			if fileNameIsHeader(fi.name) {
 				hdrs = append(hdrs, fi.name)
@@ -372,7 +377,8 @@ func (c *ccLanguage) generateTestRules(args language.GenerateArgs, fileInfos []f
 				continue // Failed to handle issue, skip this group. New rule could have been modified
 			}
 		}
-		newRule.SetAttr("srcs", toRelativePaths(group.sources))
+		genSrcs, _ := rulesInfo.genFilesInRule(newRule)
+		newRule.SetAttr("srcs", append(genSrcs, toRelativePaths(group.sources)...))
 		// Store the found test runner info, the runner would be injected into `deps` attribute
 		if testRunnerRuleName != label.NoLabel {
 			newRule.SetPrivateAttr(ccTestRunnerDepKey, testRunnerRuleName)
@@ -571,6 +577,9 @@ func (c *ccLanguage) findEmptyRules(args language.GenerateArgs, fileInfos []file
 		if existingFileIndex >= 0 {
 			continue
 		}
+		if rulesInfo.genFiles.Intersects(ruleFiles) {
+			continue
+		}
 		// Create a copy of the rule, using the original one might prevent it from deletion
 		emptyRules = append(emptyRules, rule.NewRule(r.Kind(), r.Name()))
 	}
@@ -606,6 +615,8 @@ type rulesInfo struct {
 	ccRuleSources map[string]collections.Set[string]
 	// Mapping between groupId created from file name and existing rule name to which it was previously assigned
 	groupAssignment map[groupId]string
+	// Set of generated file names
+	genFiles 	 collections.Set[string]
 }
 
 func extractRulesInfo(args language.GenerateArgs) rulesInfo {
@@ -613,6 +624,7 @@ func extractRulesInfo(args language.GenerateArgs) rulesInfo {
 		definedRules:    make(map[string]*rule.Rule),
 		ccRuleSources:   make(map[string]collections.Set[string]),
 		groupAssignment: make(map[groupId]string),
+		genFiles:        collections.ToSet(args.GenFiles),
 	}
 	if args.File == nil {
 		return info
@@ -681,6 +693,27 @@ func (info *rulesInfo) matchExistingRule(kind, name string, srcGroups sourceGrou
 	}
 
 	return nil
+}
+
+// genFilesInRule returns the list of generated files and headers in the given rule.
+//
+// The returned lists are new, and can be mutated.
+func (info *rulesInfo) genFilesInRule(rule *rule.Rule) (genSrcs, genHdrs []string) {
+	existingRule, ok := info.definedRules[rule.Name()]
+	if !ok || existingRule.Kind() != rule.Kind() {
+		return genSrcs, genHdrs
+	}
+	for _, f := range existingRule.AttrStrings("hdrs") {
+		if info.genFiles.Contains(f) {
+			genHdrs = append(genHdrs, f)
+		}
+	}
+	for _, f := range existingRule.AttrStrings("srcs") {
+		if info.genFiles.Contains(f) {
+			genSrcs = append(genSrcs, f)
+		}
+	}
+	return genSrcs, genHdrs
 }
 
 func hasRuleWithName(name string, rules []*rule.Rule) bool {
