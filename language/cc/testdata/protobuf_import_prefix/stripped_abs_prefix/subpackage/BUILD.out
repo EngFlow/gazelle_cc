@@ -23,7 +23,7 @@ cc_binary(
     srcs = ["main.cc"],
     deps = [
         ":c_cc_proto",
-        "//dir:a_cc_proto",
+        "//dir:dir_cc_proto",
         "//dir/with_import_prefix:b_cc_proto",
         "//stripped_abs_prefix/subpackage/with_import_prefix:d_cc_proto",
     ],

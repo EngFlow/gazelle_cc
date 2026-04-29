@@ -2,18 +2,16 @@ load("@com_google_protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 
-# gazelle:proto file
-
 proto_library(
-    name = "a_proto",
+    name = "dir_proto",
     srcs = ["a.proto"],
     visibility = ["//visibility:public"],
 )
 
 cc_proto_library(
-    name = "a_cc_proto",
+    name = "dir_cc_proto",
     visibility = ["//visibility:public"],
-    deps = [":a_proto"],
+    deps = [":dir_proto"],
 )
 
 cc_binary(
