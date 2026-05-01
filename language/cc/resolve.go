@@ -20,6 +20,7 @@ import (
 	"log"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -283,6 +284,37 @@ func (lang *ccLanguage) resolveImportSpec(
 
 		resolvedDeps := collections.MapSlice(importedRules, func(r resolve.FindResult) label.Label { return r.Label })
 		return resolveAmbiguousDependency(resolvedDeps, conf.ambiguousDepsMode, r, from, include)
+	}
+
+	// Resolve Protobuf libraries
+	//
+	// These libraries may have different paths than what we computed if they use
+	// `gazelle:proto_import_path` or `gazelle:proto_strip_import_path`, so we use the `proto`
+	// rule resolution and convert back to C++.
+	pbSuffixes := []string{".pb.h", ".grpc.pb.h"}
+
+	for _, pbSuffix := range pbSuffixes {
+		if stripped, ok := strings.CutSuffix(importSpec.Imp, pbSuffix); ok {
+			pbSpec := resolve.ImportSpec{
+				Lang: "proto",
+				Imp: stripped + ".proto",
+			}
+
+			if importedRules := ix.FindRulesByImportWithConfig(c, pbSpec, "proto"); len(importedRules) > 0 {
+				ruleSuffix := "_cc_proto"
+
+				if pbSuffix == ".grpc.pb.h" {
+					ruleSuffix = "_cc_grpc"
+				}
+
+				resolvedDeps := collections.MapSlice(importedRules, func(r resolve.FindResult) label.Label {
+					ccLabel := r.Label
+					ccLabel.Name = strings.TrimSuffix(ccLabel.Name, "_proto") + ruleSuffix
+					return ccLabel
+				})
+				return resolveAmbiguousDependency(resolvedDeps, conf.ambiguousDepsMode, r, from, include)
+			}
+		}
 	}
 
 	for _, index := range conf.dependencyIndexes {
