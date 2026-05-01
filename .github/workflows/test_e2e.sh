@@ -6,7 +6,7 @@ scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 rootDir=$(realpath "$scriptDir/../..")
 
 BAZEL_CONFIG_FLAGS=(
-  --config=engflow
+  ${BAZEL_CONFIG:-}
 )
 
 function runBazelCommandTreatingWarningsAsErrors() {
