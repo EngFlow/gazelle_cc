@@ -2,6 +2,15 @@ module(name = "gazelle_cc_example")
 
 bazel_dep(name = "gazelle", version = "0.46.0")
 bazel_dep(name = "gazelle_cc", version = "")
+
+# TODO: Remove this once Gazelle 0.48.0 is released
+archive_override(
+    module_name = "gazelle",
+    integrity = "sha256-vOMGUFZpJe0NGhLQmsT1Q0yrFQcwgQlPz8J6MPL0Blg=",
+    strip_prefix = "bazel-gazelle-baca6fbbd606df4607e3caf213e65db8fd37ac80",
+    urls = ["https://github.com/bazel-contrib/bazel-gazelle/archive/baca6fbbd606df4607e3caf213e65db8fd37ac80.tar.gz"],
+)
+
 local_path_override(
     module_name = "gazelle_cc",
     path = "../../",

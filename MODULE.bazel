@@ -8,8 +8,16 @@ bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "package_metadata", version = "0.0.5")
 
+# TODO: Remove this once Gazelle 0.48.0 is released
+archive_override(
+    module_name = "gazelle",
+    integrity = "sha256-vOMGUFZpJe0NGhLQmsT1Q0yrFQcwgQlPz8J6MPL0Blg=",
+    strip_prefix = "bazel-gazelle-baca6fbbd606df4607e3caf213e65db8fd37ac80",
+    urls = ["https://github.com/bazel-contrib/bazel-gazelle/archive/baca6fbbd606df4607e3caf213e65db8fd37ac80.tar.gz"],
+)
+
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.download(version = "1.24.0")
+go_sdk.download(version = "1.24.12")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")

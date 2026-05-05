@@ -1,9 +1,9 @@
 module github.com/EngFlow/gazelle_cc
 
-go 1.24.0
+go 1.24.12
 
 require (
-	github.com/bazelbuild/bazel-gazelle v0.46.0
+	github.com/bazelbuild/bazel-gazelle v0.47.1-0.20260311181309-baca6fbbd606
 	github.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52
 	github.com/bazelbuild/rules_go v0.59.0
 	github.com/bmatcuk/doublestar/v4 v4.9.1
