@@ -1,0 +1,28 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "workspace_lib",
+    srcs = [
+        "attrs.go",
+        "main.go",
+        "repositories.go",
+        "targets.go",
+    ],
+    importpath = "github.com/EngFlow/gazelle_cc/index/workspace",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//index/internal/bazel",
+        "//index/internal/bazel/proto",
+        "//index/internal/indexer",
+        "//index/internal/indexer/cli",
+        "//internal/collections",
+        "//internal/index",
+        "@gazelle//label",
+    ],
+)
+
+go_binary(
+    name = "workspace",
+    embed = [":workspace_lib"],
+    visibility = ["//visibility:public"],
+)
