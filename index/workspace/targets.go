@@ -33,12 +33,13 @@ func QueryTargets(workingDir string, repos Repositories) (*proto.QueryResult, er
 		return nil, errors.New("no repositories to index")
 	}
 
-	// Only public targets are indexable.
+	// Only public targets are indexable, except for `proto_library` rules,
+	// which are needed to find the sources of a public `cc_proto_library`.
 	query := fmt.Sprintf(
 		// Keep `kind()`s in sync with `splitTargets()`.
 		`let universe = @%s//... in `+
 			`(kind("cc_.*library|alias", $universe) intersect attr(visibility, "//visibility:public", $universe)) `+
-			`union kind("filegroup", $universe)`,
+			`union kind("filegroup|proto_library", $universe)`,
 		strings.Join(repos.Apparent, "//... + @"),
 	)
 
@@ -70,12 +71,31 @@ func (r Repositories) GroupByRepository(result *proto.QueryResult) map[string][]
 
 // BuildModule turns the targets of a single repository into an indexer.Module.
 func (r Repositories) BuildModule(repository string, targets []*proto.Target) indexer.Module {
-	aliases, filegroups, ccLibraries := r.splitTargets(targets)
+	aliases, filegroups, protoLibraries, ccLibraries := r.splitTargets(targets)
 
 	indexed := make([]indexer.Target, 0, len(ccLibraries))
 	for _, ccLib := range ccLibraries {
 		target := ccLib.target
 		name := ccLib.name
+
+		deps := collections.SetOf[label.Label]()
+		for _, dep := range r.labelListAttr(target, "deps") {
+			deps.Add(dep.Rel(name.Repo, name.Pkg))
+		}
+
+		// A `cc_proto_library` has no `hdrs`, so we must handle it manually
+		// using its `cc_library`.
+		if ccLib.ruleClass == "cc_proto_library" {
+			// `indexer.IndexableIncludePaths()` joins headers after their
+			// target's package, so we add "." to `Includes`.
+			indexed = append(indexed, indexer.Target{
+				Name:     preferAlias(name, repository, aliases),
+				Hdrs:     protoHeaders(name, r.labelListAttr(target, "deps"), protoLibraries),
+				Includes: collections.SetOf("."),
+				Deps:     deps,
+			})
+			continue
+		}
 
 		hdrs := collections.SetOf[label.Label]()
 		for _, hdr := range r.labelListAttr(target, "hdrs") {
@@ -84,30 +104,7 @@ func (r Repositories) BuildModule(repository string, targets []*proto.Target) in
 			}
 		}
 
-		deps := collections.SetOf[label.Label]()
-		for _, dep := range r.labelListAttr(target, "deps") {
-			deps.Add(dep.Rel(name.Repo, name.Pkg))
-		}
-
-		// An alias is usually the intended public entry point of a repository,
-		// so prefer it over the rule it points at when it looks canonical --
-		// either it is the repository's main target (e.g. `@fmt//:fmt`) or it
-		// is a shorter way to spell the same thing.
-		//
-		// Only within one package, though: indexer.IndexableIncludePaths
-		// derives include paths from the package of the label it is given, so
-		// swapping in an alias from elsewhere would rewrite the paths too.
-		// Taking `@protobuf//:json` for `@protobuf//src/google/protobuf/json`
-		// indexes its header as "json.h" rather than
-		// "google/protobuf/json/json.h".
-		//
-		// An alias can also help transition off a deprecated rule, so something
-		// we shouldn't use, but alas, there is no good way to know.
-		if alias, aliased := aliases[name]; aliased && alias.Pkg == name.Pkg {
-			if alias.Name == repository || len(alias.String()) < len(name.String()) {
-				name = alias
-			}
-		}
+		name = preferAlias(name, repository, aliases)
 
 		includes := collections.ToSet(stringListAttr(target, "includes"))
 		stripIncludePrefix, rootRelativeStrip := stripPrefixOf(target, name)
@@ -164,6 +161,35 @@ func stripPrefixOf(target *proto.Target, name label.Label) (packageRelative, roo
 	return "", filepath.ToSlash(relative)
 }
 
+// preferAlias returns the label to map a header to, preferring aliases
+// either when they are the repository's main target (e.g. `@fmt//:fmt`) or when
+// they are a shorter way to spell the same thing.
+//
+// Only within one package, though: `indexer.IndexableIncludePaths()` derives
+// include paths from the package of the label it is given, so swapping in an
+// alias from elsewhere would rewrite the paths too: taking `@protobuf//:json`
+// for `@protobuf//src/google/protobuf/json` indexes its header as "json.h"
+// rather than "google/protobuf/json/json.h".
+//
+// That restriction is not strictly needed for a `cc_proto_library`, whose
+// header paths come from the `proto_library` it wraps (so e.g.
+// `@protobuf//:timestamp_cc_proto` would work). We use it anyway to make
+// it easier to reason about.
+//
+// An alias can also help transition off a deprecated rule, so something we
+// _shouldn't_ use, but alas, there is no good way to know, so we prefer it
+// when possible.
+func preferAlias(name label.Label, repository string, aliases map[label.Label]label.Label) label.Label {
+	alias, aliased := aliases[name]
+	if !aliased || alias.Pkg != name.Pkg {
+		return name
+	}
+	if alias.Name == repository || len(alias.String()) < len(name.String()) {
+		return alias
+	}
+	return name
+}
+
 // isHiddenPackage returns whether a target lives under a package segment that
 // is conventionally hidden, i.e. one starting with ".".
 //
@@ -182,8 +208,20 @@ func isHiddenPackage(target label.Label) bool {
 // ccLibrary stores information about a `cc_library` yielded by
 // `splitTargets()`.
 type ccLibrary struct {
-	name   label.Label
-	target *proto.Target
+	name      label.Label
+	ruleClass string
+	target    *proto.Target
+}
+
+// protoLibrary holds the parts of a `proto_library` needed to work out the
+// import path of the headers in the corresponding `cc_proto_library`.
+type protoLibrary struct {
+	// Package of the `proto_library` itself, which a relative
+	// `strip_import_prefix` is taken to be relative to.
+	pkg               string
+	srcs              []label.Label
+	stripImportPrefix string
+	importPrefix      string
 }
 
 // splitTargets splits targets into helper/generator rules, and cc_library
@@ -191,10 +229,12 @@ type ccLibrary struct {
 func (r Repositories) splitTargets(targets []*proto.Target) (
 	aliases map[label.Label]label.Label,
 	filegroups map[label.Label][]label.Label,
+	protoLibraries map[label.Label]protoLibrary,
 	ccLibraries []ccLibrary,
 ) {
 	aliases = map[label.Label]label.Label{}
 	filegroups = map[label.Label][]label.Label{}
+	protoLibraries = map[label.Label]protoLibrary{}
 
 	for _, target := range targets {
 		rule := target.GetRule()
@@ -215,14 +255,23 @@ func (r Repositories) splitTargets(targets []*proto.Target) (
 			if srcs := r.labelListAttr(target, "srcs"); len(srcs) > 0 {
 				filegroups[name] = srcs
 			}
+		case "proto_library":
+			stripImportPrefix, _ := stringAttr(target, "strip_import_prefix")
+			importPrefix, _ := stringAttr(target, "import_prefix")
+			protoLibraries[name] = protoLibrary{
+				pkg:               name.Pkg,
+				srcs:              r.labelListAttr(target, "srcs"),
+				stripImportPrefix: stripImportPrefix,
+				importPrefix:      importPrefix,
+			}
 		default:
 			if name, ok := r.ParseLabel(rule.GetName()); ok && !isHiddenPackage(name) {
-				ccLibraries = append(ccLibraries, ccLibrary{name, target})
+				ccLibraries = append(ccLibraries, ccLibrary{name, rule.GetRuleClass(), target})
 			}
 		}
 	}
 
-	return aliases, filegroups, ccLibraries
+	return aliases, filegroups, protoLibraries, ccLibraries
 }
 
 // resolveSource expands one entry of hdrs into the header files it stands for,
@@ -239,4 +288,54 @@ func resolveSource(
 		return resolved
 	}
 	return []label.Label{source.Rel(rule.Repo, rule.Pkg)}
+}
+
+// protoHeaders returns the import paths of the C++ headers generated for the
+// `proto_library` rules in deps.
+//
+// Roughly, this converts `<path>.proto` into `<path>.ph.h`, handling
+// `strip_import_prefix` and `include_prefix`.
+func protoHeaders(
+	name label.Label,
+	deps []label.Label,
+	protoLibraries map[label.Label]protoLibrary,
+) collections.Set[label.Label] {
+	headers := collections.SetOf[label.Label]()
+
+	for _, dep := range deps {
+		lib, ok := protoLibraries[dep]
+		if !ok {
+			continue
+		}
+		// `strip_import_prefix` defaults to "/".
+		strip := lib.stripImportPrefix
+		if rooted, isRooted := strings.CutPrefix(strip, "/"); isRooted {
+			strip = rooted
+		} else if strip != "" {
+			strip = filepath.ToSlash(filepath.Join(lib.pkg, strip))
+		}
+		for _, src := range lib.srcs {
+			path := strings.TrimSuffix(filepath.ToSlash(filepath.Join(src.Pkg, src.Name)), ".proto")
+			if path == "" {
+				continue
+			}
+			if strip != "" {
+				relative, err := filepath.Rel(strip, path)
+				if err != nil || strings.HasPrefix(relative, "..") {
+					continue
+				}
+				path = filepath.ToSlash(relative)
+			}
+			if lib.importPrefix != "" {
+				path = filepath.ToSlash(filepath.Join(lib.importPrefix, path))
+			}
+			// `path` is the finished import path, so it is returned whole as
+			// the `Name` of a package-relative label rather than as a real file
+			// label, to make sure `indexer.IndexableIncludePaths()` outputs the
+			// right thing. Note that this requires `Includes: {"."}` above.
+			headers.Add(label.Label{Repo: name.Repo, Pkg: name.Pkg, Name: path + ".pb.h"}.Rel(name.Repo, name.Pkg))
+		}
+	}
+
+	return headers
 }
