@@ -92,11 +92,11 @@ func stringAttr(target *proto.Target, name string) (string, bool) {
 
 // labelListAttr reads a label list attribute, unioning select() arms, parsing
 // values as labels.
-func (r Repositories) labelListAttr(target *proto.Target, name string) []label.Label {
+func (r repositories) labelListAttr(target *proto.Target, name string) []label.Label {
 	values := stringListAttr(target, name)
 	labels := make([]label.Label, 0, len(values))
 	for _, value := range values {
-		if parsed, ok := r.ParseLabel(value); ok {
+		if parsed, ok := r.parseLabel(value); ok {
 			labels = append(labels, parsed)
 		}
 	}
@@ -105,10 +105,10 @@ func (r Repositories) labelListAttr(target *proto.Target, name string) []label.L
 
 // labelAttr reads a scalar attribute, resolving select() arms, and parsing
 // values as labels.
-func (r Repositories) labelAttr(target *proto.Target, name string) (label.Label, bool) {
+func (r repositories) labelAttr(target *proto.Target, name string) (label.Label, bool) {
 	value, ok := stringAttr(target, name)
 	if !ok {
 		return label.NoLabel, false
 	}
-	return r.ParseLabel(value)
+	return r.parseLabel(value)
 }

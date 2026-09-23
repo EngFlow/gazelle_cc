@@ -12,6 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Creates an index defining a mapping between a header and the Bazel rule that
+// defines it, based on the repositories of the current Bazel module. The
+// created index can be used as input for gazelle_cc, allowing it to resolve
+// external dependencies.
+//
+// Unlike the bzlmod indexer, which resolves each bazel_dep against the Bazel
+// Central Registry, this indexer lists the dependencies of a specific Bazel
+// module (using `bazel mod dump_repo_mapping ""`), then indexes their
+// `cc_library` targets using `bazel query`. This allows repositories not in the
+// BCR (http_archive, overrides, etc) to be resolved.
+//
+// Like gazelle_cc, this indexer only supports `cc_library`, and not other rules
+// that may yield `CcInfo` . Using `bazel cquery` would allow us to use `CcInfo`
+// directly, providing more accurate includes for all "C++-like rules", more
+// simply. But:
+//
+//   - It is much less efficient than `bazel query`.
+//
+//   - Loading `//...` globs as we do here won't work, as some repositories are
+//     not valid when used as 3rd party targets (e.g. `no such package
+//     '@@[unknown repo 'google_benchmark' requested from @@abseil-cpp+]//'`).
+//
+//   - It would evaluate `select()`s, so the query would yield different results
+//     on different platforms.
+//
+// The sweet spot is likely a hybrid strategy that discovers potential targets
+// using `bazel query`, then analyzes them with `bazel cquery`, but it would
+// depart significantly from what the indexers in this repo already do (and be
+// more complex), so this indexer uses `bazel query` only instead.
 package main
 
 import (
@@ -46,15 +75,6 @@ const (
 	preferWidest    = "widest"
 )
 
-// Creates an index defining a mapping between a header and the Bazel rule that
-// defines it, based on the repositories of the current Bazel module. The
-// created index can be used as input for gazelle_cc, allowing it to resolve
-// external dependencies.
-//
-// Unlike the bzlmod indexer, which resolves each bazel_dep against the Bazel
-// Central Registry, this indexer uses the dependencies of a specific Bazel
-// module. This allows repositories not in the BCR to be resolved (http_archive,
-// overrides, etc).
 func main() {
 	flag.Parse()
 
@@ -85,25 +105,25 @@ func main() {
 		log.Fatalf("Failed to resolve working directory for indexer: %v", err)
 	}
 
-	repos, err := ResolveRepositories(workingDir, includeRegexp, excludeRegexp)
+	repos, err := resolveRepositories(workingDir, includeRegexp, excludeRegexp)
 	if err != nil {
 		log.Fatalf("Failed to resolve repositories of %v: %v", workingDir, err)
 	}
-	if len(repos.Apparent) == 0 {
+	if len(repos.apparent) == 0 {
 		log.Fatalf("No repositories left to index")
 	}
 	if *cli.Verbose {
-		log.Printf("Indexing %d repositories of %v: %v", len(repos.Apparent), workingDir, repos.Apparent)
+		log.Printf("Indexing %d repositories of %v: %v", len(repos.apparent), workingDir, repos.apparent)
 	}
 
 	// Querying a repository fetches it if it is not already present, so this
 	// command can take a while.
-	result, err := QueryTargets(workingDir, repos)
+	result, err := queryTargets(workingDir, repos)
 	if err != nil {
 		log.Fatalf("Failed to query repositories: %v", err)
 	}
 
-	modules := buildModules(repos, repos.GroupByRepository(result))
+	modules := buildModules(repos, repos.groupByRepository(result))
 	indexingResult := indexer.CreateHeaderIndex(modules)
 
 	outputFile := cli.ResolveOutputFile()
@@ -129,7 +149,7 @@ func main() {
 }
 
 // buildModules converts each repository's targets into an indexer.Module.
-func buildModules(repos Repositories, grouped map[string][]*proto.Target) []indexer.Module {
+func buildModules(repos repositories, grouped map[string][]*proto.Target) []indexer.Module {
 	repositories := slices.Sorted(maps.Keys(grouped))
 	modules := make([]indexer.Module, len(grouped))
 
@@ -137,7 +157,7 @@ func buildModules(repos Repositories, grouped map[string][]*proto.Target) []inde
 	// be processed independently, but this whole loop takes a small amount of
 	// the overall runtime (dominated by `bazel query`), so no need to bother.
 	for i, repository := range repositories {
-		modules[i] = repos.BuildModule(repository, grouped[repository])
+		modules[i] = repos.buildModule(repository, grouped[repository])
 	}
 
 	return slices.DeleteFunc(modules, func(module indexer.Module) bool {
@@ -172,7 +192,7 @@ func writeIndex(result indexer.IndexingResult, modules []indexer.Module, path st
 		mappings[header] = rankCandidates(candidates, counts)
 	}
 
-	// Write as JSON. Note that entries are ordered by key.	t
+	// Write as JSON. Note that entries are ordered by key.
 	data, err := json.MarshalIndent(mappings, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to serialize header index: %w", err)

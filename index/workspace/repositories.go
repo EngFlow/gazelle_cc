@@ -26,38 +26,40 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
 
-// Repositories describes the external repositories visible to the root module,
+// repositories describes the external repositories visible to the root module,
 // keyed both ways so that labels reported by `bazel query` can be normalized
 // back to the apparent names that may actually be written in a BUILD file.
-type Repositories struct {
-	// Apparent names, in the order reported by Bazel.
-	Apparent []string
+type repositories struct {
+	// apparent names, in the order reported by Bazel.
+	apparent []string
 	// canonicalToApparent maps e.g. "+http_archive+au" to "au".
 	canonicalToApparent map[string]string
 }
 
-// ResolveRepositories lists the repositories visible to the root module using
+// resolveRepositories lists the repositories visible to the root module using
 // `bazel mod dump_repo_mapping`.
 //
 // Anything that can be named as a dependency from the root module will appear
 // in the result, including overrides (e.g. `single_version_override()`,
 // `archive_override()`) and extensions (e.g. `http_archive()`).
-func ResolveRepositories(workingDir string, include, exclude *regexp.Regexp) (Repositories, error) {
+func resolveRepositories(workingDir string, include, exclude *regexp.Regexp) (repositories, error) {
+	// `dump_repo_mapping` accepts >=1 "canonical repo names", or an empty string for the root
+	// module repository.
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("bazel", "mod", "dump_repo_mapping", "", "--noshow_progress")
 	cmd.Dir = workingDir
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return Repositories{}, fmt.Errorf("failed to dump repository mapping: %w\n%s", err, stderr.String())
+		return repositories{}, fmt.Errorf("failed to dump repository mapping: %w\n%s", err, stderr.String())
 	}
 
 	var mapping map[string]string
 	if err := json.Unmarshal(stdout.Bytes(), &mapping); err != nil {
-		return Repositories{}, fmt.Errorf("failed to parse repository mapping: %w", err)
+		return repositories{}, fmt.Errorf("failed to parse repository mapping: %w", err)
 	}
 
-	repos := Repositories{canonicalToApparent: make(map[string]string, len(mapping))}
+	repos := repositories{canonicalToApparent: make(map[string]string, len(mapping))}
 	for apparent, canonical := range mapping {
 		// Skip the main repository, as that's the one that will actually use
 		// this index.
@@ -70,21 +72,21 @@ func ResolveRepositories(workingDir string, include, exclude *regexp.Regexp) (Re
 		if exclude != nil && exclude.MatchString(apparent) {
 			continue
 		}
-		repos.Apparent = append(repos.Apparent, apparent)
+		repos.apparent = append(repos.apparent, apparent)
 		repos.canonicalToApparent[canonical] = apparent
 	}
-	slices.Sort(repos.Apparent)
+	slices.Sort(repos.apparent)
 	return repos, nil
 }
 
-// ParseLabel parses a label as reported by `bazel query`, rewriting canonical
+// parseLabel parses a label as reported by `bazel query`, rewriting canonical
 // repository names (e.g. `@@rules_cc+//cc:foo`) into apparent ones (e.g.
 // `@rules_cc//cc:foo`). Bazel normally prints labels using the root module's
 // repository mapping already, but it is not guaranteed to for every repository.
 //
 // Fails (returns `_, false`) if the label cannot be depended upon, in which
 // case it should be ignored.
-func (r Repositories) ParseLabel(raw string) (label.Label, bool) {
+func (r repositories) parseLabel(raw string) (label.Label, bool) {
 	if canonical, rest, ok := splitCanonicalRepo(raw); ok {
 		if apparent, known := r.canonicalToApparent[canonical]; known {
 			raw = "@" + apparent + rest
