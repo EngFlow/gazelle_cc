@@ -27,9 +27,9 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
 
-// QueryTargets runs a `bazel query` yielding all indexable targets in `repos`.
-func QueryTargets(workingDir string, repos Repositories) (*proto.QueryResult, error) {
-	if len(repos.Apparent) == 0 {
+// queryTargets runs a `bazel query` yielding all indexable targets in `repos`.
+func queryTargets(workingDir string, repos repositories) (*proto.QueryResult, error) {
+	if len(repos.apparent) == 0 {
 		return nil, errors.New("no repositories to index")
 	}
 
@@ -40,7 +40,7 @@ func QueryTargets(workingDir string, repos Repositories) (*proto.QueryResult, er
 		`let universe = @%s//... in `+
 			`(kind("cc_.*library|alias", $universe) intersect attr(visibility, "//visibility:public", $universe)) `+
 			`union kind("filegroup|proto_library", $universe)`,
-		strings.Join(repos.Apparent, "//... + @"),
+		strings.Join(repos.apparent, "//... + @"),
 	)
 
 	// Keep going, so if a repository fails to load we may still compute the
@@ -52,15 +52,15 @@ func QueryTargets(workingDir string, repos Repositories) (*proto.QueryResult, er
 	return &result, nil
 }
 
-// GroupByRepository groups the queried targets by the repository defining them.
-func (r Repositories) GroupByRepository(result *proto.QueryResult) map[string][]*proto.Target {
-	grouped := make(map[string][]*proto.Target, len(r.Apparent))
+// groupByRepository groups the queried targets by the repository defining them.
+func (r repositories) groupByRepository(result *proto.QueryResult) map[string][]*proto.Target {
+	grouped := make(map[string][]*proto.Target, len(r.apparent))
 	for _, target := range result.GetTarget() {
 		rule := target.GetRule()
 		if rule == nil {
 			continue
 		}
-		name, ok := r.ParseLabel(rule.GetName())
+		name, ok := r.parseLabel(rule.GetName())
 		if !ok || name.Repo == "" {
 			continue
 		}
@@ -69,8 +69,8 @@ func (r Repositories) GroupByRepository(result *proto.QueryResult) map[string][]
 	return grouped
 }
 
-// BuildModule turns the targets of a single repository into an indexer.Module.
-func (r Repositories) BuildModule(repository string, targets []*proto.Target) indexer.Module {
+// buildModule turns the targets of a single repository into an indexer.Module.
+func (r repositories) buildModule(repository string, targets []*proto.Target) indexer.Module {
 	aliases, filegroups, protoLibraries, ccLibraries := r.splitTargets(targets)
 
 	indexed := make([]indexer.Target, 0, len(ccLibraries))
@@ -226,7 +226,7 @@ type protoLibrary struct {
 
 // splitTargets splits targets into helper/generator rules, and cc_library
 // rules.
-func (r Repositories) splitTargets(targets []*proto.Target) (
+func (r repositories) splitTargets(targets []*proto.Target) (
 	aliases map[label.Label]label.Label,
 	filegroups map[label.Label][]label.Label,
 	protoLibraries map[label.Label]protoLibrary,
@@ -241,11 +241,11 @@ func (r Repositories) splitTargets(targets []*proto.Target) (
 		if rule == nil {
 			continue
 		}
-		name, ok := r.ParseLabel(rule.GetName())
+		name, ok := r.parseLabel(rule.GetName())
 		if !ok {
 			continue
 		}
-		// Keep `switch` in sync with `QueryTargets()`.
+		// Keep `switch` in sync with `queryTargets()`.
 		switch rule.GetRuleClass() {
 		case "alias":
 			if actual, ok := r.labelAttr(target, "actual"); ok {
@@ -265,7 +265,7 @@ func (r Repositories) splitTargets(targets []*proto.Target) (
 				importPrefix:      importPrefix,
 			}
 		default:
-			if name, ok := r.ParseLabel(rule.GetName()); ok && !isHiddenPackage(name) {
+			if name, ok := r.parseLabel(rule.GetName()); ok && !isHiddenPackage(name) {
 				ccLibraries = append(ccLibraries, ccLibrary{name, rule.GetRuleClass(), target})
 			}
 		}
@@ -293,7 +293,7 @@ func resolveSource(
 // protoHeaders returns the import paths of the C++ headers generated for the
 // `proto_library` rules in deps.
 //
-// Roughly, this converts `<path>.proto` into `<path>.ph.h`, handling
+// Roughly, this converts `<path>.proto` into `<path>.pb.h`, handling
 // `strip_import_prefix` and `include_prefix`.
 func protoHeaders(
 	name label.Label,
