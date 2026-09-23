@@ -13,14 +13,14 @@ jobs:
   build-plan:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
-      - uses: coursier/cache-action@v8
-      - uses: coursier/setup-action@v3
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6 (2026-09-23)
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8 (2026-09-23)
+      - uses: coursier/setup-action@3174df5c784a0c8724f06b7924b849551c40c39e # v3 (2026-09-23)
         with:
           apps: scala
 
       # Reuse already resolved info if available
-      - uses: actions/cache@v5
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5 (2026-09-23)
         with:
           path: .cache/
           key: gen-mappings-indexer-cache
