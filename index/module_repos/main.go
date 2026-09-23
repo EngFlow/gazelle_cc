@@ -127,13 +127,6 @@ func main() {
 	indexingResult := indexer.CreateHeaderIndex(modules)
 
 	outputFile := cli.ResolveOutputFile()
-	if !filepath.IsAbs(outputFile) {
-		// cli.ResolveOutputFile only joins the working directory when resolving
-		// it *fails*. Under `bazel run` the process starts in the runfiles
-		// tree, so a relative path would write the file to a directory far from
-		// the (apparent) CWD.
-		outputFile = filepath.Join(workingDir, outputFile)
-	}
 	if err := writeIndex(indexingResult, modules, outputFile); err != nil {
 		log.Fatalf("Failed to write index to %v: %v", outputFile, err)
 	}

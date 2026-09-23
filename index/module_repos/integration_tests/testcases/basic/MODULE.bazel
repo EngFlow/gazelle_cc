@@ -1,0 +1,41 @@
+bazel_dep(name = "rules_cc", version = "0.2.20")
+
+bazel_dep(name = "fmt", version = "12.2.0")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "fetched_fmt",
+    url = "https://github.com/fmtlib/fmt/archive/refs/tags/12.2.0.zip",
+    strip_prefix = "fmt-12.2.0",
+    integrity = "sha256-i8DfvszBupbcnA+b8LvJXzx6NTCBImGGOMV1XzieXnI=",
+    patch_cmds = [
+        "mv include/fmt include/fetched_fmt",
+        "sed -i 's,#include \"fmt/,#include \"fetched_fmt/,g' src/format.cc include/fetched_fmt/*.h",
+    ],
+    build_file_content = """
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "fetched_fmt",
+    srcs = ["src/format.cc"],
+    hdrs = glob([
+        "include/fetched_fmt/*.h",
+    ]),
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)
+
+# Test `filegroup` resolution and ambiguous header inclusion.
+cc_library(
+    name = "base",
+    hdrs = [":base_header"],
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "base_header",
+    srcs = ["include/fetched_fmt/base.h"],
+)
+""",
+)

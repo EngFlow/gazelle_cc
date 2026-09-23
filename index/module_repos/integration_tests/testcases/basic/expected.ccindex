@@ -1,0 +1,190 @@
+{
+  "cc/runfiles/runfiles.h": [
+    "@rules_cc//cc/runfiles"
+  ],
+  "fetched_fmt/args.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/base.h": [
+    "@fetched_fmt//:base",
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/chrono.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/color.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/compile.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/core.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/fmt-c.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/format-inl.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/format.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/os.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/ostream.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/printf.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/ranges.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/std.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fetched_fmt/xchar.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "fmt/args.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/base.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/chrono.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/color.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/compile.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/core.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/fmt-c.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/format-inl.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/format.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/os.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/ostream.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/printf.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/ranges.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/std.h": [
+    "@fmt//:fmt"
+  ],
+  "fmt/xchar.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fetched_fmt/args.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/base.h": [
+    "@fetched_fmt//:base",
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/chrono.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/color.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/compile.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/core.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/fmt-c.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/format-inl.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/format.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/os.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/ostream.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/printf.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/ranges.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/std.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fetched_fmt/xchar.h": [
+    "@fetched_fmt//:fetched_fmt"
+  ],
+  "include/fmt/args.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/base.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/chrono.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/color.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/compile.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/core.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/fmt-c.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/format-inl.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/format.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/os.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/ostream.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/printf.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/ranges.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/std.h": [
+    "@fmt//:fmt"
+  ],
+  "include/fmt/xchar.h": [
+    "@fmt//:fmt"
+  ],
+  "rules_cc/cc/runfiles/runfiles.h": [
+    "@rules_cc//cc/runfiles"
+  ]
+}
