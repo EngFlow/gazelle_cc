@@ -312,7 +312,8 @@ bazel_dep(name = "fmt", version = "11.1.4", repo_name = "fmt_repo")
 #include "boost/chrono.hpp"       // Warning: defined in @boost.chrono//:boost.chrono but not added as bazel_dep
 ```
 
-It is also possible to create a dedicated index based on `bazel_dep` directives found in the `MODULE.bazel` file using dedicated `@gazelle_cc//index/bzlmod` binary 
+It is also possible to create a dedicated index based on `bazel_dep` directives found in the `MODULE.bazel` file using dedicated `@gazelle_cc//index/bzlmod` binary. Alternatively,
+for non-BCR dependencies, see the [`module_repos`](#module_repos) indexer.
 
 ```bash
 bazel run @gazelle_cc//index/bzlmod -- --output=bzlmod.ccindex
@@ -348,6 +349,40 @@ Additional options for `@gazelle_cc//index/conan`:
 | --output=\<path> | ./output.ccidx | Output file for created index |
 | --install | false | Should conan profile detection and installation be done automatically before indexing |
 | --conanDir=\<path> | ./conan | Controls the paths contains conan specific and external dependencies definitions. Typically created during `conan install .` invocation |
+| --verbose | false | Enable verbose logging and debug information |
+
+#### `module_repos`
+
+Alternatively to the BCR-based [`bzlmod` indexer](#bazel_dep), the direct dependencies of a module
+(including `http_archive`, `git_override`, etc.) can be indexed using
+`@gazelle_cc//index/module_repos`.
+
+It uses `bazel mod dump_repo_mapping ""` to find direct dependencies, then queries them using
+`bazel query`, indexing them similarly to `gazelle_cc`.
+
+```bash
+bazel run @gazelle_cc//index/module_repos -- --output=module_repos.ccindex
+```
+
+The resulting index needs to be added to Gazelle directive in top-level `BUILD` file.
+
+```bazel
+# gazelle:cc_indexfile module_repos.ccindex
+
+## disabled built-in index
+# gazelle:cc_use_builtin_bzlmod_index false
+```
+
+`cc_proto_library` will also be indexed.
+
+Additional options for `@gazelle_cc//index/module_repos`:
+
+| Flag | Default | Definition |
+| ---- | ------- | ---------- |
+| --repositories=\<regexp> | | Regexp of repositories to index; all visible repositories are indexed by default |
+| --exclude_repositories=\<regexp> | | Regexp of repositories to exclude from the index |
+| --prefer=\<narrowest \| widest> | narrowest | Which target to list first for a header exposed by several targets, deciding what gazelle_cc picks under cc_ambiguous_deps=try_first: "narrowest" (fewest headers) or "widest" (most) |
+| --output=\<path> | ./output.ccidx | Output file path for created index |
 | --verbose | false | Enable verbose logging and debug information |
 
 #### `rules_foreign_cc`
