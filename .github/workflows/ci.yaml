@@ -35,7 +35,7 @@ jobs:
       USE_BAZEL_VERSION: ${{ matrix.bazel-version }}
       BAZELRC: ${{ matrix.custom-bazelrc }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6 (2026-09-23)
       - name: "Set up authentication"
         if: ${{ env.OPAL_RPC_CREDENTIALS != '' }}
         shell: bash
@@ -62,7 +62,7 @@ jobs:
       run:
         working-directory: "example/bzlmod"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6 (2026-09-23)
       - name: "Set up authentication"
         if: ${{ env.OPAL_RPC_CREDENTIALS != '' }}
         shell: bash
@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6 (2026-09-23)
       - name: "Set up authentication"
         if: ${{ env.OPAL_RPC_CREDENTIALS != '' }}
         shell: bash
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6 (2026-09-23)
       - name: "Set up authentication"
         if: ${{ env.OPAL_RPC_CREDENTIALS != '' }}
         shell: bash
@@ -106,5 +106,5 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6 (2026-09-23)
       - run: ./scripts/license_check.sh

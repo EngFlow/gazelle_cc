@@ -24,7 +24,7 @@ on:
 
 jobs:
   publish-to-bcr:
-    uses: "bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@v1.1.0"
+    uses: bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@0bd40ad4f872b4d216d3f01bc0844ade304e2b5a # v1.1.0 (2026-09-23)
     with:
       tag_name: "${{ inputs.tag_name }}"
       registry_fork: "EngFlow/bazel-central-registry"
