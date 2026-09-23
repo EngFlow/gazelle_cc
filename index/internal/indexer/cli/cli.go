@@ -57,7 +57,7 @@ func ResolveOutputFile() string {
 	}
 	outputFile := *output
 	if !filepath.IsAbs(outputFile) {
-		if workdir, err := ResolveWorkingDir(); err != nil {
+		if workdir, err := ResolveWorkingDir(); err == nil {
 			outputFile = filepath.Join(workdir, outputFile)
 		}
 	}
