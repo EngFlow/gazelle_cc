@@ -1,0 +1,13 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+cc_binary(
+    name = "fetched_fmt",
+    srcs = ["fetched_fmt.cpp"],
+    deps = ["@fetched_fmt"],
+)
+
+cc_binary(
+    name = "fmt",
+    srcs = ["fmt.cpp"],
+    deps = ["@fmt"],
+)

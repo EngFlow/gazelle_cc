@@ -1,0 +1,5 @@
+#include "fetched_fmt/core.h"
+
+int main() {
+    return 0;
+}
