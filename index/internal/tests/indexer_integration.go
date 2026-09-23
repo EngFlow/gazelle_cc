@@ -35,6 +35,9 @@ type IndexerIntegrationContext struct {
 	Dir string
 }
 type IndexerIntegration struct {
+	// Arguments to pass to the indexer
+	Args []string
+
 	// Function to exuecute before each test case, typically integration specific preperation logc
 	BeforeTestCase func(t *testing.T, ctx IndexerIntegrationContext)
 }
@@ -92,7 +95,10 @@ func executeTestCase(
 	t.Logf("==> [%s] Running indexer...", testDir)
 	defaultExecConfig := ExecConfig{Dir: testDir}
 
-	Execute(t, defaultExecConfig, indexerBinary, "--verbose", "--output="+indexPath, "--repository="+testDir)
+	args := []string{"--verbose", "--output=" + indexPath, "--repository=" + testDir}
+	args = append(args, integration.Args...)
+
+	Execute(t, defaultExecConfig, indexerBinary, args...)
 
 	t.Logf("==> [%s] Checking index file...", testDir)
 	expectedIndex, _ := os.ReadFile(expectedIndexPath)
