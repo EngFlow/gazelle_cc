@@ -63,8 +63,8 @@ import (
 )
 
 var (
-	includeRepositories = flag.String("repositories", "", "Regexp of repositories to index; all visible repositories are indexed by default")
-	excludeRepositories = flag.String("exclude_repositories", "", "Regexp of repositories to exclude from the index")
+	includeRepositories = flag.String("repositories", "", "Regexp of repositories to index; all visible repositories are indexed by default; unanchored, using Go's Regexp syntax")
+	excludeRepositories = flag.String("exclude_repositories", "", "Regexp of repositories to exclude from the index; unanchored, using Go's Regexp syntax")
 
 	preference = flag.String("prefer", preferNarrowest, "Which target to list first for a header exposed by several targets, deciding what gazelle_cc picks under cc_ambiguous_deps=try_first: \"narrowest\" (fewest headers) or \"widest\" (most)")
 )

@@ -385,6 +385,8 @@ Additional options for `@gazelle_cc//index/module_repos`:
 | --output=\<path> | ./output.ccidx | Output file path for created index |
 | --verbose | false | Enable verbose logging and debug information |
 
+Regexps are unanchored, and use Go's [Regexp](https://pkg.go.dev/regexp) syntax.
+
 #### `rules_foreign_cc`
 
 Resolving external dependencies managed by [rules_foreign_cc](https://github.com/bazel-contrib/rules_foreign_cc) requires creation of index by the user using `@gazelle_cc//index/rules_foreign_cc` binary. It would use `bazel query` to find definitions of `rules_foreign_cc` rules, eg. `cmake` and would use their assigned sources and rules to create an index.
