@@ -36,7 +36,30 @@ func queryTargets(workingDir string, repos repositories) (*proto.QueryResult, er
 	// Only public targets are indexable, except for `proto_library` rules,
 	// which are needed to find the sources of a public `cc_proto_library`.
 	query := fmt.Sprintf(
-		// Keep `kind()`s in sync with `splitTargets()`.
+		// Keep `kind()`s in sync with `splitTargets()`. We need:
+		//
+		// - `cc_library()` (and user-defined variants with compatible attribute
+		//   names), to find exposed C++ libraries (and notably their `hdrs`,
+		//   `includes`, `include_prefix`, and `strip_include_prefix`).
+		//
+		// - `cc_proto_library()` (matched by the `cc_.*library` regex), to
+		//   synthesize `.pb.h` headers for their `deps`'s source files (see
+		//   below).
+		//
+		// - `proto_library()`, to find the `.proto` files in each
+		//   `proto_library` that `cc_proto_library` depends on. As an example,
+		//   given `cc_proto_library(name = "foo", deps = [":bar", ":baz"])`,
+		//   we need to scan the `proto_library` targets `:bar` and `:baz` to
+		//   find their `.proto` files so that we may synthesize `.pb.h` headers
+		//   for `:foo`.
+		//
+		// - `alias()`, in case a `cc_library` is re-exported with a preferred
+		//   alias. We don't actually know whether an alias is preferred, so
+		//   we use some heuristics to pick an alias over its target's label;
+		//   see `preferAlias()`.
+		//
+		// - `filegroup()`, to expand `cc_library` `hdrs` that refer to
+		//   `filegroup`s rather than source files.
 		`let universe = @%s//... in `+
 			`(kind("cc_.*library|alias", $universe) intersect attr(visibility, "//visibility:public", $universe)) `+
 			`union kind("filegroup|proto_library", $universe)`,
@@ -175,6 +198,10 @@ func stripPrefixOf(target *proto.Target, name label.Label) (packageRelative, roo
 // header paths come from the `proto_library` it wraps (so e.g.
 // `@protobuf//:timestamp_cc_proto` would work). We use it anyway to make
 // it easier to reason about.
+//
+// That restriction could also be lifted by returning a fake alias and adding a
+// new include to `includes` (which would make `IndexableIncludePaths()`
+// return the right thing), but for the sake of simplicity it wasn't.
 //
 // An alias can also help transition off a deprecated rule, so something we
 // _shouldn't_ use, but alas, there is no good way to know, so we prefer it
