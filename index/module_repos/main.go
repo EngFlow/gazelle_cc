@@ -171,7 +171,7 @@ func writeIndex(result indexer.IndexingResult, modules []indexer.Module, path st
 	for _, module := range modules {
 		for _, target := range module.Targets {
 			// Rebuild the label to match `CreateHeaderIndex()`.
-			name := label.New(module.Repository, target.Name.Pkg, target.Name.Name)
+			name := label.New(module.Repository, target.ExposedAs().Pkg, target.ExposedAs().Name)
 			counts[name] += len(target.Hdrs)
 		}
 	}
