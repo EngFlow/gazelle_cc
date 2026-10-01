@@ -49,7 +49,15 @@ type (
 	}
 	// Defines information about structure of rule that might be indexed, typically based on cc_library
 	Target struct {
-		Name               label.Label
+		Name label.Label
+		// Label used to access the target, or label.NoLabel if it is the same
+		// as Name.
+		//
+		// Name is used to determine where headers are relative to the indexed
+		// module, but ReexposedAs may be in another package, so they need to be
+		// separate. Additionally Name may not be sufficient, e.g. if it is
+		// private and re-exposed by a public alias.
+		ReexposedAs        label.Label
 		Hdrs               collections.Set[label.Label] // header files (each header is represented as a Label)
 		Includes           collections.Set[string]      // list of include paths
 		StripIncludePrefix string                       // optional prefix to remove
@@ -57,6 +65,15 @@ type (
 		Deps               collections.Set[label.Label] // dependencies on other targets
 	}
 )
+
+// ExposedAs returns the label which should be used to refer to the target;
+// either the alias it is ReexposedAs, or its Name.
+func (t Target) ExposedAs() label.Label {
+	if t.ReexposedAs != label.NoLabel {
+		return t.ReexposedAs
+	}
+	return t.Name
+}
 
 // IndexingResult contains the results of indexing headers across multiple modules.
 type IndexingResult struct {
@@ -87,7 +104,7 @@ func CreateHeaderIndex(modules []Module) IndexingResult {
 		for _, target := range module.Targets {
 			// Create a targetLabel for the target using the module repository.
 			// It's required to correctly map external module to sources found possibly in other rules
-			targetLabel := label.New(module.Repository, target.Name.Pkg, target.Name.Name)
+			targetLabel := label.New(module.Repository, target.ExposedAs().Pkg, target.ExposedAs().Name)
 			// Normalize headers and add to mapping
 			for hdr := range target.Hdrs {
 				for _, normalizedPath := range IndexableIncludePaths(hdr, target) {
