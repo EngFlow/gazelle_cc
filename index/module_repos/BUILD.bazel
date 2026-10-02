@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
     name = "module_repos_lib",
@@ -25,4 +25,14 @@ go_binary(
     name = "module_repos",
     embed = [":module_repos_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "module_repos_test",
+    srcs = ["targets_test.go"],
+    embed = [":module_repos_lib"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@gazelle//label",
+    ],
 )

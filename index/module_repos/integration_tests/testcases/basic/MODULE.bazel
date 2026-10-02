@@ -2,6 +2,12 @@ bazel_dep(name = "rules_cc", version = "0.2.20")
 
 bazel_dep(name = "fmt", version = "12.2.0")
 
+# For `cc_proto_library` in `@dep`.
+bazel_dep(name = "protobuf", version = "31.1")
+
+local_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
+local_repository(name = "dep", path = "dep")
+
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 http_archive(
     name = "fetched_fmt",

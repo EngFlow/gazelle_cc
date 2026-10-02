@@ -17,7 +17,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -35,8 +34,6 @@ func queryTargets(workingDir string, repos repositories) (*proto.QueryResult, er
 		return nil, errors.New("no repositories to index")
 	}
 
-	// Only public targets are indexable, except for `proto_library` rules,
-	// which are needed to find the sources of a public `cc_proto_library`.
 	query := fmt.Sprintf(
 		// Keep `kind()`s in sync with `splitTargets()`. We need:
 		//
@@ -64,8 +61,8 @@ func queryTargets(workingDir string, repos repositories) (*proto.QueryResult, er
 		//   `filegroup`s rather than source files.
 		//
 		// `filegroup`s and `proto_library` rules do not need to be public.
-		// `cc_library` rules do, we query private ones too as they can be
-		// re-exposed by an `alias`.
+		// `cc_library` rules do, but we query private ones too as they can be
+		// re-exposed by a public `alias`.
 		`let universe = @%s//... in `+
 			`(kind("^alias rule$", $universe) intersect attr(visibility, "//visibility:public", $universe)) `+
 			`union kind("^(cc_.*library|filegroup|proto_library) rule$", $universe)`,
@@ -220,10 +217,9 @@ func exposedLabel(
 	if !public {
 		return alias, true
 	}
-	// Prefer repository-named aliases, then shorter ones. Unlike
-	// `preferFirstAlias()` we do not prefer package-named aliases as they
-	// could match deeply nested aliases somewhere unexpected.
-	if alias.Name == alias.Repo || (len(alias.String()) < len(name.String()) && name.Name != name.Repo) {
+	// Prefer repository-named aliases, then shorter ones, like
+	// `preferFirstAlias()`.
+	if alias.Name == alias.Repo || (len(alias.Pkg)+len(alias.Name) < len(name.Pkg)+len(name.Name) && name.Name != name.Repo) {
 		return alias, true
 	}
 	return label.NoLabel, true
@@ -231,31 +227,24 @@ func exposedLabel(
 
 // preferFirstAlias returns whether first is more likely to be intended as the
 // public alias for target than second is.
+//
+// The labels must have a Repo, i.e. they must not have been relativized.
 func preferFirstAlias(first, second label.Label) bool {
-	// Prefer whichever matches its package's or repository's name.
-	firstMatchesParent := matchesParent(first)
-	secondMatchesParent := matchesParent(second)
-	if firstMatchesParent != secondMatchesParent {
-		return firstMatchesParent
+	// Prefer whichever matches its repository's name. We _could_ also prefer
+	// labels that match their package's name, but that could lead deeply
+	// nested labels to match short ones, so we don't.
+	firstMatchesRepo := first.Pkg == "" && first.Name == first.Repo
+	secondMatchesRepo := second.Pkg == "" && second.Name == second.Repo
+	if firstMatchesRepo != secondMatchesRepo {
+		return firstMatchesRepo
 	}
 	// Prefer a shorter label, like `exposedLabel()`.
-	if byLength := len(first.String()) - len(second.String()); byLength != 0 {
+	if byLength := (len(first.Pkg) + len(first.Name)) - (len(second.Pkg) + len(second.Name)); byLength != 0 {
 		return byLength < 0
 	}
 	// If both aliases are similar, compare lexicographically to
 	// deterministically choose one over the other.
 	return first.String() < second.String()
-}
-
-// matchesParent returns whether name is named like its parent package or
-// repository.
-//
-// name must have a Repo, i.e. it must not have been relativized.
-func matchesParent(name label.Label) bool {
-	if name.Pkg != "" {
-		return name.Name == path.Base(name.Pkg)
-	}
-	return name.Name == name.Repo
 }
 
 // isPublic reports whether a target can be depended upon from anywhere, i.e.

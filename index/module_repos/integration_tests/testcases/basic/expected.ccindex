@@ -2,6 +2,9 @@
   "cc/runfiles/runfiles.h": [
     "@rules_cc//cc/runfiles"
   ],
+  "core/core.h": [
+    "@dep//:dep"
+  ],
   "fetched_fmt/args.h": [
     "@fetched_fmt//:fetched_fmt"
   ],
@@ -92,6 +95,12 @@
   ],
   "fmt/xchar.h": [
     "@fmt//:fmt"
+  ],
+  "hidden/header.h": [
+    "@dep//:hidden"
+  ],
+  "hidden/shared.pb.h": [
+    "@dep//:shared_cc_proto"
   ],
   "include/fetched_fmt/args.h": [
     "@fetched_fmt//:fetched_fmt"
@@ -186,5 +195,8 @@
   ],
   "rules_cc/cc/runfiles/runfiles.h": [
     "@rules_cc//cc/runfiles"
+  ],
+  "shared.pb.h": [
+    "@dep//:shared_cc_proto"
   ]
 }
