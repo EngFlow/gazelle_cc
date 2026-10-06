@@ -7,8 +7,8 @@ cc_binary(
 )
 
 cc_binary(
-    name = "iconv",
-    srcs = ["iconv.cc"],
+    name = "inconv",
+    srcs = ["inconv.cc"],
     deps = ["@libiconv"],
 )
 
