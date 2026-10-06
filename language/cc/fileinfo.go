@@ -88,7 +88,7 @@ func (c *ccLanguage) getFileInfo(
 	}
 
 	for _, parseErr := range sourceInfo.Errors {
-		c.handleReportedError(conf.parsingErrorsMode, fmt.Errorf("%s:%w", filePath, parseErr))
+		c.handleReportedError(args.Rel, conf.parsingErrorsMode, fmt.Errorf("%s:%w", filePath, parseErr))
 	}
 
 	// Evaluate the directives and search for platform specific include paths

@@ -64,6 +64,17 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.
 	// However we need to inspect for existing rules that are no longer matching any files
 	result.Empty = slices.Concat(result.Empty, c.findEmptyRules(args, fileInfos, rulesInfo, result.Gen))
 
+	if c.relsWithErrors.Contains(args.Rel) {
+		// In v1, we have no way to tell Gazelle about errors; we print them
+		// in AfterResolvingDeps. We want to avoid modifying BUILD file though, so
+		// just clear the lists for now.
+		//
+		// TODO(#226): return errors instead with appropriate severity.
+		result.Gen = nil
+		result.Empty = nil
+		result.Imports = nil
+	}
+
 	return result
 }
 
@@ -616,7 +627,7 @@ type rulesInfo struct {
 	// Mapping between groupId created from file name and existing rule name to which it was previously assigned
 	groupAssignment map[groupId]string
 	// Set of generated file names
-	genFiles 	 collections.Set[string]
+	genFiles collections.Set[string]
 }
 
 func extractRulesInfo(args language.GenerateArgs) rulesInfo {

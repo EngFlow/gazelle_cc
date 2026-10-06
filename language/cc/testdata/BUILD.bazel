@@ -11,6 +11,13 @@ gazelle_binary(
     ],
 )
 
+EXCLUDE_TEST_DIRS = [
+    # TODO(#226, bazelbuild/bazel-gazelle#2465): after gazelle 0.54.0, we have
+    # no way to prevent rule generation after a dependency resolution error.
+    # Need -strict mode improvements upstream.
+    "cc_unresolved_deps_error",
+]
+
 ALL_TEST_DIRS = [paths.dirname(p) for p in glob([
     "**/WORKSPACE",
     "**/MODULE.bazel",
@@ -22,7 +29,7 @@ ALL_TEST_DIRS = [paths.dirname(p) for p in glob([
     test_data = glob(
         include = [test_dir + "/**"],
     ),
-) for test_dir in ALL_TEST_DIRS]
+) for test_dir in ALL_TEST_DIRS if test_dir not in EXCLUDE_TEST_DIRS]
 
 COMPILABLE_TEST_DIRS = [paths.dirname(p) for p in glob(
     include = [

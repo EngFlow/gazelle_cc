@@ -55,6 +55,9 @@ type (
 		buildFileDirRels collections.Set[string]
 		// List of collected errors, reported together at once after the dependency resolution
 		collectedErrors []error
+		// Paths to directories with severe errors. We avoid generating or updating
+		// rules in these directories.
+		relsWithErrors collections.Set[string]
 	}
 	ccInclude struct {
 		// File where this include was found
@@ -102,6 +105,7 @@ func NewLanguage() language.Language {
 		bzlmodBuiltInIndex: loadBuiltInBzlModDependenciesIndex(),
 		notFoundBzlModDeps: make(collections.Set[string]),
 		buildFileDirRels:   make(collections.Set[string]),
+		relsWithErrors:     make(collections.Set[string]),
 	}
 }
 
@@ -203,12 +207,13 @@ func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rul
 }
 func (*ccLanguage) Fix(c *config.Config, f *rule.File) {}
 
-func (lang *ccLanguage) handleReportedError(mode errorReportingMode, err error) {
+func (lang *ccLanguage) handleReportedError(rel string, mode errorReportingMode, err error) {
 	switch mode {
 	case errorReportingMode_warn:
 		log.Print(err)
 	case errorReportingMode_error:
 		lang.collectedErrors = append(lang.collectedErrors, err)
+		lang.relsWithErrors.Add(rel)
 	}
 }
 

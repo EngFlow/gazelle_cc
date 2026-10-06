@@ -3,7 +3,7 @@ module github.com/EngFlow/gazelle_cc
 go 1.24.12
 
 require (
-	github.com/bazelbuild/bazel-gazelle v0.50.0
+	github.com/bazelbuild/bazel-gazelle v0.54.0
 	github.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52
 	github.com/bazelbuild/rules_go v0.59.0
 	github.com/bmatcuk/doublestar/v4 v4.9.1
@@ -13,6 +13,7 @@ require (
 )
 
 require (
+	github.com/bazel-contrib/bazel-gazelle/v2 v2.0.0-3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/ulikunitz/xz v0.5.12
