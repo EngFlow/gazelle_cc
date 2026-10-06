@@ -20,6 +20,6 @@ import (
 	"github.com/EngFlow/gazelle_cc/index/internal/tests"
 )
 
-func TestRulesForeignCCIndexerIntegration(t *testing.T) {
+func TestBzlmodIndexerIntegration(t *testing.T) {
 	tests.ExecuteIndexerIntegrationTest(t, tests.IndexerIntegration{})
 }
