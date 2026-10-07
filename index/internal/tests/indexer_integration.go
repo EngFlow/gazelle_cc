@@ -109,14 +109,14 @@ func executeTestCase(
 	Execute(t, defaultExecConfig, gazelleBinary)
 
 	t.Logf("==> [%s] Validating generated BUILD.bazel", testDir)
-	err = filepath.WalkDir(".", func(path string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(testDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if !d.IsDir() && filepath.Base(path) == "BUILD.expected" {
 			dir := filepath.Dir(path)
-			buildPath := filepath.Join(dir, "BUILD")
+			buildPath := filepath.Join(dir, "BUILD.bazel")
 			if _, err := os.Stat(buildPath); os.IsNotExist(err) {
 				t.Errorf("Missing BUILD file: %v", buildPath)
 			} else if err != nil {
