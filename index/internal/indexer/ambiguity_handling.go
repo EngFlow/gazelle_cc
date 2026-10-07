@@ -19,7 +19,7 @@ import (
 	"slices"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
 // WithAmbiguousTargetsResolved returns a copy of the module with ambiguous target headers resolved.

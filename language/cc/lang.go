@@ -29,10 +29,29 @@ import (
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/EngFlow/gazelle_cc/internal/index"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
-	"github.com/bazelbuild/bazel-gazelle/config"
-	"github.com/bazelbuild/bazel-gazelle/label"
-	"github.com/bazelbuild/bazel-gazelle/language"
-	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/bazel-contrib/bazel-gazelle/v2/compat"
+	"github.com/bazel-contrib/bazel-gazelle/v2/config"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/language"
+	"github.com/bazel-contrib/bazel-gazelle/v2/resolve"
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+)
+
+var (
+	rulesCcDefsBzl    = label.New("rules_cc", "cc", "defs.bzl")
+	ccProtoLibraryBzl = label.New("protobuf", "bazel", "cc_proto_library.bzl")
+	ccGrpcLibraryBzl  = label.New("grpc", "bazel", "cc_grpc_library.bzl")
+)
+
+var (
+	_ language.Language     = (*ccLanguage)(nil)
+	_ config.Configurer     = (*ccLanguage)(nil)
+	_ compat.FlagConfigurer = (*ccLanguage)(nil)
+	_ language.Generator    = (*ccLanguage)(nil)
+	_ language.Fixer        = (*ccLanguage)(nil)
+	_ language.OnFinisher   = (*ccLanguage)(nil)
+	_ resolve.Indexer       = (*ccLanguage)(nil)
+	_ resolve.Resolver      = (*ccLanguage)(nil)
 )
 
 const (
@@ -100,7 +119,7 @@ func (imports ccImports) allIncludes() []ccInclude {
 	return slices.Concat(imports.hdrIncludes, imports.srcIncludes)
 }
 
-func NewLanguage() language.Language {
+func NewV2() language.Language {
 	return &ccLanguage{
 		bzlmodBuiltInIndex: loadBuiltInBzlModDependenciesIndex(),
 		notFoundBzlModDeps: make(collections.Set[string]),
@@ -109,9 +128,9 @@ func NewLanguage() language.Language {
 	}
 }
 
-// language.Language methods
-func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
-	kinds := make(map[string]rule.KindInfo)
+func (*ccLanguage) Name() string { return languageName }
+
+func (c *ccLanguage) Kinds() []rule.KindInfo {
 	mergeMaps := func(m1, m2 map[string]bool) map[string]bool {
 		result := make(map[string]bool, len(m1)+len(m2))
 		maps.Copy(result, m1)
@@ -119,9 +138,11 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 		return result
 	}
 
+	kinds := make([]rule.KindInfo, 0, len(ccRuleDefs)+2)
 	for _, commonDef := range ccRuleDefs {
-		// Attributes common to all rules
 		kindInfo := rule.KindInfo{
+			Name:           commonDef,
+			LoadedFrom:     rulesCcDefsBzl,
 			NonEmptyAttrs:  map[string]bool{"srcs": true, "deps": true},
 			MergeableAttrs: map[string]bool{"srcs": true, "deps": true},
 			ResolveAttrs:   map[string]bool{"deps": true},
@@ -141,31 +162,37 @@ func (c *ccLanguage) Kinds() map[string]rule.KindInfo {
 				"implementation_deps": true,
 			})
 		}
-		kinds[commonDef] = kindInfo
+		kinds = append(kinds, kindInfo)
 	}
-	kinds["cc_proto_library"] = rule.KindInfo{
-		MatchAttrs:     []string{"deps"},
-		NonEmptyAttrs:  map[string]bool{"deps": true},
-		MergeableAttrs: map[string]bool{"deps": true},
-		ResolveAttrs:   map[string]bool{"deps": true},
-	}
-	kinds["cc_grpc_library"] = rule.KindInfo{
-		NonEmptyAttrs: map[string]bool{
-			"srcs": true,
-			"deps": true,
+	kinds = append(kinds,
+		rule.KindInfo{
+			Name:           "cc_proto_library",
+			LoadedFrom:     ccProtoLibraryBzl,
+			MatchAttrs:     []string{"deps"},
+			NonEmptyAttrs:  map[string]bool{"deps": true},
+			MergeableAttrs: map[string]bool{"deps": true},
+			ResolveAttrs:   map[string]bool{"deps": true},
 		},
-		MergeableAttrs: map[string]bool{
-			"srcs":              true,
-			"deps":              true,
-			"proto_only":        true,
-			"grpc_only":         true,
-			"well_known_protos": true,
+		rule.KindInfo{
+			Name:       "cc_grpc_library",
+			LoadedFrom: ccGrpcLibraryBzl,
+			NonEmptyAttrs: map[string]bool{
+				"srcs": true,
+				"deps": true,
+			},
+			MergeableAttrs: map[string]bool{
+				"srcs":              true,
+				"deps":              true,
+				"proto_only":        true,
+				"grpc_only":         true,
+				"well_known_protos": true,
+			},
+			ResolveAttrs: map[string]bool{
+				"srcs": true,
+				"deps": true,
+			},
 		},
-		ResolveAttrs: map[string]bool{
-			"srcs": true,
-			"deps": true,
-		},
-	}
+	)
 
 	return kinds
 }
@@ -177,35 +204,7 @@ var ccRuleDefs = []string{
 	"cc_test",
 }
 
-func (c *ccLanguage) Loads() []rule.LoadInfo {
-	panic("ApparentLoads should be called instead")
-}
-
-func (*ccLanguage) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
-	apparentOrDefaultName := func(moduleName, defaultName string) string {
-		if module := moduleToApparentName(moduleName); module != "" {
-			return module
-		} else {
-			return defaultName
-		}
-	}
-
-	return []rule.LoadInfo{
-		{
-			Name:    fmt.Sprintf("@%s//cc:defs.bzl", apparentOrDefaultName("rules_cc", "rules_cc")),
-			Symbols: ccRuleDefs,
-		},
-		{
-			Name:    fmt.Sprintf("@%s//bazel:cc_proto_library.bzl", apparentOrDefaultName("protobuf", "com_google_protobuf")),
-			Symbols: []string{"cc_proto_library"},
-		},
-		{
-			Name:    fmt.Sprintf("@%s//bazel:cc_grpc_library.bzl", apparentOrDefaultName("grpc", "com_github_grpc_grpc")),
-			Symbols: []string{"cc_grpc_library"},
-		},
-	}
-}
-func (*ccLanguage) Fix(c *config.Config, f *rule.File) {}
+func (*ccLanguage) Fix(_ context.Context, _ language.FixArgs) error { return nil }
 
 func (lang *ccLanguage) handleReportedError(rel string, mode errorReportingMode, err error) {
 	switch mode {
@@ -268,15 +267,16 @@ func unmarshalDependencyIndex(data []byte) (ccDependencyIndex, error) {
 	return index, nil
 }
 
-// language.LifecycleManager methods
-func (*ccLanguage) Before(context.Context) {}
-func (*ccLanguage) DoneGeneratingRules()   {}
-func (c *ccLanguage) AfterResolvingDeps(context.Context) {
-	if len(c.collectedErrors) > 0 {
-		log.Printf("Found %d error(s):", len(c.collectedErrors))
-		for _, err := range c.collectedErrors {
-			log.Printf("  %v", err)
-		}
-		os.Exit(1)
+// DO NOT SUBMIT: drop os.Exit once Gazelle v2 fails the run on OnFinish errors
+// (or cc error directives return severity through Generate/Resolve) without -strict.
+func (c *ccLanguage) OnFinish(_ context.Context) error {
+	if len(c.collectedErrors) == 0 {
+		return nil
 	}
+	log.Printf("Found %d error(s):", len(c.collectedErrors))
+	for _, err := range c.collectedErrors {
+		log.Printf("  %v", err)
+	}
+	os.Exit(1)
+	return nil
 }

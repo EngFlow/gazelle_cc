@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -23,25 +24,26 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/config"
-	"github.com/bazelbuild/bazel-gazelle/label"
-	"github.com/bazelbuild/bazel-gazelle/repo"
-	"github.com/bazelbuild/bazel-gazelle/resolve"
-	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/bazel-contrib/bazel-gazelle/v2/config"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/resolve"
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 )
 
-// resolve.Resolver methods
-func (c *ccLanguage) Name() string                                        { return languageName }
-func (c *ccLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
-func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports any, from label.Label) {
-	publicDeps, privateDeps := lang.resolveDeps(c, ix, r, imports.(ccImports), from)
+func (lang *ccLanguage) Resolve(ctx context.Context, args resolve.ResolveArgs) error {
+	c := args.Config
+	ix := args.Index
+	r := args.Rule
+	from := args.From
+	if args.Imports == nil {
+		return nil
+	}
+	imports := args.Imports.(ccImports)
+	publicDeps, privateDeps := lang.resolveDeps(ctx, c, ix, r, imports, from)
 	if lang.relsWithErrors.Contains(from.Pkg) {
-		// In v1, we have no way to tell Gazelle about errors; we print them in
-		// AfterResolvingDeps. We want to avoid modifying BUILD files though, so
-		// don't make changes.
-		//
 		// TODO(#226): return errors instead with appropriate severity.
-		return
+		// DO NOT SUBMIT: fix this first.
+		return nil
 	}
 	if len(publicDeps.all) > 0 {
 		r.SetAttr("deps", publicDeps.build())
@@ -49,9 +51,11 @@ func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *rep
 	if len(privateDeps.all) > 0 {
 		r.SetAttr("implementation_deps", privateDeps.build())
 	}
+	return nil
 }
 
 func (lang *ccLanguage) resolveDeps(
+	ctx context.Context,
 	c *config.Config,
 	ix *resolve.RuleIndex,
 	r *rule.Rule,
@@ -59,16 +63,17 @@ func (lang *ccLanguage) resolveDeps(
 	from label.Label) (publicDeps, privateDeps platformDepsBuilder) {
 	switch resolveCCRuleKind(r.Kind(), c) {
 	case "cc_library":
-		publicDeps, privateDeps = lang.resolveCcLibraryDeps(c, ix, r, imports, from)
+		publicDeps, privateDeps = lang.resolveCcLibraryDeps(ctx, c, ix, r, imports, from)
 	case "cc_test":
-		publicDeps = lang.resolveCcTestDeps(c, ix, r, imports, from)
+		publicDeps = lang.resolveCcTestDeps(ctx, c, ix, r, imports, from)
 	default:
-		publicDeps = lang.resolveCcGenericRuleDeps(c, ix, r, imports, from)
+		publicDeps = lang.resolveCcGenericRuleDeps(ctx, c, ix, r, imports, from)
 	}
 	return
 }
 
 func (lang *ccLanguage) resolveCcLibraryDeps(
+	ctx context.Context,
 	c *config.Config,
 	ix *resolve.RuleIndex,
 	r *rule.Rule,
@@ -77,18 +82,19 @@ func (lang *ccLanguage) resolveCcLibraryDeps(
 	// Only cc_library has 'implementation_deps' attribute If dependency is
 	// added by header (via "deps") ensure it would not be duplicated inside
 	// "implementation_deps".
-	publicDeps = lang.resolveIncludes(c, ix, r, from, imports.hdrIncludes, collections.Set[label.Label]{})
-	privateDeps = lang.resolveIncludes(c, ix, r, from, imports.srcIncludes, publicDeps.all)
+	publicDeps = lang.resolveIncludes(ctx, c, ix, r, from, imports.hdrIncludes, collections.Set[label.Label]{})
+	privateDeps = lang.resolveIncludes(ctx, c, ix, r, from, imports.srcIncludes, publicDeps.all)
 	return
 }
 
 func (lang *ccLanguage) resolveCcTestDeps(
+	ctx context.Context,
 	c *config.Config,
 	ix *resolve.RuleIndex,
 	r *rule.Rule,
 	imports ccImports,
 	from label.Label) (publicDeps platformDepsBuilder) {
-	deps := lang.resolveCcGenericRuleDeps(c, ix, r, imports, from)
+	deps := lang.resolveCcGenericRuleDeps(ctx, c, ix, r, imports, from)
 
 	// cc_test might have implicit dependency on test runner - cc_library
 	// defining main method required when linking
@@ -100,17 +106,19 @@ func (lang *ccLanguage) resolveCcTestDeps(
 }
 
 func (lang *ccLanguage) resolveCcGenericRuleDeps(
+	ctx context.Context,
 	c *config.Config,
 	ix *resolve.RuleIndex,
 	r *rule.Rule,
 	imports ccImports,
 	from label.Label) (publicDeps platformDepsBuilder) {
-	return lang.resolveIncludes(c, ix, r, from, imports.allIncludes(), collections.Set[label.Label]{})
+	return lang.resolveIncludes(ctx, c, ix, r, from, imports.allIncludes(), collections.Set[label.Label]{})
 }
 
 // Resolves given includes to rule labels and assigns them to the given builder.
 // Excludes explicitly provided labels from being assigned.
 func (lang *ccLanguage) resolveIncludes(
+	ctx context.Context,
 	c *config.Config,
 	ix *resolve.RuleIndex,
 	r *rule.Rule,
@@ -126,7 +134,7 @@ func (lang *ccLanguage) resolveIncludes(
 			continue
 		}
 
-		resolvedLabel, err := lang.resolveSingleInclude(c, ix, r, from, include)
+		resolvedLabel, err := lang.resolveSingleInclude(ctx, c, ix, r, from, include)
 		if !lang.handleIncludeResolutionError(c, include, resolvedLabel, from, err) {
 			continue
 		}
@@ -146,6 +154,7 @@ func (lang *ccLanguage) resolveIncludes(
 //  1. Fully qualified path (repository-root relative) for non-system includes
 //  2. Exact path using the include directive as-is
 func (lang *ccLanguage) resolveSingleInclude(
+	ctx context.Context,
 	c *config.Config,
 	ix *resolve.RuleIndex,
 	r *rule.Rule,
@@ -157,13 +166,13 @@ func (lang *ccLanguage) resolveSingleInclude(
 	// 1. Try resolve using fully qualified path (repository-root relative)
 	if !include.isSystemInclude {
 		relPath := filepath.Join(include.sourceDirectory(), include.path)
-		resolvedLabel, err = lang.resolveImportSpec(c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
+		resolvedLabel, err = lang.resolveImportSpec(ctx, c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: relPath}, include)
 	}
 
 	// 2. Try resolve using exact path - using the exact include directive
 	if errors.Is(err, errUnresolved) {
 		// Retry to resolve if external dependency was defined using quotes instead of braces
-		resolvedLabel, err = lang.resolveImportSpec(c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
+		resolvedLabel, err = lang.resolveImportSpec(ctx, c, ix, r, from, resolve.ImportSpec{Lang: languageName, Imp: include.path}, include)
 	}
 
 	return resolvedLabel, err
@@ -270,6 +279,7 @@ func resolveAmbiguousDependency(
 // Returns the resolved label, optionally with a wrapped one of 'err*' errors.
 // For errUnresolved the returned label is label.NoLabel.
 func (lang *ccLanguage) resolveImportSpec(
+	ctx context.Context,
 	c *config.Config,
 	ix *resolve.RuleIndex,
 	r *rule.Rule,
@@ -283,7 +293,11 @@ func (lang *ccLanguage) resolveImportSpec(
 	}
 
 	// Resolve using imports registered in Imports
-	if importedRules := ix.FindRulesByImportWithConfig(c, importSpec, languageName); len(importedRules) > 0 {
+	importedRules, findErr := ix.Find(ctx, c, importSpec, languageName)
+	if findErr != nil {
+		return label.NoLabel, findErr
+	}
+	if len(importedRules) > 0 {
 		// Any self-import should immediately stop the resolution
 		for _, searchResult := range importedRules {
 			if searchResult.IsSelfImport(from) {
@@ -309,7 +323,11 @@ func (lang *ccLanguage) resolveImportSpec(
 				Imp:  stripped + ".proto",
 			}
 
-			if importedRules := ix.FindRulesByImportWithConfig(c, pbSpec, "proto"); len(importedRules) > 0 {
+			importedRules, findErr := ix.Find(ctx, c, pbSpec, "proto")
+			if findErr != nil {
+				return label.NoLabel, findErr
+			}
+			if len(importedRules) > 0 {
 				ruleSuffix := "_cc_proto"
 
 				if pbSuffix == ".grpc.pb.h" {

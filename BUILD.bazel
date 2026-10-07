@@ -26,6 +26,7 @@ gazelle_binary(
     languages = [
         "//language/cc",
     ],
+    version = 2,
     visibility = ["//visibility:public"],
 )
 

@@ -9,6 +9,7 @@ gazelle_binary(
         "@gazelle//language/proto",
         "//language/cc",
     ],
+    version = 2,
 )
 
 EXCLUDE_TEST_DIRS = [

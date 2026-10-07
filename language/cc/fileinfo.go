@@ -24,8 +24,8 @@ import (
 	"github.com/EngFlow/gazelle_cc/internal/collections"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
-	"github.com/bazelbuild/bazel-gazelle/language"
-	"github.com/bazelbuild/bazel-gazelle/pathtools"
+	"github.com/bazel-contrib/bazel-gazelle/v2/language"
+	"github.com/bazel-contrib/bazel-gazelle/v2/pathtools"
 )
 
 // fileKind determines how a file should be added to rules, based on its

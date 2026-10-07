@@ -25,7 +25,7 @@ import (
 	"github.com/EngFlow/gazelle_cc/index/internal/bazel/proto"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
 // queryTargets runs a `bazel query` yielding all indexable targets in `repos`.

@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"context"
 	"errors"
 	"log"
 	"path"
@@ -24,23 +25,24 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/config"
-	"github.com/bazelbuild/bazel-gazelle/pathtools"
-	"github.com/bazelbuild/bazel-gazelle/resolve"
-	"github.com/bazelbuild/bazel-gazelle/rule"
-	"github.com/bazelbuild/bazel-gazelle/walk"
+	"github.com/bazel-contrib/bazel-gazelle/v2/config"
+	"github.com/bazel-contrib/bazel-gazelle/v2/pathtools"
+	"github.com/bazel-contrib/bazel-gazelle/v2/resolve"
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	walkcompat "github.com/bazelbuild/bazel-gazelle/walk"
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-// resolve.Resolver method
-func (*ccLanguage) Imports(config *config.Config, rule *rule.Rule, buildFile *rule.File) []resolve.ImportSpec {
+func (*ccLanguage) Imports(_ context.Context, args resolve.ImportsArgs) (resolve.ImportsResult, error) {
+	rule := args.Rule
+	buildFile := args.File
 	switch rule.Kind() {
 	case "cc_proto_library", "cc_grpc_library":
-		return generateProtoImportSpecs(rule, buildFile)
+		return resolve.ImportsResult{Imports: generateProtoImportSpecs(rule, buildFile)}, nil
 	case "cc_import", "cc_library", "cc_shared_library", "cc_static_library":
-		return generateLibraryImportSpecs(config, rule, buildFile.Pkg)
+		return resolve.ImportsResult{Imports: generateLibraryImportSpecs(args.Config, rule, buildFile.Pkg)}, nil
 	default:
-		return nil
+		return resolve.ImportsResult{}, nil
 	}
 }
 
@@ -223,7 +225,8 @@ func expandGlob(config *config.Config, pkg string, glob rule.GlobValue) ([]strin
 	var matched []string
 	var traverse func(string)
 	traverse = func(current_subdir string) {
-		di, err := walk.GetDirInfo(current_subdir)
+		// DO NOT SUBMIT: plumb in Cache
+		di, err := walkcompat.GetDirInfo(current_subdir)
 		if err != nil {
 			return // swallow errors
 		}

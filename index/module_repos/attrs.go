@@ -19,7 +19,7 @@ import (
 
 	"github.com/EngFlow/gazelle_cc/index/internal/bazel"
 	"github.com/EngFlow/gazelle_cc/index/internal/bazel/proto"
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
 // Decoders for the attribute values reported by `bazel query --output=proto`,

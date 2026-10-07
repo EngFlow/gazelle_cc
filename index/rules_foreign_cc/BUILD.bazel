@@ -11,7 +11,7 @@ go_library(
         "//index/internal/indexer",
         "//index/internal/indexer/cli",
         "//internal/collections",
-        "@gazelle//label",
+        "@gazelle//v2/label",
     ],
 )
 

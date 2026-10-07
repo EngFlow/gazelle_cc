@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/stretchr/testify/assert"
 )
 
