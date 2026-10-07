@@ -35,6 +35,14 @@ func (c *ccLanguage) Name() string                                        { retu
 func (c *ccLanguage) Embeds(r *rule.Rule, from label.Label) []label.Label { return nil }
 func (lang *ccLanguage) Resolve(c *config.Config, ix *resolve.RuleIndex, rc *repo.RemoteCache, r *rule.Rule, imports any, from label.Label) {
 	publicDeps, privateDeps := lang.resolveDeps(c, ix, r, imports.(ccImports), from)
+	if lang.relsWithErrors.Contains(from.Pkg) {
+		// In v1, we have no way to tell Gazelle about errors; we print them in
+		// AfterResolvingDeps. We want to avoid modifying BUILD files though, so
+		// don't make changes.
+		//
+		// TODO(#226): return errors instead with appropriate severity.
+		return
+	}
 	if len(publicDeps.all) > 0 {
 		r.SetAttr("deps", publicDeps.build())
 	}
@@ -119,7 +127,7 @@ func (lang *ccLanguage) resolveIncludes(
 		}
 
 		resolvedLabel, err := lang.resolveSingleInclude(c, ix, r, from, include)
-		if !lang.handleIncludeResolutionError(c, include, resolvedLabel, err) {
+		if !lang.handleIncludeResolutionError(c, include, resolvedLabel, from, err) {
 			continue
 		}
 
@@ -175,6 +183,7 @@ func (lang *ccLanguage) handleIncludeResolutionError(
 	c *config.Config,
 	include ccInclude,
 	resolvedLabel label.Label,
+	from label.Label,
 	err error) bool {
 	switch {
 	case errors.Is(err, errAmbiguousImport):
@@ -194,7 +203,7 @@ func (lang *ccLanguage) handleIncludeResolutionError(
 	case errors.Is(err, errUnresolved):
 		// Warn about unresolved non-system include directives
 		if !include.isSystemInclude {
-			lang.handleReportedError(getCcConfig(c).unresolvedDepsMode, err)
+			lang.handleReportedError(from.Pkg, getCcConfig(c).unresolvedDepsMode, err)
 		}
 		return false
 	}
@@ -297,7 +306,7 @@ func (lang *ccLanguage) resolveImportSpec(
 		if stripped, ok := strings.CutSuffix(importSpec.Imp, pbSuffix); ok {
 			pbSpec := resolve.ImportSpec{
 				Lang: "proto",
-				Imp: stripped + ".proto",
+				Imp:  stripped + ".proto",
 			}
 
 			if importedRules := ix.FindRulesByImportWithConfig(c, pbSpec, "proto"); len(importedRules) > 0 {

@@ -9,55 +9,55 @@
     "@rules_cc//cc/runfiles"
   ],
   "crc32.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "deflate.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "fmt/args.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/base.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/chrono.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/color.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/compile.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/core.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/format-inl.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/format.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/os.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/ostream.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/printf.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/ranges.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/std.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "fmt/xchar.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "gzguts.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "include/benchmark/benchmark.h": [
     "@google_benchmark//:benchmark_main"
@@ -66,105 +66,105 @@
     "@google_benchmark//:benchmark_main"
   ],
   "include/fmt/args.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/base.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/chrono.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/color.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/compile.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/core.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/format-inl.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/format.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/os.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/ostream.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/printf.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/ranges.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/std.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "include/fmt/xchar.h": [
-    "@fmt//:fmt"
+    "@fmt"
   ],
   "inffast.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "inffixed.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "inflate.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "inftrees.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "rules_cc/cc/runfiles/runfiles.h": [
     "@rules_cc//cc/runfiles"
   ],
   "trees.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zconf.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/crc32.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/deflate.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/gzguts.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/inffast.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/inffixed.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/inflate.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/inftrees.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/trees.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/zconf.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/zlib.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zlib/include/zutil.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ],
   "zutil.h": [
-    "@zlib//:zlib"
+    "@zlib"
   ]
 }
