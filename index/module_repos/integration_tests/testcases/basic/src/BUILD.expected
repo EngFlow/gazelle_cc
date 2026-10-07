@@ -1,6 +1,15 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 cc_binary(
+    name = "aliases",
+    srcs = ["aliases.cpp"],
+    deps = [
+        "@dep",
+        "@dep//:hidden",
+    ],
+)
+
+cc_binary(
     name = "fetched_fmt",
     srcs = ["fetched_fmt.cpp"],
     deps = ["@fetched_fmt"],

@@ -1,0 +1,43 @@
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+# Visible only to the root package, which re-exports it as `//:hidden`.
+cc_library(
+    name = "hidden",
+    hdrs = ["header.h"],
+    visibility = ["//:__pkg__"],
+)
+
+proto_library(
+    name = "shared_proto",
+    srcs = ["shared.proto"],
+    strip_import_prefix = "/hidden",
+    visibility = ["//visibility:private"],
+)
+
+# Visible only to the root package, which re-exports it as `//:shared_cc_proto`.
+cc_proto_library(
+    name = "shared_cc_proto",
+    deps = [":shared_proto"],
+    visibility = ["//:__pkg__"],
+)
+
+proto_library(
+    name = "unexported_proto",
+    srcs = ["unexported.proto"],
+    strip_import_prefix = "/hidden",
+    visibility = ["//visibility:private"],
+)
+
+# Private with no alias re-exporting them, so they should not appear in the
+# index.
+cc_library(
+    name = "unexported_cc",
+    visibility = ["//visibility:private"],
+)
+cc_proto_library(
+    name = "unexported_cc_proto",
+    deps = [":unexported_proto"],
+    visibility = ["//visibility:private"],
+)

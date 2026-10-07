@@ -82,7 +82,9 @@ func executeTestCase(
 	if err != nil {
 		t.Fatalf("Failed to create tmp dir")
 	}
-	CopyDir(readOnlyTestDir, testDir)
+	if err := CopyDir(readOnlyTestDir, testDir); err != nil {
+		t.Fatalf("Failed to copy %s/** to %s: %v", readOnlyTestDir, testDir, err)
+	}
 
 	// Execute indexer specific setup
 	if integration.BeforeTestCase != nil {

@@ -21,5 +21,9 @@ import (
 )
 
 func TestModuleReposIndexerIntegration(t *testing.T) {
-	tests.ExecuteIndexerIntegrationTest(t, tests.IndexerIntegration{Args: []string{"--exclude_repositories=^bazel_tools$"}})
+	// We depend on `protobuf` to test `cc_proto_library`, but we don't want to
+	// index it.
+	tests.ExecuteIndexerIntegrationTest(t, tests.IndexerIntegration{
+		Args: []string{"--exclude_repositories=^(bazel_tools|protobuf)$"},
+	})
 }

@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/index/internal/bazel"
@@ -33,8 +34,6 @@ func queryTargets(workingDir string, repos repositories) (*proto.QueryResult, er
 		return nil, errors.New("no repositories to index")
 	}
 
-	// Only public targets are indexable, except for `proto_library` rules,
-	// which are needed to find the sources of a public `cc_proto_library`.
 	query := fmt.Sprintf(
 		// Keep `kind()`s in sync with `splitTargets()`. We need:
 		//
@@ -56,13 +55,17 @@ func queryTargets(workingDir string, repos repositories) (*proto.QueryResult, er
 		// - `alias()`, in case a `cc_library` is re-exported with a preferred
 		//   alias. We don't actually know whether an alias is preferred, so
 		//   we use some heuristics to pick an alias over its target's label;
-		//   see `preferAlias()`.
+		//   see `exposedLabel()`.
 		//
 		// - `filegroup()`, to expand `cc_library` `hdrs` that refer to
 		//   `filegroup`s rather than source files.
+		//
+		// `filegroup`s and `proto_library` rules do not need to be public.
+		// `cc_library` rules do, but we query private ones too as they can be
+		// re-exposed by a public `alias`.
 		`let universe = @%s//... in `+
-			`(kind("cc_.*library|alias", $universe) intersect attr(visibility, "//visibility:public", $universe)) `+
-			`union kind("filegroup|proto_library", $universe)`,
+			`(kind("^alias rule$", $universe) intersect attr(visibility, "//visibility:public", $universe)) `+
+			`union kind("^(cc_.*library|filegroup|proto_library) rule$", $universe)`,
 		strings.Join(repos.apparent, "//... + @"),
 	)
 
@@ -106,16 +109,22 @@ func (r repositories) buildModule(repository string, targets []*proto.Target) in
 			deps.Add(dep.Rel(name.Repo, name.Pkg))
 		}
 
+		exposedAs, indexable := exposedLabel(name, isPublic(target), aliases)
+		if !indexable {
+			continue
+		}
+
 		// A `cc_proto_library` has no `hdrs`, so we must handle it manually
 		// using its `cc_library`.
 		if ccLib.ruleClass == "cc_proto_library" {
 			// `indexer.IndexableIncludePaths()` joins headers after their
 			// target's package, so we add "." to `Includes`.
 			indexed = append(indexed, indexer.Target{
-				Name:     preferAlias(name, repository, aliases),
-				Hdrs:     protoHeaders(name, r.labelListAttr(target, "deps"), protoLibraries),
-				Includes: collections.SetOf("."),
-				Deps:     deps,
+				Name:        name,
+				ReexposedAs: exposedAs,
+				Hdrs:        protoHeaders(name, r.labelListAttr(target, "deps"), protoLibraries),
+				Includes:    collections.SetOf("."),
+				Deps:        deps,
 			})
 			continue
 		}
@@ -126,8 +135,6 @@ func (r repositories) buildModule(repository string, targets []*proto.Target) in
 				hdrs.Add(resolved)
 			}
 		}
-
-		name = preferAlias(name, repository, aliases)
 
 		includes := collections.ToSet(stringListAttr(target, "includes"))
 		stripIncludePrefix, rootRelativeStrip := stripPrefixOf(target, name)
@@ -142,6 +149,7 @@ func (r repositories) buildModule(repository string, targets []*proto.Target) in
 
 		indexed = append(indexed, indexer.Target{
 			Name:               name,
+			ReexposedAs:        exposedAs,
 			Hdrs:               hdrs,
 			Includes:           includes,
 			StripIncludePrefix: stripIncludePrefix,
@@ -184,37 +192,65 @@ func stripPrefixOf(target *proto.Target, name label.Label) (packageRelative, roo
 	return "", filepath.ToSlash(relative)
 }
 
-// preferAlias returns the label to map a header to, preferring aliases
-// either when they are the repository's main target (e.g. `@fmt//:fmt`) or when
-// they are a shorter way to spell the same thing.
+// exposedLabel returns the label a target should be indexed under, and whether
+// it should be indexed at all.
 //
-// Only within one package, though: `indexer.IndexableIncludePaths()` derives
-// include paths from the package of the label it is given, so swapping in an
-// alias from elsewhere would rewrite the paths too: taking `@protobuf//:json`
-// for `@protobuf//src/google/protobuf/json` indexes its header as "json.h"
-// rather than "google/protobuf/json/json.h".
+// aliases may only contain public aliases.
 //
-// That restriction is not strictly needed for a `cc_proto_library`, whose
-// header paths come from the `proto_library` it wraps (so e.g.
-// `@protobuf//:timestamp_cc_proto` would work). We use it anyway to make
-// it easier to reason about.
-//
-// That restriction could also be lifted by returning a fake alias and adding a
-// new include to `includes` (which would make `IndexableIncludePaths()`
-// return the right thing), but for the sake of simplicity it wasn't.
+// When both name and its alias are usable, the alias is preferred when it looks
+// like the intended public label -- either it is the repository's main target
+// (e.g. `@fmt//:fmt`) or it is shorter.
 //
 // An alias can also help transition off a deprecated rule, so something we
-// _shouldn't_ use, but alas, there is no good way to know, so we prefer it
-// when possible.
-func preferAlias(name label.Label, repository string, aliases map[label.Label]label.Label) label.Label {
+// shouldn't use, but alas, there is no good way to know.
+//
+// label.NoLabel will be returned if the target should be exposed as name.
+func exposedLabel(
+	name label.Label,
+	public bool,
+	aliases map[label.Label]label.Label,
+) (exposedAs label.Label, indexable bool) {
 	alias, aliased := aliases[name]
-	if !aliased || alias.Pkg != name.Pkg {
-		return name
+	if !aliased {
+		return label.NoLabel, public
 	}
-	if alias.Name == repository || len(alias.String()) < len(name.String()) {
-		return alias
+	if !public {
+		return alias, true
 	}
-	return name
+	// Prefer repository-named aliases, then shorter ones, like
+	// `preferFirstAlias()`.
+	if alias.Name == alias.Repo || (len(alias.Pkg)+len(alias.Name) < len(name.Pkg)+len(name.Name) && name.Name != name.Repo) {
+		return alias, true
+	}
+	return label.NoLabel, true
+}
+
+// preferFirstAlias returns whether first is more likely to be intended as the
+// public alias for target than second is.
+//
+// The labels must have a Repo, i.e. they must not have been relativized.
+func preferFirstAlias(first, second label.Label) bool {
+	// Prefer whichever matches its repository's name. We _could_ also prefer
+	// labels that match their package's name, but that could lead deeply
+	// nested labels to match short ones, so we don't.
+	firstMatchesRepo := first.Pkg == "" && first.Name == first.Repo
+	secondMatchesRepo := second.Pkg == "" && second.Name == second.Repo
+	if firstMatchesRepo != secondMatchesRepo {
+		return firstMatchesRepo
+	}
+	// Prefer a shorter label, like `exposedLabel()`.
+	if byLength := (len(first.Pkg) + len(first.Name)) - (len(second.Pkg) + len(second.Name)); byLength != 0 {
+		return byLength < 0
+	}
+	// If both aliases are similar, compare lexicographically to
+	// deterministically choose one over the other.
+	return first.String() < second.String()
+}
+
+// isPublic reports whether a target can be depended upon from anywhere, i.e.
+// whether its visibility includes `//visibility:public`.
+func isPublic(target *proto.Target) bool {
+	return slices.Contains(stringListAttr(target, "visibility"), "//visibility:public")
 }
 
 // isHiddenPackage returns whether a target lives under a package segment that
@@ -276,7 +312,13 @@ func (r repositories) splitTargets(targets []*proto.Target) (
 		switch rule.GetRuleClass() {
 		case "alias":
 			if actual, ok := r.labelAttr(target, "actual"); ok {
-				aliases[actual] = name
+				// Several public aliases may re-export one target, so keep the
+				// best rather than whichever the query happened to yield last.
+				if previous, seen := aliases[actual]; !seen || preferFirstAlias(name, previous) {
+					// Note that `targets` are per-repo, so cross-repo aliases,
+					// if any, will never be used.
+					aliases[actual] = name
+				}
 			}
 		case "filegroup":
 			if srcs := r.labelListAttr(target, "srcs"); len(srcs) > 0 {
