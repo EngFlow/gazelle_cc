@@ -1,7 +1,7 @@
-github.com/bazel-contrib/bazel-gazelle/v2 v2.0.0-3 h1:Mq3iQ30V39RGCErrbnhHFOAcnxpWTIrk35Pc9guNfOY=
-github.com/bazel-contrib/bazel-gazelle/v2 v2.0.0-3/go.mod h1:B76PjnaM2KyUG8ypV/ePHHDmGbyUNZ2PCEdEQIJISQM=
-github.com/bazelbuild/bazel-gazelle v0.54.0 h1:BtOU6xkQjZmXVcrxirX3SwUq0PCp9FGls8foOZj5Eu0=
-github.com/bazelbuild/bazel-gazelle v0.54.0/go.mod h1:ncMNvFUTYi5NRQ7wVrOmxjKaR0+mvm02lhBt7UOXlVc=
+github.com/bazel-contrib/bazel-gazelle/v2 v2.0.0-beta.1 h1:4bjLzZcQ+uRjn+oWxHUMq+3u78r8DV5jCKJANVixGn0=
+github.com/bazel-contrib/bazel-gazelle/v2 v2.0.0-beta.1/go.mod h1:B76PjnaM2KyUG8ypV/ePHHDmGbyUNZ2PCEdEQIJISQM=
+github.com/bazelbuild/bazel-gazelle v1.0.0-beta.1 h1:qCXqTlzTK7A76FBAbbNegm9N9qIQtWRwZqVlvYGO8ag=
+github.com/bazelbuild/bazel-gazelle v1.0.0-beta.1/go.mod h1:LObDTE42Ox8QVaUgD5OARZUldp4rs77geSzsydmejAw=
 github.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52 h1:njQAmjTv/YHRm/0Lfv9DXHFZ4MdT2IA/RKHTnqZkgDw=
 github.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52/go.mod h1:PLNUetjLa77TCCziPsz0EI8a6CUxgC+1jgmWv0H25tg=
 github.com/bazelbuild/rules_go v0.59.0 h1:RLhOwYIqeMgBpKelHEWTfIPjA37so3oa/rX+/qqq/P4=

@@ -19,7 +19,7 @@ import (
 
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer/cli"
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
 // Dummy indexer for the sake of testing indexing framework

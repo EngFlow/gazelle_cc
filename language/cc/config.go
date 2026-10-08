@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"log"
@@ -28,9 +29,9 @@ import (
 	"github.com/EngFlow/gazelle_cc/internal/index"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/parser"
 	"github.com/EngFlow/gazelle_cc/language/internal/cc/platform"
-	"github.com/bazelbuild/bazel-gazelle/config"
-	"github.com/bazelbuild/bazel-gazelle/label"
-	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/bazel-contrib/bazel-gazelle/v2/config"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bmatcuk/doublestar/v4"
 )
 
@@ -78,7 +79,10 @@ func (c *ccLanguage) KnownDirectives() []string {
 	}
 }
 
-func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) {
+func (c *ccLanguage) Configure(_ context.Context, args config.ConfigureArgs) error {
+	config := args.Config
+	rel := args.Rel
+	f := args.File
 	var conf *ccConfig
 	if parentConf, ok := config.Exts[languageName]; !ok {
 		conf = newCcConfig()
@@ -87,7 +91,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 	}
 	config.Exts[languageName] = conf
 	if f == nil {
-		return
+		return nil
 	}
 	c.buildFileDirRels.Add(rel)
 
@@ -216,6 +220,7 @@ func (c *ccLanguage) Configure(config *config.Config, rel string, f *rule.File) 
 			conf.ccStripIncludePrefix = d.Value
 		}
 	}
+	return nil
 }
 
 // Compares the directive value with list of expected choices. If there is a match it updates the target with matching value

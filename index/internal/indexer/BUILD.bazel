@@ -11,7 +11,7 @@ go_library(
     deps = [
         "//internal/collections",
         "//internal/index",
-        "@gazelle//label",
+        "@gazelle//v2/label",
     ],
 )
 
@@ -25,6 +25,6 @@ go_test(
     deps = [
         "//internal/collections",
         "@com_github_stretchr_testify//assert",
-        "@gazelle//label",
+        "@gazelle//v2/label",
     ],
 )

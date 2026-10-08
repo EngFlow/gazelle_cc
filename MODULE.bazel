@@ -2,7 +2,14 @@
 
 module(name = "gazelle_cc")
 
-bazel_dep(name = "gazelle", version = "0.54.0")
+bazel_dep(name = "gazelle", version = "2.0.0-beta.1")
+
+# DO NOT SUBMIT: temporary workaround to get upstream fixes
+local_path_override(
+    module_name = "gazelle",
+    path = "/Users/jay/Code/bazel-gazelle",
+)
+
 bazel_dep(name = "rules_go", version = "0.59.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
@@ -25,7 +32,7 @@ use_repo(
 
 # For testing compilation of the repositories at language/cc/testdata
 bazel_dep(name = "grpc", version = "1.70.1", dev_dependency = True)
-bazel_dep(name = "platforms", version = "1.0.0", dev_dependency = True)
+bazel_dep(name = "platforms", version = "1.1.0", dev_dependency = True)
 bazel_dep(name = "protobuf", version = "29.5", dev_dependency = True, repo_name = "com_google_protobuf")
 bazel_dep(name = "rules_cc", version = "0.2.17", dev_dependency = True)
 bazel_dep(name = "rules_python", version = "1.8.3", dev_dependency = True)

@@ -35,7 +35,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/ulikunitz/xz"
 

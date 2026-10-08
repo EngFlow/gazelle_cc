@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"context"
 	"errors"
 	"log"
 	"maps"
@@ -24,14 +25,13 @@ import (
 	"strings"
 
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/config"
-	"github.com/bazelbuild/bazel-gazelle/label"
-	"github.com/bazelbuild/bazel-gazelle/language"
-	"github.com/bazelbuild/bazel-gazelle/rule"
-	"github.com/bazelbuild/bazel-gazelle/walk"
+	"github.com/bazel-contrib/bazel-gazelle/v2/config"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/language"
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 )
 
-func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.GenerateResult) {
+func (c *ccLanguage) Generate(_ context.Context, args language.GenerateArgs) (result language.GenerateResult, err error) {
 	defer func() {
 		if args.File != nil || len(args.OtherGen) > 0 || len(result.Gen) > 0 {
 			c.buildFileDirRels.Add(args.Rel)
@@ -41,7 +41,7 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.
 	conf := getCcConfig(args.Config)
 
 	if shouldSkipSubdirectory(args) {
-		return language.GenerateResult{}
+		return language.GenerateResult{}, nil
 	}
 
 	fileInfos := c.collectFileInfos(args)
@@ -52,7 +52,7 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.
 
 	if !conf.generateCC {
 		// No need to generate or remove any rules
-		return result
+		return result, nil
 	}
 
 	consumedProtoFiles := generateProtoLibraryRules(args, &result)
@@ -75,7 +75,7 @@ func (c *ccLanguage) GenerateRules(args language.GenerateArgs) (result language.
 		result.Imports = nil
 	}
 
-	return result
+	return result, nil
 }
 
 // shouldSkipSubdirectory returns true if we're in
@@ -433,7 +433,7 @@ func (c *ccLanguage) collectFileInfos(args language.GenerateArgs) []fileInfo {
 			if subdirKind == noSubdir {
 				continue
 			}
-			di, err := walk.GetDirInfo(path.Join(args.Rel, subdir))
+			di, err := args.Cache.GetDirInfo(path.Join(args.Rel, subdir))
 			if err != nil {
 				log.Printf("gazelle_cc: %v", err)
 				continue

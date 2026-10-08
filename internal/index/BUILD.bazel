@@ -10,7 +10,7 @@ go_library(
     ],
     deps = [
         "//internal/collections",
-        "@gazelle//label",
+        "@gazelle//v2/label",
     ],
 )
 

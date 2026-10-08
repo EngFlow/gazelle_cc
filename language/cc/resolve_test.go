@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazelbuild/buildtools/build"
 	"github.com/stretchr/testify/assert"
 )

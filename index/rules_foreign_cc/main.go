@@ -25,7 +25,7 @@ import (
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer"
 	"github.com/EngFlow/gazelle_cc/index/internal/indexer/cli"
 	"github.com/EngFlow/gazelle_cc/internal/collections"
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
 // Creates an index defining mapping between header and the Bazel rule that defines it, based on the `rules_foreign_cc` definitions found in the project.

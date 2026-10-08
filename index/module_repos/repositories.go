@@ -23,7 +23,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
 // repositories describes the external repositories visible to the root module,
