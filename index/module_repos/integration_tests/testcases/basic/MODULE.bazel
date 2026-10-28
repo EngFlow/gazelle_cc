@@ -1,23 +1,21 @@
-bazel_dep(name = "rules_cc", version = "0.2.20")
-
+bazel_dep(name = "apple_support", version = "2.11.0")
+bazel_dep(name = "rules_cc", version = "0.2.27")
 bazel_dep(name = "fmt", version = "12.2.0")
 
 # For `cc_proto_library` in `@dep`.
 bazel_dep(name = "protobuf", version = "31.1")
 
 local_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
-local_repository(name = "dep", path = "dep")
+
+local_repository(
+    name = "dep",
+    path = "dep",
+)
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 http_archive(
     name = "fetched_fmt",
-    url = "https://github.com/fmtlib/fmt/archive/refs/tags/12.2.0.zip",
-    strip_prefix = "fmt-12.2.0",
-    integrity = "sha256-i8DfvszBupbcnA+b8LvJXzx6NTCBImGGOMV1XzieXnI=",
-    patch_cmds = [
-        "mv include/fmt include/fetched_fmt",
-        "sed -i 's,#include \"fmt/,#include \"fetched_fmt/,g' src/format.cc include/fetched_fmt/*.h",
-    ],
     build_file_content = """
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
@@ -44,4 +42,11 @@ filegroup(
     srcs = ["include/fetched_fmt/base.h"],
 )
 """,
+    integrity = "sha256-i8DfvszBupbcnA+b8LvJXzx6NTCBImGGOMV1XzieXnI=",
+    patch_cmds = [
+        "mv include/fmt include/fetched_fmt",
+        "sed -i 's,#include \"fmt/,#include \"fetched_fmt/,g' src/format.cc include/fetched_fmt/*.h",
+    ],
+    strip_prefix = "fmt-12.2.0",
+    url = "https://github.com/fmtlib/fmt/archive/refs/tags/12.2.0.zip",
 )
