@@ -45,7 +45,7 @@ filegroup(
     integrity = "sha256-i8DfvszBupbcnA+b8LvJXzx6NTCBImGGOMV1XzieXnI=",
     patch_cmds = [
         "mv include/fmt include/fetched_fmt",
-        "sed -i 's,#include \"fmt/,#include \"fetched_fmt/,g' src/format.cc include/fetched_fmt/*.h",
+        """perl -pi -e 's,#include "fmt/,#include "fetched_fmt/,g' src/format.cc include/fetched_fmt/*.h""",
     ],
     strip_prefix = "fmt-12.2.0",
     url = "https://github.com/fmtlib/fmt/archive/refs/tags/12.2.0.zip",

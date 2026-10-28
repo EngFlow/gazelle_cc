@@ -3,7 +3,7 @@
     "@rules_cc//cc/runfiles"
   ],
   "core/core.h": [
-    "@dep//:dep"
+    "@dep"
   ],
   "fetched_fmt/args.h": [
     "@fetched_fmt"
@@ -192,6 +192,9 @@
   ],
   "include/fmt/xchar.h": [
     "@fmt"
+  ],
+  "prf/bar.h": [
+    "@rules_cc//tests/builtins_bzl/cc/cc_shared_library/test2/bazel_test_includes:bar_virtual"
   ],
   "rules_cc/cc/runfiles/runfiles.h": [
     "@rules_cc//cc/runfiles"
