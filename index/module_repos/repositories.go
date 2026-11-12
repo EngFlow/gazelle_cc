@@ -26,6 +26,14 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/label"
 )
 
+// Repositories that must not be indexed with `@repo//...`. They are build-time
+// configuration only (Apple toolchain) or have no indexable cc_library targets
+// for dependents; querying them can crash Bazel.
+var excludedRepositories = map[string]struct{}{
+	"apple_support":         {},
+	"local_config_platform": {},
+}
+
 // repositories describes the external repositories visible to the root module,
 // keyed both ways so that labels reported by `bazel query` can be normalized
 // back to the apparent names that may actually be written in a BUILD file.
@@ -64,6 +72,9 @@ func resolveRepositories(workingDir string, include, exclude *regexp.Regexp) (re
 		// Skip the main repository, as that's the one that will actually use
 		// this index.
 		if apparent == "" || canonical == "" || canonical == "_main" {
+			continue
+		}
+		if _, skip := excludedRepositories[apparent]; skip {
 			continue
 		}
 		if include != nil && !include.MatchString(apparent) {
